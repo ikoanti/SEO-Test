@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const statusMsg = document.getElementById('status-msg');
     const btnText = btn.querySelector('.btn-text');
     const spinner = btn.querySelector('.spinner');
+    const AHREFS_API_KEY = "jThc6RdNpGH6p3WtbnlwXudmRuxWN8rTTwtqujsX";
 
     btn.addEventListener('click', async () => {
         const urlStr = input.value.trim();
@@ -41,26 +42,31 @@ document.addEventListener('DOMContentLoaded', () => {
             setStatus("Requesting PageSpeed scores…");
             const psPromise = runPageSpeed(url.href);
 
+            // ── Step 2.5: Website Screenshot ──
+            runScreenshotCapture(url.href);
+
+            // ── Step 2.6: Ahrefs Site Explorer ──
+            setStatus("Fetching Ahrefs metrics…");
+            const ahrefsPromise = runAhrefsCheck(url.hostname);
+
             // ── Step 3: Instant homepage checks ──
             if (homepageDoc) {
-                runImageAltCheck(homepageDoc);
-                runCanonicalCheck(homepageDoc, url.href);
                 runStructuredDataCheck(homepageDoc);
+                runIconsCheck(homepageDoc);
             } else {
-                setCardError('alt-list', "Could not fetch homepage HTML.");
-                setCardError('canonical-list', "Could not fetch homepage HTML.");
                 setCardError('schema-list', "Could not fetch homepage HTML.");
+                setCardError('icons-list', "Could not fetch homepage HTML.");
             }
 
             // ── Step 4: robots.txt → llms.txt → sitemap (sequential) ──
             setStatus("Checking robots.txt…");
-            await runRobotsTxtInspector(url.origin);
+            const robotsSitemap = await runRobotsTxtInspector(url.origin);
 
             setStatus("Checking llms.txt…");
             await runLlmsTxtInspector(url.origin);
 
             setStatus("Checking sitemap.xml…");
-            await runSitemapInspector(url.origin);
+            await runSitemapInspector(url.origin, robotsSitemap);
 
             // ── Step 5: Site-wide scan (H1 + Meta Titles across ≤50 pages) ──
             setStatus(`Scanning pages for H1 & Meta Title issues (0 of ${Math.min(internalLinks.length + 1, 50)})…`);
@@ -72,8 +78,8 @@ document.addEventListener('DOMContentLoaded', () => {
             setStatus("Checking for broken internal links…");
             await runInternalLinkCheck(internalLinks);
 
-            // ── Wait for PageSpeed ──
-            await psPromise;
+            // ── Wait for Async Tasks ──
+            await Promise.all([psPromise, ahrefsPromise]);
 
             setStatus("Audit complete!");
             showResults();
@@ -83,6 +89,7 @@ document.addEventListener('DOMContentLoaded', () => {
             stopLoading();
         }
     });
+
 
     // ═══════════════════════════════════════
     //  UI Helpers
@@ -115,16 +122,39 @@ document.addEventListener('DOMContentLoaded', () => {
             el.className = 'metric-circle';
         });
         ['h1-list', 'h1-stats', 'titles-list', 'titles-stats',
-            'alt-list', 'canonical-list', 'sitemap-list',
-            'ai-list', 'llms-list', 'schema-list', 'broken-links-list'].forEach(id => {
+            'alt-list', 'alt-stats', 'canonical-list', 'canonical-stats', 'sitemap-list',
+            'ai-list', 'llms-list', 'schema-list', 'broken-links-list',
+            'security-list', 'security-stats', 'content-list', 'content-stats', 'icons-list'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.innerHTML = '';
             });
         document.getElementById('h1-subtitle').textContent = 'Will scan up to 50 pages…';
         document.getElementById('titles-subtitle').textContent = 'Will scan up to 50 pages…';
+        document.getElementById('alt-subtitle').textContent = 'Will scan up to 50 pages…';
+        document.getElementById('canonical-subtitle').textContent = 'Will scan up to 50 pages…';
+        document.getElementById('security-subtitle').textContent = 'Will scan up to 50 pages…';
+        document.getElementById('content-subtitle').textContent = 'Will scan up to 50 pages…';
+
+
         document.getElementById('ai-subtitle').textContent = 'Checking robots.txt for AI bots';
         document.getElementById('total-links').textContent = '0';
         document.getElementById('broken-links').textContent = '0';
+
+        const sImg = document.getElementById('screenshot-img');
+        const sPlace = document.getElementById('screenshot-placeholder');
+        if (sImg) {
+            sImg.src = '';
+            sImg.classList.add('hidden');
+        }
+        if (sPlace) sPlace.classList.remove('hidden');
+
+        // Ahrefs Clear
+        ['ahrefs-dr', 'ahrefs-backlinks', 'ahrefs-ref-domains', 'ahrefs-traffic'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = '-';
+        });
+        const ahrefsList = document.getElementById('ahrefs-list');
+        if (ahrefsList) ahrefsList.innerHTML = '';
     }
 
     function setCardError(listId, msg) {
@@ -225,75 +255,124 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ═══════════════════════════════════════
-    //  2. Image Alt Tags (homepage)
+    //  0. Screenshot Capture
     // ═══════════════════════════════════════
 
-    function runImageAltCheck(doc) {
-        const list = document.getElementById('alt-list');
-        const imgs = Array.from(doc.querySelectorAll('img'));
-        if (imgs.length === 0) {
-            list.innerHTML = li('warn', 'No Images Found', 'No &lt;img&gt; elements on the homepage.');
-            return;
-        }
-        const missing = imgs.filter(img => img.getAttribute('alt') === null);
-        const empty = imgs.filter(img => img.getAttribute('alt') === '');
-        const good = imgs.length - missing.length;
-        list.innerHTML = li('ok', `${good}/${imgs.length} Images Have Alt Text`, '');
-        if (missing.length > 0) {
-            const previews = missing.slice(0, 5).map(img => {
-                const src = (img.getAttribute('src') || '(no src)').slice(0, 70);
-                return `<div class="check-detail">${src}</div>`;
-            }).join('');
-            list.innerHTML += li('err', `${missing.length} Missing Alt Attribute`, previews);
-        }
-        if (empty.length > 0) {
-            list.innerHTML += li('warn', `${empty.length} Empty Alt (decorative)`, 'alt="" is valid for decorative images.');
-        }
+    function runScreenshotCapture(targetUrl) {
+        const key = "20c343";
+        const apiUrl = `https://api.screenshotmachine.com?key=${key}&url=${encodeURIComponent(targetUrl)}&dimension=1024x768`;
+
+        const img = document.getElementById('screenshot-img');
+        const placeholder = document.getElementById('screenshot-placeholder');
+
+        if (!img || !placeholder) return;
+
+        img.src = apiUrl;
+        img.onload = () => {
+            img.classList.remove('hidden');
+            placeholder.classList.add('hidden');
+        };
+        img.onerror = () => {
+            placeholder.innerHTML = '<span>Failed to capture screenshot</span>';
+        };
     }
 
     // ═══════════════════════════════════════
-    //  3. Canonical URL (homepage)
+    //  Ahrefs Site Explorer
     // ═══════════════════════════════════════
 
-    function runCanonicalCheck(doc, pageUrl) {
-        const list = document.getElementById('canonical-list');
-        const tags = Array.from(doc.querySelectorAll('link[rel="canonical"]'));
-        if (tags.length === 0) {
-            list.innerHTML = li('err', 'No Canonical Tag', 'Missing &lt;link rel="canonical" href="…"&gt;');
-        } else if (tags.length > 1) {
-            list.innerHTML = li('warn', `Multiple Canonicals (${tags.length})`, 'Only one canonical tag should exist.');
-            tags.forEach(t => { list.innerHTML += `<li><div class="check-detail">${t.getAttribute('href')}</div></li>`; });
-        } else {
-            const href = tags[0].getAttribute('href') || '';
-            const norm = (u) => u.replace(/\/$/, '');
-            const isSelf = norm(href) === norm(pageUrl);
-            list.innerHTML = li(isSelf ? 'ok' : 'warn',
-                isSelf ? 'Self-referencing Canonical ✓' : 'Canonical Points Elsewhere',
-                href);
+    async function runAhrefsCheck(hostname) {
+        const list = document.getElementById('ahrefs-list');
+        const drEl = document.getElementById('ahrefs-dr');
+        const blEl = document.getElementById('ahrefs-backlinks');
+        const rdEl = document.getElementById('ahrefs-ref-domains');
+        const trEl = document.getElementById('ahrefs-traffic');
+
+        try {
+            const today = new Date().toISOString().split('T')[0];
+            const baseUrl = 'https://api.ahrefs.com/v3/site-explorer';
+            const headers = { 'Authorization': `Bearer ${AHREFS_API_KEY}` };
+
+            // Endpoints
+            const drUrl = `${baseUrl}/domain-rating?target=${hostname}&date=${today}&mode=subdomains`;
+            const bsUrl = `${baseUrl}/backlinks-stats?target=${hostname}&date=${today}&mode=subdomains`;
+            const mtUrl = `${baseUrl}/metrics?target=${hostname}&date=${today}&mode=subdomains&country=us`;
+
+            // Parallel fetching
+            const [drRes, bsRes, mtRes] = await Promise.all([
+                fetch(drUrl, { headers }),
+                fetch(bsUrl, { headers }),
+                fetch(mtUrl, { headers })
+            ]);
+
+            // Handle non-OK responses
+            if (!drRes.ok || !bsRes.ok || !mtRes.ok) {
+                const fail = !drRes.ok ? drRes : (!bsRes.ok ? bsRes : mtRes);
+                let errMsg = `HTTP ${fail.status}`;
+                try {
+                    const err = await fail.json();
+                    if (err.error) errMsg = err.error;
+                } catch (e) { }
+                throw new Error(errMsg);
+            }
+
+            const [drData, bsData, mtData] = await Promise.all([
+                drRes.json(),
+                bsRes.json(),
+                mtRes.json()
+            ]);
+
+            // Update UI Counters
+            if (drEl) drEl.textContent = drData.domain_rating?.domain_rating ?? '0';
+            if (blEl) blEl.textContent = (bsData.metrics?.live ?? 0).toLocaleString();
+            if (rdEl) rdEl.textContent = (bsData.metrics?.live_refdomains ?? 0).toLocaleString();
+            if (trEl) trEl.textContent = (mtData.metrics?.org_traffic ?? 0).toLocaleString();
+
+            list.innerHTML = li('ok', 'Ahrefs Data Synced', `Metrics for ${hostname} aggregated from v3 endpoints.`);
+        } catch (e) {
+            console.error("Ahrefs Error:", e);
+            list.innerHTML = li('err', 'Ahrefs Sync Failed', e.message);
+            [drEl, blEl, rdEl, trEl].forEach(el => { if (el) el.textContent = 'Err'; });
         }
     }
+
 
     // ═══════════════════════════════════════
     //  5. Sitemap.xml
     // ═══════════════════════════════════════
 
-    async function runSitemapInspector(origin) {
+    async function runSitemapInspector(origin, robotsSitemap) {
         const list = document.getElementById('sitemap-list');
+        list.innerHTML = '';
+
+        if (robotsSitemap) {
+            list.innerHTML += li('ok', 'Found in robots.txt', `<a href="${robotsSitemap}" target="_blank" class="check-link">${robotsSitemap}</a>`);
+        }
+
         const paths = ['/sitemap.xml', '/sitemap_index.xml', '/sitemap.xml.gz'];
+        let foundAny = !!robotsSitemap;
+
         for (const path of paths) {
+            const fullPath = `${origin}${path}`;
+            if (robotsSitemap === fullPath) continue; // Skip if already found via robots.txt
+
             try {
-                const txt = await fetchViaProxy(`${origin}${path}`);
+                const txt = await fetchViaProxy(fullPath);
                 if (txt && (txt.includes('<urlset') || txt.includes('<sitemapindex'))) {
                     const urls = (txt.match(/<url>/g) || []).length;
                     const maps = (txt.match(/<sitemap>/g) || []).length;
-                    list.innerHTML = li('ok', `Found at ${path}`,
+                    list.innerHTML += li('ok', `Found at ${path}`,
                         maps > 0 ? `Sitemap index with ${maps} child sitemaps.` : `${urls} URL entries.`);
-                    return;
+                    foundAny = true;
                 }
             } catch (e) { }
         }
-        list.innerHTML = li('err', 'No Sitemap Found', `Checked: ${paths.join(', ')}`);
+
+        if (!foundAny) {
+            list.innerHTML = li('err', 'No Sitemap Found', `Checked robots.txt and common paths: ${paths.join(', ')}`);
+        }
     }
+
 
     // ═══════════════════════════════════════
     //  8. Structured Data / JSON-LD (homepage)
@@ -317,15 +396,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             // Handle @type as string or array
-            const t = obj['@type'];
-            if (Array.isArray(t)) {
-                t.forEach(v => { if (v) allTypes.push(v); });
-            } else if (t) {
-                allTypes.push(t);
-            } else {
+            let types = obj['@type'];
+            if (!types) {
                 allTypes.push('Unknown');
+                return;
             }
+            if (!Array.isArray(types)) types = [types];
+
+            types.forEach(t => {
+                if (t && t !== 'SiteNavigationElement' && t !== 'BreadcrumbList') {
+                    allTypes.push(t);
+                }
+            });
         }
+
 
         scripts.forEach(s => {
             try {
@@ -353,7 +437,33 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ═══════════════════════════════════════
+    //  4. Web Icons Check
+    // ═══════════════════════════════════════
+
+    function runIconsCheck(doc) {
+        const list = document.getElementById('icons-list');
+        list.innerHTML = '';
+
+        // 1. Favicon
+        const favicon = doc.querySelector('link[rel*="icon"]');
+        if (favicon) {
+            list.innerHTML += li('ok', 'Favicon Found', favicon.getAttribute('href'));
+        } else {
+            list.innerHTML += li('err', 'Missing Favicon', 'No &lt;link rel="icon"&gt; found.');
+        }
+
+        // 2. Apple Touch Icon
+        const appleIcon = doc.querySelector('link[rel="apple-touch-icon"]');
+        if (appleIcon) {
+            list.innerHTML += li('ok', 'Apple Touch Icon Found', appleIcon.getAttribute('href'));
+        } else {
+            list.innerHTML += li('warn', 'Missing Apple Touch Icon', 'Recommended for mobile book-marking.');
+        }
+    }
+
+    // ═══════════════════════════════════════
     //  Site-wide Scan: H1 + Meta Titles (≤50 pages)
+
     // ═══════════════════════════════════════
 
     async function runSitewideScan(homeUrl, links, onProgress) {
@@ -367,7 +477,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const h1R = { ok: 0, missing: 0, multiple: 0, issues: [] };
         const titR = { ok: 0, missing: 0, long: 0, short: 0, issues: [] };
+        const altR = { ok: 0, missing: 0, issues: [] };
+        const canR = { ok: 0, missing: 0, multiple: 0, issues: [] };
+        const secR = { ok: 0, missing: 0, issues: [] };
+        const cntR = { ok: 0, missing: 0, issues: [] };
         let done = 0;
+
 
         // Concurrency pool of 5
         for (let i = 0; i < pool.length; i += 5) {
@@ -377,7 +492,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const html = await fetchViaProxy(pageUrl);
                     const doc = new DOMParser().parseFromString(html, 'text/html');
 
-                    // H1
+                    // 1. H1
                     const h1s = Array.from(doc.querySelectorAll('h1'))
                         .map(el => el.textContent.trim()).filter(Boolean);
                     if (h1s.length === 0) {
@@ -390,7 +505,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         h1R.ok++;
                     }
 
-                    // Meta Title
+                    // 2. Meta Title
                     const titles = Array.from(doc.querySelectorAll('title'))
                         .map(el => el.textContent.trim()).filter(Boolean);
                     if (titles.length === 0) {
@@ -402,6 +517,49 @@ document.addEventListener('DOMContentLoaded', () => {
                         else if (len < 30) { titR.short++; titR.issues.push({ url: pageUrl, icon: 'warn', label: `Too Short (${len} chars)`, detail: titles[0] }); }
                         else { titR.ok++; }
                     }
+
+                    // 3. HTTPS Check
+                    if (pageUrl.startsWith('https://')) {
+                        secR.ok++;
+                    } else {
+                        secR.missing++;
+                        secR.issues.push({ url: pageUrl, icon: 'err', label: 'Insecure (HTTP)' });
+                    }
+
+                    // 4. Word Count (Thin Content)
+                    const text = doc.body ? doc.body.innerText : '';
+                    const words = text.trim().split(/\s+/).filter(w => w.length > 0).length;
+                    if (words < 300) {
+                        cntR.missing++;
+                        cntR.issues.push({ url: pageUrl, icon: 'warn', label: `Thin Content (${words} words)` });
+                    } else {
+                        cntR.ok++;
+                    }
+
+                    // 5. Image Alt Tags
+                    const imgs = Array.from(doc.querySelectorAll('img'));
+                    if (imgs.length > 0) {
+                        const missing = imgs.filter(img => img.getAttribute('alt') === null || img.getAttribute('alt') === '').length;
+                        if (missing > 0) {
+                            altR.missing += missing;
+                            altR.issues.push({ url: pageUrl, icon: 'err', label: `${missing} Missing/Empty Alt Tags` });
+                        }
+                        altR.ok += (imgs.length - missing);
+                    }
+
+                    // 6. Canonical URL
+                    const caps = Array.from(doc.querySelectorAll('link[rel="canonical"]'));
+                    if (caps.length === 0) {
+                        canR.missing++;
+                        canR.issues.push({ url: pageUrl, icon: 'err', label: 'Missing Canonical Tag' });
+                    } else if (caps.length > 1) {
+                        canR.multiple++;
+                        canR.issues.push({ url: pageUrl, icon: 'warn', label: `Multiple Canonicals (${caps.length})` });
+                    } else {
+                        canR.ok++;
+                    }
+
+
                 } catch (e) { /* skip unreachable page */ }
                 done++;
                 onProgress(done, total);
@@ -410,34 +568,58 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // ── Render H1 results ──
-        const h1Total = h1R.ok + h1R.missing + h1R.multiple;
-        document.getElementById('h1-subtitle').textContent = `Scanned ${h1Total} page${h1Total !== 1 ? 's' : ''}`;
-        document.getElementById('h1-stats').innerHTML = statPills(h1R.ok, h1R.multiple, h1R.missing);
-        const h1List = document.getElementById('h1-list');
-        h1List.innerHTML = h1R.issues.length === 0
-            ? li('ok', 'All pages have a single H1', '')
-            : h1R.issues.map(r => li(r.icon, r.label, linkTag(r.url))).join('');
-
+        renderScanResults('h1', h1R, 'All pages have a single H1');
         // ── Render Meta Title results ──
-        const tTotal = titR.ok + titR.missing + titR.long + titR.short;
-        document.getElementById('titles-subtitle').textContent = `Scanned ${tTotal} page${tTotal !== 1 ? 's' : ''}`;
-        document.getElementById('titles-stats').innerHTML = statPills(titR.ok, titR.long + titR.short, titR.missing);
-        const tList = document.getElementById('titles-list');
-        tList.innerHTML = titR.issues.length === 0
-            ? li('ok', 'All titles look good', '')
-            : titR.issues.map(r => li(r.icon, r.label,
-                (r.detail ? `"${r.detail.slice(0, 50)}…" — ` : '') + linkTag(r.url)
-            )).join('');
+        renderScanResults('titles', titR, 'All titles look good');
+        // ── Render Image Alt results ──
+        renderScanResults('alt', altR, 'All images have alt text');
+        // ── Render Canonical results ──
+        renderScanResults('canonical', canR, 'All pages have valid canonicals');
+        // ── Render Security results ──
+        renderScanResults('security', secR, 'All pages are secure (HTTPS)');
+        // ── Render Content results ──
+        renderScanResults('content', cntR, 'All pages have sufficient content');
     }
 
+
+    function renderScanResults(prefix, data, okMsg) {
+        let total = (data.ok || 0) + (data.missing || 0) + (data.multiple || 0) + (data.long || 0) + (data.short || 0);
+        const sub = document.getElementById(`${prefix}-subtitle`);
+
+        if (prefix === 'alt') {
+            // For alt tags, total is total images found across all pages
+            if (sub) sub.textContent = `Scanned images across 50 pages`;
+        } else if (sub) {
+            sub.textContent = `Scanned ${total} page${total !== 1 ? 's' : ''}`;
+        }
+
+        const stats = document.getElementById(`${prefix}-stats`);
+        if (stats) {
+            const warn = (data.multiple || 0) + (data.long || 0) + (data.short || 0) + (prefix === 'content' ? data.missing : 0);
+            const err = (prefix === 'content' ? 0 : data.missing) || 0;
+            stats.innerHTML = statPills(data.ok, warn, err);
+        }
+
+        const list = document.getElementById(`${prefix}-list`);
+        if (list) {
+            list.innerHTML = data.issues.length === 0
+                ? li('ok', okMsg, '')
+                : data.issues.map(r => li(r.icon, r.label,
+                    (r.detail ? `"${r.detail.slice(0, 50)}…" — ` : '') + linkTag(r.url)
+                )).join('');
+        }
+    }
+
+
+
     // ═══════════════════════════════════════
-    //  Internal Link Checker (sample 10)
+    //  Internal Link Checker (sample 50)
     // ═══════════════════════════════════════
 
     async function runInternalLinkCheck(links) {
         const blList = document.getElementById('broken-links-list');
         document.getElementById('total-links').textContent = links.length;
-        const sample = links.slice(0, 10);
+        const sample = links.slice(0, 50);
         blList.innerHTML = '<li><div class="check-detail">Checking…</div></li>';
         let broken = 0;
         for (const url of sample) {
@@ -458,7 +640,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ═══════════════════════════════════════
-    //  AI Bot Whitelist (robots.txt)
+    //  AI Bot Whitelist (robots.txt) from my github
     // ═══════════════════════════════════════
 
     async function runRobotsTxtInspector(origin) {
@@ -488,15 +670,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 else if (found) { html += li('err', bot, 'Explicitly blocked.'); }
                 else { html += li('warn', bot, 'Not explicitly mentioned.'); }
             });
+
+            // Check for Sitemap link (now separate)
+            const sitemapMatch = txt.match(/^sitemap:\s*(.+)$/im);
+            const robotsSitemap = sitemapMatch ? sitemapMatch[1].trim() : null;
+
             list.innerHTML = html;
-            document.getElementById('ai-subtitle').textContent = `Found ${allowed}/${bots.length} explicitly allowed.`;
+            document.getElementById('ai-subtitle').textContent = `Found ${allowed}/${bots.length} allowed.`;
+
+            return robotsSitemap;
         } catch (e) {
             list.innerHTML = li('err', 'robots.txt not found or unavailable.', '');
+            return null;
         }
     }
 
+
     // ═══════════════════════════════════════
-    //  LLMs.txt Inspector
+    //  LLMs.txt Inspector from my github
     // ═══════════════════════════════════════
 
     async function runLlmsTxtInspector(origin) {
@@ -517,7 +708,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ═══════════════════════════════════════
-    //  Shared UI Utilities
+    //  Web icons
     // ═══════════════════════════════════════
 
     function li(icon, title, detail) {
