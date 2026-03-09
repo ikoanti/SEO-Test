@@ -12,7 +12,7 @@ app.use(cors());
 app.use(express.json());
 
 // Ahrefs API Configuration
-const AHREFS_API_KEY = process.env.AHREFS_API_KEY || "jThc6RdNpGH6p3WtbnlwXudmRuxWN8rTTwtqujsX";
+const AHREFS_API_KEY = process.env.AHREFS_API_KEY;
 
 // ── Ahrefs Proxy Endpoint ──
 app.get('/api/ahrefs', async (req, res) => {
