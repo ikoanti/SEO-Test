@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const statusMsg = document.getElementById('status-msg');
     const btnText = btn.querySelector('.btn-text');
     const spinner = btn.querySelector('.spinner');
-    const AHREFS_API_KEY = "jThc6RdNpGH6p3WtbnlwXudmRuxWN8rTTwtqujsX";
+    // AHREFS_API_KEY is now handled server-side in server.js for security and CORS compliance.
 
     btn.addEventListener('click', async () => {
         const urlStr = input.value.trim();
@@ -175,30 +175,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function fetchViaProxy(url) {
         const enc = encodeURIComponent(url);
-
-        // Proxy 1 – corsproxy.io
         try {
-            const res = await withTimeout(fetch(`https://corsproxy.io/?${enc}`), 8000);
-            if (res.ok) { const t = await res.text(); if (t) return t; }
-        } catch (e) { console.warn("corsproxy:", e.message); }
-
-        // Proxy 2 – allorigins
-        try {
-            const res = await withTimeout(fetch(`https://api.allorigins.win/get?url=${enc}`), 8000);
-            if (res.ok) {
-                const d = await res.json();
-                if (d.status?.http_code >= 400) throw new Error(`HTTP ${d.status.http_code}`);
-                if (d.contents) return d.contents;
-            }
-        } catch (e) { console.warn("allorigins:", e.message); }
-
-        // Proxy 3 – codetabs
-        try {
-            const res = await withTimeout(fetch(`https://api.codetabs.com/v1/proxy?quest=${enc}`), 8000);
-            if (res.ok) { const t = await res.text(); if (t) return t; }
-        } catch (e) { console.warn("codetabs:", e.message); }
-
-        throw new Error("All proxies failed for: " + url);
+            const res = await withTimeout(fetch(`/api/proxy?url=${enc}`), 10000);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return await res.text();
+        } catch (e) {
+            console.error("Proxy Error:", e.message);
+            throw e;
+        }
     }
 
     // ═══════════════════════════════════════
@@ -290,37 +274,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const today = new Date().toISOString().split('T')[0];
-            const baseUrl = 'https://api.ahrefs.com/v3/site-explorer';
-            const headers = { 'Authorization': `Bearer ${AHREFS_API_KEY}` };
+            const url = `/api/ahrefs?target=${hostname}&date=${today}&mode=subdomains&country=us`;
 
-            // Endpoints
-            const drUrl = `${baseUrl}/domain-rating?target=${hostname}&date=${today}&mode=subdomains`;
-            const bsUrl = `${baseUrl}/backlinks-stats?target=${hostname}&date=${today}&mode=subdomains`;
-            const mtUrl = `${baseUrl}/metrics?target=${hostname}&date=${today}&mode=subdomains&country=us`;
-
-            // Parallel fetching
-            const [drRes, bsRes, mtRes] = await Promise.all([
-                fetch(drUrl, { headers }),
-                fetch(bsUrl, { headers }),
-                fetch(mtUrl, { headers })
-            ]);
-
-            // Handle non-OK responses
-            if (!drRes.ok || !bsRes.ok || !mtRes.ok) {
-                const fail = !drRes.ok ? drRes : (!bsRes.ok ? bsRes : mtRes);
-                let errMsg = `HTTP ${fail.status}`;
+            const response = await fetch(url);
+            if (!response.ok) {
+                let errMsg = `HTTP ${response.status}`;
                 try {
-                    const err = await fail.json();
+                    const err = await response.json();
                     if (err.error) errMsg = err.error;
                 } catch (e) { }
                 throw new Error(errMsg);
             }
 
-            const [drData, bsData, mtData] = await Promise.all([
-                drRes.json(),
-                bsRes.json(),
-                mtRes.json()
-            ]);
+            const data = await response.json();
+            const drData = data.domain_rating || {};
+            const bsData = data.backlinks_stats || {};
+            const mtData = data.metrics || {};
 
             // Update UI Counters
             if (drEl) drEl.textContent = drData.domain_rating?.domain_rating ?? '0';
@@ -328,7 +297,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (rdEl) rdEl.textContent = (bsData.metrics?.live_refdomains ?? 0).toLocaleString();
             if (trEl) trEl.textContent = (mtData.metrics?.org_traffic ?? 0).toLocaleString();
 
-            list.innerHTML = li('ok', 'Ahrefs Data Synced', `Metrics for ${hostname} aggregated from v3 endpoints.`);
+            list.innerHTML = li('ok', 'Ahrefs Data Synced', `Metrics for ${hostname} fetched via server proxy.`);
         } catch (e) {
             console.error("Ahrefs Error:", e);
             list.innerHTML = li('err', 'Ahrefs Sync Failed', e.message);
