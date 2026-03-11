@@ -276,34 +276,40 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const today = new Date().toISOString().split('T')[0];
-            const url = `/api/ahrefs?target=${hostname}&date=${today}&mode=subdomains&country=us`;
+            const response = await fetch(
+                `/api/ahrefs?target=${encodeURIComponent(hostname)}&date=${today}&mode=subdomains&country=us`
+            );
 
-            const response = await fetch(url);
             if (!response.ok) {
                 let errMsg = `HTTP ${response.status}`;
                 try {
                     const err = await response.json();
                     if (err.error) errMsg = err.error;
-                } catch (e) { }
+                } catch { }
                 throw new Error(errMsg);
             }
 
             const data = await response.json();
-            const drData = data.domain_rating || {};
-            const bsData = data.backlinks_stats || {};
-            const mtData = data.metrics || {};
 
-            // Update UI Counters
-            if (drEl) drEl.textContent = drData.domain_rating?.domain_rating ?? '0';
-            if (blEl) blEl.textContent = (bsData.metrics?.live ?? 0).toLocaleString();
-            if (rdEl) rdEl.textContent = (bsData.metrics?.live_refdomains ?? 0).toLocaleString();
-            if (trEl) trEl.textContent = (mtData.metrics?.org_traffic ?? 0).toLocaleString();
+            const dr = data.domain_rating?.domain_rating?.domain_rating ?? 0;
+            const backlinks = data.backlinks_stats?.live ?? 0;
+            const refDomains = data.backlinks_stats?.live_refdomains ?? 0;
+            const traffic = data.metrics?.metrics?.org_traffic ?? 0;
 
-            list.innerHTML = li('ok', 'Ahrefs Data Synced', `Metrics for ${hostname} fetched via server proxy.`);
+            if (drEl) drEl.textContent = dr;
+            if (blEl) blEl.textContent = backlinks.toLocaleString();
+            if (rdEl) rdEl.textContent = refDomains.toLocaleString();
+            if (trEl) trEl.textContent = traffic.toLocaleString();
+
+            if (list) {
+                list.innerHTML = li('ok', 'Ahrefs Data Synced', `Metrics for ${hostname} fetched via server proxy.`);
+            }
         } catch (e) {
-            console.error("Ahrefs Error:", e);
-            list.innerHTML = li('err', 'Ahrefs Sync Failed', e.message);
-            [drEl, blEl, rdEl, trEl].forEach(el => { if (el) el.textContent = 'Err'; });
+            console.error('Ahrefs Error:', e);
+            if (list) list.innerHTML = li('err', 'Ahrefs Sync Failed', e.message);
+            [drEl, blEl, rdEl, trEl].forEach(el => {
+                if (el) el.textContent = 'Err';
+            });
         }
     }
 
