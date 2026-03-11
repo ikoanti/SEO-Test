@@ -12,6 +12,36 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
+// Open Page Rank API Configuration
+const OPEN_PAGE_RANK_API_KEY = process.env.OPEN_PAGE_RANK_API_KEY;
+
+if (!OPEN_PAGE_RANK_API_KEY) {
+    console.warn('OPEN_PAGE_RANK_API_KEY is missing');
+}
+
+// ── Open Page Rank Proxy Endpoint ──
+app.get('/api/opr', async (req, res) => {
+    const { domain } = req.query;
+
+    if (!OPEN_PAGE_RANK_API_KEY) {
+        return res.status(500).json({ error: 'OPEN_PAGE_RANK_API_KEY is not configured on the server' });
+    }
+
+    if (!domain) return res.status(400).json({ error: "Target domain is required" });
+
+    try {
+        const response = await axios.get('https://openpagerank.com/api/v1.0/getPageRank', {
+            params: { 'domains[]': domain },
+            headers: { 'API-OPR': OPEN_PAGE_RANK_API_KEY }
+        });
+
+        res.json(response.data);
+    } catch (error) {
+        console.error("Open Page Rank Proxy Error:", error.response?.data || error.message);
+        res.status(error.response?.status || 500).json(error.response?.data || { error: error.message });
+    }
+});
+
 
 // ── Generic Site Proxy Endpoint ──
 // Used for fetching homepage HTML, robots.txt, sitemaps, etc.
