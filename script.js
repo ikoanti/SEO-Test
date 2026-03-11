@@ -6,7 +6,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const statusMsg = document.getElementById('status-msg');
     const btnText = btn.querySelector('.btn-text');
     const spinner = btn.querySelector('.spinner');
-    // AHREFS_API_KEY is now handled server-side in server.js for security and CORS compliance.
 
     btn.addEventListener('click', async () => {
         const urlStr = input.value.trim();
@@ -45,10 +44,6 @@ document.addEventListener('DOMContentLoaded', () => {
             // ── Step 2.5: Website Screenshot ──
             runScreenshotCapture(url.href);
 
-            // ── Step 2.6: Ahrefs Site Explorer ──
-            setStatus("Fetching Ahrefs metrics…");
-            const ahrefsPromise = runAhrefsCheck(url.hostname);
-
             // ── Step 3: Instant homepage checks ──
             if (homepageDoc) {
                 runStructuredDataCheck(homepageDoc);
@@ -79,7 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
             await runInternalLinkCheck(internalLinks);
 
             // ── Wait for Async Tasks ──
-            await Promise.all([psPromise, ahrefsPromise]);
+            await Promise.all([psPromise]);
 
             setStatus("Audit complete!");
             showResults();
@@ -147,15 +142,6 @@ document.addEventListener('DOMContentLoaded', () => {
             sImg.classList.add('hidden');
         }
         if (sPlace) sPlace.classList.remove('hidden');
-
-        // Ahrefs Clear
-        ['ahrefs-dr', 'ahrefs-backlinks', 'ahrefs-ref-domains', 'ahrefs-traffic'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.textContent = '-';
-        });
-        const ahrefsList = document.getElementById('ahrefs-list');
-        if (ahrefsList) ahrefsList.innerHTML = '';
-
 
     }
 
@@ -263,55 +249,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    // ═══════════════════════════════════════
-    //  Ahrefs Site Explorer
-    // ═══════════════════════════════════════
 
-    async function runAhrefsCheck(hostname) {
-        const list = document.getElementById('ahrefs-list');
-        const drEl = document.getElementById('ahrefs-dr');
-        const blEl = document.getElementById('ahrefs-backlinks');
-        const rdEl = document.getElementById('ahrefs-ref-domains');
-        const trEl = document.getElementById('ahrefs-traffic');
-
-        try {
-            const today = new Date().toISOString().split('T')[0];
-            const response = await fetch(
-                `/api/ahrefs?target=${encodeURIComponent(hostname)}&date=${today}&mode=subdomains&country=us`
-            );
-
-            if (!response.ok) {
-                let errMsg = `HTTP ${response.status}`;
-                try {
-                    const err = await response.json();
-                    if (err.error) errMsg = err.error;
-                } catch { }
-                throw new Error(errMsg);
-            }
-
-            const data = await response.json();
-
-            const dr = data.domain_rating?.domain_rating?.domain_rating ?? 0;
-            const backlinks = data.backlinks_stats?.live ?? 0;
-            const refDomains = data.backlinks_stats?.live_refdomains ?? 0;
-            const traffic = data.metrics?.metrics?.org_traffic ?? 0;
-
-            if (drEl) drEl.textContent = dr;
-            if (blEl) blEl.textContent = backlinks.toLocaleString();
-            if (rdEl) rdEl.textContent = refDomains.toLocaleString();
-            if (trEl) trEl.textContent = traffic.toLocaleString();
-
-            if (list) {
-                list.innerHTML = li('ok', 'Ahrefs Data Synced', `Metrics for ${hostname} fetched via server proxy.`);
-            }
-        } catch (e) {
-            console.error('Ahrefs Error:', e);
-            if (list) list.innerHTML = li('err', 'Ahrefs Sync Failed', e.message);
-            [drEl, blEl, rdEl, trEl].forEach(el => {
-                if (el) el.textContent = 'Err';
-            });
-        }
-    }
 
 
     // ═══════════════════════════════════════
