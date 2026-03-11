@@ -44,6 +44,10 @@ document.addEventListener('DOMContentLoaded', () => {
             // ── Step 2.5: Website Screenshot ──
             runScreenshotCapture(url.href);
 
+            // ── Step 2.6: Open Page Rank ──
+            setStatus("Fetching Open Page Rank metrics…");
+            const oprPromise = runOpenPageRankCheck(url.hostname);
+
             // ── Step 3: Instant homepage checks ──
             if (homepageDoc) {
                 runStructuredDataCheck(homepageDoc);
@@ -74,7 +78,7 @@ document.addEventListener('DOMContentLoaded', () => {
             await runInternalLinkCheck(internalLinks);
 
             // ── Wait for Async Tasks ──
-            await Promise.all([psPromise]);
+            await Promise.all([psPromise, oprPromise]);
 
             setStatus("Audit complete!");
             showResults();
@@ -143,6 +147,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (sPlace) sPlace.classList.remove('hidden');
 
+        // Open Page Rank Clear
+        ['opr-page-rank', 'opr-global-rank'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = '-';
+        });
+        const oprList = document.getElementById('opr-list');
+        if (oprList) oprList.innerHTML = '';
     }
 
     function setCardError(listId, msg) {
@@ -249,7 +260,49 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
+    // ═══════════════════════════════════════
+    //  Open Page Rank
+    // ═══════════════════════════════════════
 
+    async function runOpenPageRankCheck(hostname) {
+        const list = document.getElementById('opr-list');
+        const prEl = document.getElementById('opr-page-rank');
+        const rankEl = document.getElementById('opr-global-rank');
+
+        try {
+            const response = await fetch(`/api/opr?domain=${encodeURIComponent(hostname)}`);
+
+            if (!response.ok) {
+                let errMsg = `HTTP ${response.status}`;
+                try {
+                    const err = await response.json();
+                    if (err.error) errMsg = err.error;
+                } catch { }
+                throw new Error(errMsg);
+            }
+
+            const data = await response.json();
+            
+            // OPR API returns data in response[0]
+            const resultData = data.response && data.response[0] ? data.response[0] : {};
+
+            const pageRank = resultData.page_rank_decimal ?? 0;
+            const globalRank = resultData.rank ?? 0;
+
+            if (prEl) prEl.textContent = Number(pageRank).toFixed(2);
+            if (rankEl) rankEl.textContent = globalRank > 0 ? Number(globalRank).toLocaleString() : 'N/A';
+
+            if (list) {
+                list.innerHTML = li('ok', 'Open Page Rank Synced', `Metrics for ${hostname} fetched.`);
+            }
+        } catch (e) {
+            console.error('Open Page Rank Error:', e);
+            if (list) list.innerHTML = li('err', 'API Sync Failed', e.message);
+            [prEl, rankEl].forEach(el => {
+                if (el) el.textContent = 'Err';
+            });
+        }
+    }
 
 
     // ═══════════════════════════════════════
