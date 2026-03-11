@@ -12,43 +12,6 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Ahrefs API Configuration
-const AHREFS_API_KEY = process.env.AHREFS_API_KEY;
-
-if (!AHREFS_API_KEY) {
-    console.warn('AHREFS_API_KEY is missing');
-}
-
-// ── Ahrefs Proxy Endpoint ──
-app.get('/api/ahrefs', async (req, res) => {
-    const { target, date, mode, country } = req.query;
-
-    if (!AHREFS_API_KEY) {
-        return res.status(500).json({ error: 'AHREFS_API_KEY is not configured on the server' });
-    }
-
-    if (!target) return res.status(400).json({ error: "Target domain is required" });
-
-    const baseUrl = 'https://api.ahrefs.com/v3/site-explorer';
-    const headers = { 'Authorization': `Bearer ${AHREFS_API_KEY}` };
-
-    try {
-        const [drRes, bsRes, mtRes] = await Promise.all([
-            axios.get(`${baseUrl}/domain-rating`, { params: { target, date, mode }, headers }),
-            axios.get(`${baseUrl}/backlinks-stats`, { params: { target, date, mode }, headers }),
-            axios.get(`${baseUrl}/metrics`, { params: { target, date, mode, country }, headers })
-        ]);
-
-        res.json({
-            domain_rating: drRes.data,
-            backlinks_stats: bsRes.data,
-            metrics: mtRes.data
-        });
-    } catch (error) {
-        console.error("Ahrefs Proxy Error:", error.response?.data || error.message);
-        res.status(error.response?.status || 500).json(error.response?.data || { error: error.message });
-    }
-});
 
 // ── Generic Site Proxy Endpoint ──
 // Used for fetching homepage HTML, robots.txt, sitemaps, etc.
