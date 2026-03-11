@@ -1,46 +1,167 @@
-const express = require('express');
-const axios = require('axios');
-const cors = require('cors');
-const path = require('path');
-require('dotenv').config();
+<!DOCTYPE html>
+<html lang="en">
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SEO Mini Audit Tool</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="logo-container">
+        <img src="logo.png" alt="GoldenWeb Logo">
+    </div>
+    <div class="app-container">
+        <header>
+            <h1>SEO Mini Mini Tool</h1>
+            <p>Comprehensive website auditing right in your browser</p>
+        </header>
+
+        <main>
+            <div class="search-box">
+                <input type="url" id="url-input" placeholder="https://example.com" required>
+                <button id="audit-btn">
+                    <span class="btn-text">Audit Now</span>
+                    <div class="spinner hidden"></div>
+                </button>
+            </div>
+
+            <div id="error-message" class="error-msg hidden"></div>
+            <div id="status-msg" class="status-msg hidden"></div>
+
+            <div id="results-container" class="results-grid hidden">
 
 
-// Middleware
-app.use(cors());
-app.use(express.json());
+                <!-- 0. Website Screenshot -->
+                <div class="card" id="card-screenshot">
+                    <h3>Website Screenshot</h3>
+                    <div class="screenshot-container">
+                        <img id="screenshot-img" src="" alt="Website Screenshot" class="hidden">
+                        <div id="screenshot-placeholder" class="screenshot-placeholder">
+                            <div class="pulse-loader"></div>
+                            <span>Capturing screenshot...</span>
+                        </div>
+                    </div>
+                </div>
 
 
-// ── Generic Site Proxy Endpoint ──
-// Used for fetching homepage HTML, robots.txt, sitemaps, etc.
-app.get('/api/proxy', async (req, res) => {
-    const { url } = req.query;
-    if (!url) return res.status(400).json({ error: "URL is required" });
 
-    try {
-        const response = await axios.get(url, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-            },
-            timeout: 10000
-        });
-        res.send(response.data);
-    } catch (error) {
-        console.error("General Proxy Error:", error.message);
-        res.status(error.response?.status || 500).json({ error: error.message });
-    }
-});
+                <!-- 1. PageSpeed (Mobile + Desktop) -->
+                <div class="card" id="card-speed">
+                    <h3>PageSpeed Insights</h3>
+                    <div class="speed-container">
+                        <div class="speed-item">
+                            <div class="metric-circle" id="speed-mobile">--</div>
+                            <span class="speed-label">Mobile</span>
+                        </div>
+                        <div class="speed-divider"></div>
+                        <div class="speed-item">
+                            <div class="metric-circle" id="speed-desktop">--</div>
+                            <span class="speed-label">Desktop</span>
+                        </div>
+                    </div>
+                </div>
 
-// Serve frontend static files
-app.use(express.static(path.join(__dirname)));
+                <!-- 2. H1 Elements (50 pages) -->
+                <div class="card" id="card-h1">
+                    <h3>H1 Elements</h3>
+                    <p class="subtitle" id="h1-subtitle">Will scan up to 50 pages…</p>
+                    <div class="scan-stats" id="h1-stats"></div>
+                    <ul class="check-list mini-list" id="h1-list"></ul>
+                </div>
 
-// Fallback to index.html for SPA behavior if needed (optional)
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
-});
+                <!-- 3. Meta Titles (50 pages) -->
+                <div class="card" id="card-titles">
+                    <h3>Meta Titles</h3>
+                    <p class="subtitle" id="titles-subtitle">Will scan up to 50 pages…</p>
+                    <div class="scan-stats" id="titles-stats"></div>
+                    <ul class="check-list mini-list" id="titles-list"></ul>
+                </div>
 
-app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-});
+                <!-- 4. Internal Links -->
+                <div class="card" id="card-links">
+                    <h3>Internal Links</h3>
+                    <div class="links-summary">
+                        <div class="stat"><span id="total-links">0</span> Total</div>
+                        <div class="stat"><span id="broken-links" class="error">0</span> Broken</div>
+                    </div>
+                    <ul class="check-list mini-list" id="broken-links-list"></ul>
+                </div>
+
+                <!-- 5. Image Alt Tags -->
+                <div class="card" id="card-alt">
+                    <h3>Image Alt Tags</h3>
+                    <p class="subtitle" id="alt-subtitle">Will scan up to 50 pages…</p>
+                    <div class="scan-stats" id="alt-stats"></div>
+                    <ul class="check-list mini-list" id="alt-list"></ul>
+                </div>
+
+
+                <!-- 6. Canonical URL -->
+                <div class="card" id="card-canonical">
+                    <h3>Canonical URL</h3>
+                    <p class="subtitle" id="canonical-subtitle">Will scan up to 50 pages…</p>
+                    <div class="scan-stats" id="canonical-stats"></div>
+                    <ul class="check-list mini-list" id="canonical-list"></ul>
+                </div>
+
+
+                <!-- 7. Sitemap.xml -->
+                <div class="card" id="card-sitemap">
+                    <h3>Sitemap.xml</h3>
+                    <ul class="check-list" id="sitemap-list"></ul>
+                </div>
+
+                <!-- 8. AI Bot Whitelist -->
+                <div class="card" id="card-ai">
+                    <h3>AI Bot Whitelist</h3>
+                    <p class="subtitle" id="ai-subtitle">Checking robots.txt for AI bots</p>
+                    <ul class="check-list" id="ai-list"></ul>
+                </div>
+
+                <!-- 9. LLMs.txt Inspector -->
+                <div class="card" id="card-llms">
+                    <h3>LLMs.txt Inspector</h3>
+                    <ul class="check-list" id="llms-list"></ul>
+                </div>
+
+                <!-- 10. Structured Data -->
+                <div class="card" id="card-schema">
+                    <h3>Structured Data</h3>
+                    <ul class="check-list" id="schema-list"></ul>
+                </div>
+
+                <!-- 11. Security (HTTPS) -->
+                <div class="card" id="card-security">
+                    <h3>Security (HTTPS)</h3>
+                    <p class="subtitle" id="security-subtitle">Will scan up to 50 pages…</p>
+                    <div class="scan-stats" id="security-stats"></div>
+                    <ul class="check-list mini-list" id="security-list"></ul>
+                </div>
+
+                <!-- 12. Content Quality (Word Count) -->
+                <div class="card" id="card-content">
+                    <h3>Content Quality</h3>
+                    <p class="subtitle" id="content-subtitle">Will scan up to 50 pages…</p>
+                    <div class="scan-stats" id="content-stats"></div>
+                    <ul class="check-list mini-list" id="content-list"></ul>
+                </div>
+
+                <!-- 13. Web Icons -->
+                <div class="card" id="card-icons">
+                    <h3>Web Icons</h3>
+                    <ul class="check-list" id="icons-list"></ul>
+                </div>
+
+
+
+            </div>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
