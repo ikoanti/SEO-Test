@@ -15,10 +15,17 @@ app.use(express.json());
 // Ahrefs API Configuration
 const AHREFS_API_KEY = process.env.AHREFS_API_KEY;
 
+if (!AHREFS_API_KEY) {
+    console.warn('AHREFS_API_KEY is missing');
+}
 
 // ── Ahrefs Proxy Endpoint ──
 app.get('/api/ahrefs', async (req, res) => {
     const { target, date, mode, country } = req.query;
+
+    if (!AHREFS_API_KEY) {
+        return res.status(500).json({ error: 'AHREFS_API_KEY is not configured on the server' });
+    }
 
     if (!target) return res.status(400).json({ error: "Target domain is required" });
 
