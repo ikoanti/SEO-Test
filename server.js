@@ -2,15 +2,11 @@ const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
 const path = require('path');
-const { GoogleGenerativeAI } = require('@google-generative-ai/generative-ai');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Gemini API Configuration
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyDJvh-vrH4CQwwMLr_tOUDlSWoLsvaanGU';
-const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 // Middleware
 app.use(cors());
@@ -19,37 +15,6 @@ app.use(express.json());
 // Ahrefs API Configuration
 const AHREFS_API_KEY = process.env.AHREFS_API_KEY;
 
-// ── Gemini Summarize Endpoint ──
-app.post('/api/summarize', async (req, res) => {
-    const { issues, url } = req.body;
-
-    if (!issues || !Array.isArray(issues)) {
-        return res.status(400).json({ error: "Issues array is required" });
-    }
-
-    try {
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-        const prompt = `
-            You are an SEO expert. Analyze the following SEO audit issues for the website: ${url}
-            
-            Issues found:
-            ${issues.map(i => `- [${i.type.toUpperCase()}] ${i.label}: ${i.detail || ''}`).join('\n')}
-            
-            Provide a concise, professional summary of the most critical issues and actionable next steps. 
-            Use clear headings and bullet points. Keep it under 200 words.
-            Focus on high-impact changes first.
-        `;
-
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const text = response.text();
-
-        res.json({ summary: text });
-    } catch (error) {
-        console.error("Gemini Error:", error);
-        res.status(500).json({ error: "Failed to generate AI summary. " + error.message });
-    }
-});
 
 // ── Ahrefs Proxy Endpoint ──
 app.get('/api/ahrefs', async (req, res) => {
@@ -109,4 +74,3 @@ app.get('*', (req, res) => {
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
 });
-
