@@ -246,7 +246,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function runScreenshotCapture(targetUrl) {
         const key = "20c343";
-        const apiUrl = `https://api.screenshotmachine.com?key=${key}&url=${encodeURIComponent(targetUrl)}&dimension=1024x768`;
+        const apiUrl = `https://api.screenshotmachine.com?key=${key}&url=${encodeURIComponent(targetUrl)}&dimension=1280x800`;
 
         const img = document.getElementById('screenshot-img');
         const placeholder = document.getElementById('screenshot-placeholder');
