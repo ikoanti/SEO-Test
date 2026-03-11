@@ -155,6 +155,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         const ahrefsList = document.getElementById('ahrefs-list');
         if (ahrefsList) ahrefsList.innerHTML = '';
+
+
     }
 
     function setCardError(listId, msg) {
@@ -607,6 +609,8 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('broken-links').textContent = broken;
         if (broken === 0) blList.innerHTML = li('ok', `No broken links found (sampled ${sample.length})`, '');
     }
+
+
 
     // ═══════════════════════════════════════
     //  AI Bot Whitelist (robots.txt) from my github
