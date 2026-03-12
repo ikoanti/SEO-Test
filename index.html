@@ -31,6 +31,25 @@
             <div id="error-message" class="error-msg hidden"></div>
             <div id="status-msg" class="status-msg hidden"></div>
 
+            <!-- Audit Summary Bar -->
+            <div id="summary-bar" class="summary-bar hidden">
+                <div class="summary-item">
+                    <span class="summary-count" id="summary-passed">0</span>
+                    <span class="summary-label">✅ Passed</span>
+                </div>
+                <div class="summary-item">
+                    <span class="summary-count warn" id="summary-warnings">0</span>
+                    <span class="summary-label">⚠️ Warnings</span>
+                </div>
+                <div class="summary-item">
+                    <span class="summary-count fail" id="summary-failed">0</span>
+                    <span class="summary-label">❌ Failed</span>
+                </div>
+                <div class="summary-score-bar-wrap">
+                    <div id="summary-score-bar" class="summary-score-bar"></div>
+                </div>
+            </div>
+
             <div id="results-container" class="results-grid hidden">
 
 
