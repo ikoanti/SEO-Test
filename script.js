@@ -26,6 +26,8 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        window.auditSummary = { passed: 0, warnings: 0, failed: 0 };
+
         startLoading();
         clearResults();
 
@@ -117,6 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // ── Wait for Async Tasks ──
             await Promise.all([psPromise, oprPromise]);
 
+            renderSummary();
             setStatus("Audit complete!");
             showResults();
         } catch (err) {
@@ -151,11 +154,35 @@ document.addEventListener('DOMContentLoaded', () => {
     function showError(msg) { errorMsg.textContent = msg; errorMsg.classList.remove('hidden'); }
     function setStatus(msg) { statusMsg.textContent = msg; }
 
+    function renderSummary() {
+        const total = window.auditSummary.passed + window.auditSummary.warnings + window.auditSummary.failed;
+        document.getElementById('summary-passed').textContent = window.auditSummary.passed;
+        document.getElementById('summary-warnings').textContent = window.auditSummary.warnings;
+        document.getElementById('summary-failed').textContent = window.auditSummary.failed;
+        
+        const bar = document.getElementById('summary-score-bar');
+        if (total > 0) {
+            const passedPct = (window.auditSummary.passed / total) * 100;
+            const warnPct = (window.auditSummary.warnings / total) * 100;
+            const failedPct = (window.auditSummary.failed / total) * 100;
+            bar.style.background = `linear-gradient(to right, 
+                var(--success) 0%, var(--success) ${passedPct}%, 
+                var(--warning) ${passedPct}%, var(--warning) ${passedPct + warnPct}%, 
+                var(--danger) ${passedPct + warnPct}%, var(--danger) 100%)`;
+        } else {
+            bar.style.background = 'transparent';
+        }
+    }
+
     function clearResults() {
         ['speed-mobile', 'speed-desktop'].forEach(id => {
             const el = document.getElementById(id);
             el.textContent = '--';
             el.className = 'metric-circle';
+        });
+        ['speed-details-mobile', 'speed-details-desktop'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = '';
         });
         ['h1-list', 'h1-stats', 'titles-list', 'titles-stats',
             'alt-list', 'alt-stats', 'canonical-list', 'canonical-stats', 'sitemap-list',
@@ -191,6 +218,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         const oprList = document.getElementById('opr-list');
         if (oprList) oprList.innerHTML = '';
+        
+        ['summary-passed', 'summary-warnings', 'summary-failed'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = '0';
+        });
+        const bar = document.getElementById('summary-score-bar');
+        if (bar) bar.style.background = 'transparent';
     }
 
     function setCardError(listId, msg) {
@@ -260,17 +294,43 @@ document.addEventListener('DOMContentLoaded', () => {
         const fetchScore = async (strategy) => {
             const res = await fetch(`https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&strategy=${strategy}&key=${key}`);
             const data = await res.json();
-            return Math.round((data.lighthouseResult?.categories?.performance?.score || 0) * 100);
+            
+            const audits = data.lighthouseResult?.audits || {};
+            return {
+                score: Math.round((data.lighthouseResult?.categories?.performance?.score || 0) * 100),
+                fcp: audits['first-contentful-paint']?.displayValue || 'N/A',
+                lcp: audits['largest-contentful-paint']?.displayValue || 'N/A',
+                cls: audits['cumulative-layout-shift']?.displayValue || 'N/A',
+                tbt: audits['total-blocking-time']?.displayValue || 'N/A'
+            };
         };
         try {
             const [mobile, desktop] = await Promise.all([fetchScore('mobile'), fetchScore('desktop')]);
-            [['mobile', mobile], ['desktop', desktop]].forEach(([type, score]) => {
+            [['mobile', mobile], ['desktop', desktop]].forEach(([type, data]) => {
                 const el = document.getElementById(`speed-${type}`);
+                const score = data.score;
                 el.textContent = score;
                 el.className = 'metric-circle ' + (score >= 90 ? 'good' : score >= 50 ? 'needs-improvement' : 'poor');
+
+                if (score >= 90) window.auditSummary.passed++;
+                else if (score >= 50) window.auditSummary.warnings++;
+                else window.auditSummary.failed++;
+
+                const detailsEl = document.getElementById(`speed-details-${type}`);
+                if (detailsEl) {
+                    detailsEl.innerHTML = `
+                        <div class="speed-metric"><span>FCP:</span> <span>${data.fcp}</span></div>
+                        <div class="speed-metric"><span>LCP:</span> <span>${data.lcp}</span></div>
+                        <div class="speed-metric"><span>CLS:</span> <span>${data.cls}</span></div>
+                        <div class="speed-metric"><span>TBT:</span> <span>${data.tbt}</span></div>
+                    `;
+                }
             });
         } catch (e) {
-            ['mobile', 'desktop'].forEach(t => { document.getElementById(`speed-${t}`).textContent = 'Err'; });
+            ['mobile', 'desktop'].forEach(t => { 
+                const el = document.getElementById(`speed-${t}`);
+                if (el) el.textContent = 'Err'; 
+            });
         }
     }
 
@@ -641,7 +701,11 @@ document.addEventListener('DOMContentLoaded', () => {
             await delay(200);
         }
         document.getElementById('broken-links').textContent = broken;
-        if (broken === 0) blList.innerHTML = li('ok', `No broken links found (sampled ${sample.length})`, '');
+        if (broken === 0) {
+            blList.innerHTML = li('ok', `No broken links found (sampled ${sample.length})`, '');
+        } else {
+            window.auditSummary.failed += broken; // since they didn't go through the li helper
+        }
     }
 
 
@@ -715,10 +779,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ═══════════════════════════════════════
-    //  Web icons
+    //  Web icons & UI Helpers
     // ═══════════════════════════════════════
 
     function li(icon, title, detail) {
+        if (window.auditSummary) {
+            if (icon === 'ok') window.auditSummary.passed++;
+            else if (icon === 'warn') window.auditSummary.warnings++;
+            else if (icon === 'err') window.auditSummary.failed++;
+        }
         const icons = { ok: '<span class="icon-ok">✅</span>', warn: '<span class="icon-warn">⚠️</span>', err: '<span class="icon-err">❌</span>' };
         return `<li><div class="check-status">${icons[icon] || ''} ${title}</div>${detail ? `<div class="check-detail">${detail}</div>` : ''}</li>`;
     }
