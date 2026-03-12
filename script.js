@@ -7,6 +7,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnText = btn.querySelector('.btn-text');
     const spinner = btn.querySelector('.spinner');
 
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            btn.click();
+        }
+    });
+
     btn.addEventListener('click', async () => {
         const urlStr = input.value.trim();
         if (!urlStr) return;
