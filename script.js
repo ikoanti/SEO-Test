@@ -162,12 +162,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderSummary() {
         const total = window.auditSummary.passed + window.auditSummary.warnings + window.auditSummary.failed;
-        document.getElementById('summary-passed').textContent = window.auditSummary.passed;
-        document.getElementById('summary-warnings').textContent = window.auditSummary.warnings;
-        document.getElementById('summary-failed').textContent = window.auditSummary.failed;
+        const sp = document.getElementById('summary-passed');
+        const sw = document.getElementById('summary-warnings');
+        const sf = document.getElementById('summary-failed');
+        if (sp) sp.textContent = window.auditSummary.passed;
+        if (sw) sw.textContent = window.auditSummary.warnings;
+        if (sf) sf.textContent = window.auditSummary.failed;
         
         const bar = document.getElementById('summary-score-bar');
-        if (total > 0) {
+        if (bar && total > 0) {
             const passedPct = (window.auditSummary.passed / total) * 100;
             const warnPct = (window.auditSummary.warnings / total) * 100;
             const failedPct = (window.auditSummary.failed / total) * 100;
@@ -175,7 +178,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 var(--success) 0%, var(--success) ${passedPct}%, 
                 var(--warning) ${passedPct}%, var(--warning) ${passedPct + warnPct}%, 
                 var(--danger) ${passedPct + warnPct}%, var(--danger) 100%)`;
-        } else {
+        } else if (bar) {
             bar.style.background = 'transparent';
         }
     }
@@ -183,8 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function clearResults() {
         ['speed-mobile', 'speed-desktop'].forEach(id => {
             const el = document.getElementById(id);
-            el.textContent = '--';
-            el.className = 'metric-circle';
+            if (el) { el.textContent = '--'; el.className = 'metric-circle'; }
         });
         ['speed-details-mobile', 'speed-details-desktop'].forEach(id => {
             const el = document.getElementById(id);
@@ -197,17 +199,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 const el = document.getElementById(id);
                 if (el) el.innerHTML = '';
             });
-        document.getElementById('h1-subtitle').textContent = 'Scanning exactly 50 pages…';
-        document.getElementById('titles-subtitle').textContent = 'Scanning exactly 50 pages…';
-        document.getElementById('alt-subtitle').textContent = 'Scanning exactly 50 pages…';
-        document.getElementById('canonical-subtitle').textContent = 'Scanning exactly 50 pages…';
-        document.getElementById('security-subtitle').textContent = 'Scanning exactly 50 pages…';
-        document.getElementById('content-subtitle').textContent = 'Scanning exactly 50 pages…';
+        ['h1-subtitle', 'titles-subtitle', 'alt-subtitle',
+            'canonical-subtitle', 'security-subtitle', 'content-subtitle'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = 'Scanning exactly 50 pages…';
+            });
 
-
-        document.getElementById('ai-subtitle').textContent = 'Checking robots.txt for AI bots';
-        document.getElementById('total-links').textContent = '0';
-        document.getElementById('broken-links').textContent = '0';
+        const aiSub = document.getElementById('ai-subtitle');
+        if (aiSub) aiSub.textContent = 'Checking robots.txt for AI bots';
+        const totalLinks = document.getElementById('total-links');
+        if (totalLinks) totalLinks.textContent = '0';
+        const brokenLinks = document.getElementById('broken-links');
+        if (brokenLinks) brokenLinks.textContent = '0';
 
         const sImg = document.getElementById('screenshot-img');
         const sPlace = document.getElementById('screenshot-placeholder');
