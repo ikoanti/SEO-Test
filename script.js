@@ -51,27 +51,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 internalLinks = extractInternalLinks(homepageDoc, url.href, url.origin);
                 internalLinks.forEach(l => { seen.add(l); seen.add(l.replace(/\/$/, '')); queue.push(l); });
                 
-                while (crawlIndex < queue.length && internalLinks.length < 50) {
+                while (crawlIndex < queue.length && internalLinks.length < 500) { // Gather a larger pool first
                     const currentUrl = queue[crawlIndex++];
-                    if (currentUrl === url.href) continue; // Already parsed homepage
+                    if (currentUrl === url.href) continue;
                     try {
                         const pageHtml = await fetchViaProxy(currentUrl);
                         const pageDoc = parser.parseFromString(pageHtml, 'text/html');
                         const pageLinks = extractInternalLinks(pageDoc, currentUrl, url.origin);
                         
-                        for (const link of shuffle(pageLinks)) {
+                        for (const link of pageLinks) {
                             const normalized = link.split('#')[0];
                             if (!seen.has(normalized)) {
                                 seen.add(normalized);
                                 seen.add(normalized.replace(/\/$/, ''));
                                 internalLinks.push(normalized);
                                 queue.push(normalized);
-                                if (internalLinks.length >= 50) break;
+                                if (internalLinks.length >= 500) break;
                             }
                         }
                     } catch (e) {}
                 }
-                internalLinks = internalLinks.slice(0, 50);
+                // Randomly select exactly 50 pages from the gathered pool (if we have that many)
+                internalLinks = shuffle(internalLinks).slice(0, 50);
             } catch (e) {
                 console.warn("Homepage fetch / crawl failed:", e);
             }
@@ -194,13 +195,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         ['h1-list', 'h1-stats', 'titles-list', 'titles-stats',
             'alt-list', 'alt-stats', 'canonical-list', 'canonical-stats', 'sitemap-list',
-            'ai-list', 'llms-list', 'schema-list', 'broken-links-list',
+            'ai-list', 'llms-list', 'schema-list', 'broken-links-list', 'mixed-content-list', 'mixed-content-stats',
             'security-list', 'security-stats', 'content-list', 'content-stats', 'icons-list'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.innerHTML = '';
             });
         ['h1-subtitle', 'titles-subtitle', 'alt-subtitle',
-            'canonical-subtitle', 'security-subtitle', 'content-subtitle'].forEach(id => {
+            'canonical-subtitle', 'security-subtitle', 'content-subtitle', 'mixed-content-subtitle'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.textContent = 'Scanning exactly 50 pages…';
             });
@@ -554,6 +555,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const altR = { ok: 0, missing: 0, issues: [] };
         const canR = { ok: 0, missing: 0, multiple: 0, issues: [] };
         const secR = { ok: 0, missing: 0, issues: [] };
+        const mixR = { ok: 0, missing: 0, issues: [] };
         const cntR = { ok: 0, missing: 0, issues: [] };
         let done = 0;
 
@@ -590,6 +592,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     } else {
                         secR.missing++;
                         secR.issues.push({ url: pageUrl, icon: 'err', label: 'Insecure (HTTP)' });
+                    }
+
+                    // 3.5 Mixed Content Check
+                    if (pageUrl.startsWith('https://')) {
+                        const insecureAssets = Array.from(doc.querySelectorAll('img[src^="http://"], script[src^="http://"], link[rel="stylesheet"][href^="http://"], iframe[src^="http://"]'));
+                        if (insecureAssets.length > 0) {
+                            mixR.missing++;
+                            mixR.issues.push({ url: pageUrl, icon: 'err', label: `Mixed Content: ${insecureAssets.length} insecure asset(s)` });
+                        } else {
+                            mixR.ok++;
+                        }
+                    } else {
+                        // If the page itself is HTTP, mixed content isn't the primary issue
+                        mixR.ok++;
                     }
 
                     // 4. Word Count (Thin Content)
@@ -673,6 +689,8 @@ document.addEventListener('DOMContentLoaded', () => {
         renderScanResults('canonical', canR, 'All pages have valid canonicals');
         // ── Render Security results ──
         renderScanResults('security', secR, 'All pages are secure (HTTPS)');
+        // ── Render Mixed Content results ──
+        renderScanResults('mixed-content', mixR, 'No mixed content (HTTP) found on secure pages');
         // ── Render Content results ──
         renderScanResults('content', cntR, 'All pages have sufficient content');
     }
