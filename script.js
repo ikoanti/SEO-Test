@@ -139,6 +139,8 @@ document.addEventListener('DOMContentLoaded', () => {
         btnText.classList.add('hidden');
         spinner.classList.remove('hidden');
         results.classList.add('hidden');
+        const summaryBar = document.getElementById('summary-bar');
+        if (summaryBar) summaryBar.classList.add('hidden');
         errorMsg.classList.add('hidden');
         statusMsg.classList.remove('hidden');
     }
@@ -150,7 +152,11 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => statusMsg.classList.add('hidden'), 2000);
     }
 
-    function showResults() { results.classList.remove('hidden'); }
+    function showResults() {
+        results.classList.remove('hidden');
+        const summaryBar = document.getElementById('summary-bar');
+        if (summaryBar) summaryBar.classList.remove('hidden');
+    }
     function showError(msg) { errorMsg.textContent = msg; errorMsg.classList.remove('hidden'); }
     function setStatus(msg) { statusMsg.textContent = msg; }
 
