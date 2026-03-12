@@ -30,8 +30,8 @@ document.addEventListener('DOMContentLoaded', () => {
         clearResults();
 
         try {
-            // ── Step 1: Fetch homepage HTML (reused by many checks) ──
-            setStatus("Fetching homepage HTML…");
+            // ── Step 1: Fetch homepage HTML and gather strictly 50 pages ──
+            setStatus("Gathering pages to scan (strictly 50)…");
             let homepageDoc = null;
             let internalLinks = [];
 
@@ -39,9 +39,39 @@ document.addEventListener('DOMContentLoaded', () => {
                 const html = await fetchViaProxy(url.href);
                 const parser = new DOMParser();
                 homepageDoc = parser.parseFromString(html, 'text/html');
+                
+                // Deep crawl to ensure we get strictly 50 pages if possible
+                const seen = new Set([url.href, url.href.replace(/\/$/, '')]);
+                const queue = [url.href];
+                let crawlIndex = 0;
+                
+                // Initial links from homepage
                 internalLinks = extractInternalLinks(homepageDoc, url.href, url.origin);
+                internalLinks.forEach(l => { seen.add(l); seen.add(l.replace(/\/$/, '')); queue.push(l); });
+                
+                while (crawlIndex < queue.length && internalLinks.length < 50) {
+                    const currentUrl = queue[crawlIndex++];
+                    if (currentUrl === url.href) continue; // Already parsed homepage
+                    try {
+                        const pageHtml = await fetchViaProxy(currentUrl);
+                        const pageDoc = parser.parseFromString(pageHtml, 'text/html');
+                        const pageLinks = extractInternalLinks(pageDoc, currentUrl, url.origin);
+                        
+                        for (const link of shuffle(pageLinks)) {
+                            const normalized = link.split('#')[0];
+                            if (!seen.has(normalized)) {
+                                seen.add(normalized);
+                                seen.add(normalized.replace(/\/$/, ''));
+                                internalLinks.push(normalized);
+                                queue.push(normalized);
+                                if (internalLinks.length >= 50) break;
+                            }
+                        }
+                    } catch (e) {}
+                }
+                internalLinks = internalLinks.slice(0, 50);
             } catch (e) {
-                console.warn("Homepage fetch failed:", e);
+                console.warn("Homepage fetch / crawl failed:", e);
             }
 
             // ── Step 2: PageSpeed Mobile + Desktop (runs in background) ──
@@ -74,13 +104,13 @@ document.addEventListener('DOMContentLoaded', () => {
             setStatus("Checking sitemap.xml…");
             await runSitemapInspector(url.origin, robotsSitemap);
 
-            // ── Step 5: Site-wide scan (H1 + Meta Titles across ≤50 pages) ──
+            // ── Step 5: Site-wide scan (H1 + Meta Titles across 50 pages strictly) ──
             setStatus(`Scanning pages for H1 & Meta Title issues (0 of ${Math.min(internalLinks.length + 1, 50)})…`);
             await runSitewideScan(url.href, internalLinks, (done, total) => {
                 setStatus(`Scanning pages for H1 & Meta Title issues (${done} of ${total})…`);
             });
 
-            // ── Step 6: Internal link checker (sample 10) ──
+            // ── Step 6: Internal link checker (sample 50) ──
             setStatus("Checking for broken internal links…");
             await runInternalLinkCheck(internalLinks);
 
@@ -134,12 +164,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 const el = document.getElementById(id);
                 if (el) el.innerHTML = '';
             });
-        document.getElementById('h1-subtitle').textContent = 'Will scan up to 50 pages…';
-        document.getElementById('titles-subtitle').textContent = 'Will scan up to 50 pages…';
-        document.getElementById('alt-subtitle').textContent = 'Will scan up to 50 pages…';
-        document.getElementById('canonical-subtitle').textContent = 'Will scan up to 50 pages…';
-        document.getElementById('security-subtitle').textContent = 'Will scan up to 50 pages…';
-        document.getElementById('content-subtitle').textContent = 'Will scan up to 50 pages…';
+        document.getElementById('h1-subtitle').textContent = 'Scanning exactly 50 pages…';
+        document.getElementById('titles-subtitle').textContent = 'Scanning exactly 50 pages…';
+        document.getElementById('alt-subtitle').textContent = 'Scanning exactly 50 pages…';
+        document.getElementById('canonical-subtitle').textContent = 'Scanning exactly 50 pages…';
+        document.getElementById('security-subtitle').textContent = 'Scanning exactly 50 pages…';
+        document.getElementById('content-subtitle').textContent = 'Scanning exactly 50 pages…';
 
 
         document.getElementById('ai-subtitle').textContent = 'Checking robots.txt for AI bots';
@@ -442,8 +472,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // ═══════════════════════════════════════
 
     async function runSitewideScan(homeUrl, links, onProgress) {
-        // Always include the homepage, then up to 49 random internal pages
-        const pool = [homeUrl, ...shuffle(links)].slice(0, 50);
+        // ALWAYS scan strictly 50 pages if available
+        const pool = [homeUrl, ...links].slice(0, 50);
         const total = pool.length;
 
         // Init UI
