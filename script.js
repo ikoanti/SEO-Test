@@ -550,7 +550,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('titles-list').innerHTML = '<li><div class="check-detail">Scanning…</div></li>';
 
         const h1R = { ok: 0, missing: 0, multiple: 0, issues: [] };
-        const titR = { ok: 0, missing: 0, long: 0, short: 0, issues: [] };
+        const titR = { ok: 0, missing: 0, long: 0, short: 0, duplicate: 0, scanned: [], issues: [] };
         const altR = { ok: 0, missing: 0, issues: [] };
         const canR = { ok: 0, missing: 0, multiple: 0, issues: [] };
         const secR = { ok: 0, missing: 0, issues: [] };
@@ -582,15 +582,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     // 2. Meta Title
                     const titles = Array.from(doc.querySelectorAll('title'))
                         .map(el => el.textContent.trim()).filter(Boolean);
-                    if (titles.length === 0) {
-                        titR.missing++;
-                        titR.issues.push({ url: pageUrl, icon: 'err', label: 'Missing Title' });
-                    } else {
-                        const len = titles[0].length;
-                        if (len > 60) { titR.long++; titR.issues.push({ url: pageUrl, icon: 'warn', label: `Too Long (${len} chars)`, detail: titles[0] }); }
-                        else if (len < 30) { titR.short++; titR.issues.push({ url: pageUrl, icon: 'warn', label: `Too Short (${len} chars)`, detail: titles[0] }); }
-                        else { titR.ok++; }
-                    }
+                    titR.scanned.push({ url: pageUrl, title: titles.length > 0 ? titles[0] : null });
 
                     // 3. HTTPS Check
                     if (pageUrl.startsWith('https://')) {
@@ -641,6 +633,36 @@ document.addEventListener('DOMContentLoaded', () => {
             if (i + 5 < pool.length) await delay(300);
         }
 
+        // ── Process Meta Titles for Duplicates ──
+        const titleCounts = {};
+        titR.scanned.forEach(item => {
+            if (item.title) titleCounts[item.title] = (titleCounts[item.title] || 0) + 1;
+        });
+
+        titR.scanned.forEach(item => {
+            if (!item.title) {
+                titR.missing++;
+                titR.issues.push({ url: item.url, icon: 'err', label: 'Missing Title' });
+                return;
+            }
+            
+            const len = item.title.length;
+            const isDup = titleCounts[item.title] > 1;
+            
+            if (isDup) {
+                titR.duplicate++;
+                titR.issues.push({ url: item.url, icon: 'err', label: `Duplicate Title`, detail: item.title });
+            } else if (len > 60) {
+                titR.long++;
+                titR.issues.push({ url: item.url, icon: 'warn', label: `Too Long (${len} chars)`, detail: item.title });
+            } else if (len < 30) {
+                titR.short++;
+                titR.issues.push({ url: item.url, icon: 'warn', label: `Too Short (${len} chars)`, detail: item.title });
+            } else {
+                titR.ok++;
+            }
+        });
+
         // ── Render H1 results ──
         renderScanResults('h1', h1R, 'All pages have a single H1');
         // ── Render Meta Title results ──
@@ -657,7 +679,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     function renderScanResults(prefix, data, okMsg) {
-        let total = (data.ok || 0) + (data.missing || 0) + (data.multiple || 0) + (data.long || 0) + (data.short || 0);
+        let total = (data.ok || 0) + (data.missing || 0) + (data.multiple || 0) + (data.long || 0) + (data.short || 0) + (data.duplicate || 0);
         const sub = document.getElementById(`${prefix}-subtitle`);
 
         if (prefix === 'alt') {
@@ -670,7 +692,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const stats = document.getElementById(`${prefix}-stats`);
         if (stats) {
             const warn = (data.multiple || 0) + (data.long || 0) + (data.short || 0) + (prefix === 'content' ? data.missing : 0);
-            const err = (prefix === 'content' ? 0 : data.missing) || 0;
+            const err = (prefix === 'content' ? 0 : data.missing) + (data.duplicate || 0);
             stats.innerHTML = statPills(data.ok, warn, err);
         }
 
