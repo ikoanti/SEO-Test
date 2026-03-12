@@ -651,7 +651,7 @@ header p {
     border-radius: 6px;
     overflow: hidden;
     margin-bottom: 1.5rem;
-    box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
 }
 
 .summary-score-bar {
@@ -693,6 +693,14 @@ header p {
     color: var(--text-muted);
 }
 
-.summary-count.good .summary-count-num { color: var(--success); }
-.summary-count.warn .summary-count-num { color: var(--warning); }
-.summary-count.bad .summary-count-num { color: var(--danger); }
+.summary-count.good .summary-count-num {
+    color: var(--success);
+}
+
+.summary-count.warn .summary-count-num {
+    color: var(--warning);
+}
+
+.summary-count.bad .summary-count-num {
+    color: var(--danger);
+}
