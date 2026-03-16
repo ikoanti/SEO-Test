@@ -92,9 +92,17 @@ document.addEventListener('DOMContentLoaded', () => {
             if (homepageDoc) {
                 runStructuredDataCheck(homepageDoc);
                 runIconsCheck(homepageDoc);
+                runSslCheck(url);
+                runMobileUsabilityCheck(homepageDoc);
+                runFlashCheck(homepageDoc);
+                runIframesCheck(homepageDoc);
             } else {
                 setCardError('schema-list', "Could not fetch homepage HTML.");
                 setCardError('icons-list', "Could not fetch homepage HTML.");
+                setCardError('ssl-list', "Could not fetch homepage HTML.");
+                setCardError('mobile-usability-list', "Could not fetch homepage HTML.");
+                setCardError('flash-list', "Could not fetch homepage HTML.");
+                setCardError('iframes-list', "Could not fetch homepage HTML.");
             }
 
             // ── Step 4: robots.txt → llms.txt → sitemap (sequential) ──
@@ -196,7 +204,8 @@ document.addEventListener('DOMContentLoaded', () => {
         ['h1-list', 'h1-stats', 'titles-list', 'titles-stats',
             'alt-list', 'alt-stats', 'canonical-list', 'canonical-stats', 'sitemap-list',
             'ai-list', 'llms-list', 'schema-list', 'broken-links-list', 'mixed-content-list', 'mixed-content-stats',
-            'security-list', 'security-stats', 'content-list', 'content-stats', 'icons-list'].forEach(id => {
+            'security-list', 'security-stats', 'content-list', 'content-stats', 'icons-list',
+            'ssl-list', 'mobile-usability-list', 'flash-list', 'iframes-list'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.innerHTML = '';
             });
@@ -277,6 +286,12 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const resolved = new URL(href, baseUrl);
                 if (resolved.origin === origin) {
+                    // Exclude image and media files
+                    if (/\.(png|jpe?g|gif|webp|svg|ico|bmp|tiff|pdf|mp4|webm)$/i.test(resolved.pathname)) return;
+                    
+                    // Exclude URLs with parameters
+                    if (resolved.search) return;
+                    
                     seen.add(resolved.href.split('#')[0]);
                 }
             } catch (e) { }
@@ -533,6 +548,63 @@ document.addEventListener('DOMContentLoaded', () => {
             list.innerHTML += li('ok', 'Apple Touch Icon Found', appleIcon.getAttribute('href'));
         } else {
             list.innerHTML += li('warn', 'Missing Apple Touch Icon', 'Recommended for mobile book-marking.');
+        }
+    }
+
+    // ═══════════════════════════════════════
+    //  New Checks: SSL, Mobile, Flash, iFrames
+    // ═══════════════════════════════════════
+
+    function runSslCheck(url) {
+        const list = document.getElementById('ssl-list');
+        if (!list) return;
+        list.innerHTML = '';
+        if (url.protocol === 'https:') {
+            list.innerHTML = li('ok', 'SSL Enabled', 'Website is using HTTPS.');
+        } else {
+            list.innerHTML = li('err', 'SSL Missing', 'Website is using insecure HTTP.');
+        }
+    }
+
+    function runMobileUsabilityCheck(doc) {
+        const list = document.getElementById('mobile-usability-list');
+        if (!list) return;
+        list.innerHTML = '';
+        const viewport = doc.querySelector('meta[name="viewport"]');
+        if (viewport && viewport.getAttribute('content') && viewport.getAttribute('content').includes('width=device-width')) {
+            list.innerHTML = li('ok', 'Mobile Viewport Configured', 'Found meta viewport tag.');
+        } else {
+            list.innerHTML = li('err', 'Viewport Missing', 'No mobile viewport meta tag found. Important for mobile usability.');
+        }
+    }
+
+    function runFlashCheck(doc) {
+        const list = document.getElementById('flash-list');
+        if (!list) return;
+        list.innerHTML = '';
+        const flashElements = Array.from(doc.querySelectorAll('object, embed')).filter(el => {
+            const type = el.getAttribute('type') || '';
+            const src = el.getAttribute('src') || el.getAttribute('data') || '';
+            return type.includes('application/x-shockwave-flash') || src.includes('.swf');
+        });
+        
+        if (flashElements.length > 0) {
+            list.innerHTML = li('err', 'Flash Usage Detected', `${flashElements.length} Flash element(s) found. Flash is obsolete and not supported by modern browsers.`);
+        } else {
+            list.innerHTML = li('ok', 'No Flash Found', 'Website is not using obsolete Flash elements.');
+        }
+    }
+
+    function runIframesCheck(doc) {
+        const list = document.getElementById('iframes-list');
+        if (!list) return;
+        list.innerHTML = '';
+        const iframes = Array.from(doc.querySelectorAll('iframe'));
+        
+        if (iframes.length > 0) {
+            list.innerHTML = li('warn', 'iFrames Usage Detected', `${iframes.length} iframe(s) found. Excessive use can impact SEO and usability.`);
+        } else {
+            list.innerHTML = li('ok', 'No iFrames Found', 'Website is not using iframes.');
         }
     }
 
