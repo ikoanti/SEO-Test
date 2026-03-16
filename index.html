@@ -1,249 +1,1061 @@
-<!DOCTYPE html>
-<html lang="en">
+document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('audit-btn');
+    const input = document.getElementById('url-input');
+    const results = document.getElementById('results-container');
+    const errorMsg = document.getElementById('error-message');
+    const statusMsg = document.getElementById('status-msg');
+    const btnText = btn.querySelector('.btn-text');
+    const spinner = btn.querySelector('.spinner');
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SEO Mini Audit Tool</title>
-    <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-</head>
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            btn.click();
+        }
+    });
 
-<body>
-    <div class="logo-container">
-        <img src="logo.png" alt="GoldenWeb Logo">
-    </div>
-    <div class="app-container">
-        <header>
-            <h1>GoldenWeb SEO Mini Audit Tool</h1>
-            <p>By Iraki Antidze</p>
-        </header>
+    btn.addEventListener('click', async () => {
+        const urlStr = input.value.trim();
+        if (!urlStr) return;
 
-        <main>
-            <div class="search-box">
-                <input type="url" id="url-input" placeholder="https://example.com" required>
-                <button id="audit-btn">
-                    <span class="btn-text">Audit Now</span>
-                    <div class="spinner hidden"></div>
-                </button>
-            </div>
+        let url;
+        try {
+            url = new URL(urlStr.startsWith('http') ? urlStr : `https://${urlStr}`);
+        } catch (e) {
+            showError("Please enter a valid URL.");
+            return;
+        }
 
-            <div id="error-message" class="error-msg hidden"></div>
-            <div id="status-msg" class="status-msg hidden"></div>
+        window.auditSummary = { passed: 0, warnings: 0, failed: 0 };
 
-            <!-- Audit Summary Bar -->
-            <div id="summary-bar" class="summary-bar hidden">
-                <div class="summary-item">
-                    <span class="summary-count" id="summary-passed">0</span>
-                    <span class="summary-label">✅ Passed</span>
-                </div>
-                <div class="summary-item">
-                    <span class="summary-count warn" id="summary-warnings">0</span>
-                    <span class="summary-label">⚠️ Warnings</span>
-                </div>
-                <div class="summary-item">
-                    <span class="summary-count fail" id="summary-failed">0</span>
-                    <span class="summary-label">❌ Failed</span>
-                </div>
-                <div class="summary-score-bar-wrap">
-                    <div id="summary-score-bar" class="summary-score-bar"></div>
-                </div>
-            </div>
+        startLoading();
+        clearResults();
 
-            <div id="results-container" class="results-grid hidden">
+        try {
+            // ── Step 1: Fetch homepage HTML and gather strictly 50 pages ──
+            setStatus("Gathering pages to scan (strictly 50)…");
+            let homepageDoc = null;
+            let internalLinks = [];
 
+            try {
+                const html = await fetchViaProxy(url.href);
+                const parser = new DOMParser();
+                homepageDoc = parser.parseFromString(html, 'text/html');
+                
+                // Deep crawl to ensure we get strictly 50 pages if possible
+                const seen = new Set([url.href, url.href.replace(/\/$/, '')]);
+                const queue = [url.href];
+                let crawlIndex = 0;
+                
+                // Initial links from homepage
+                internalLinks = extractInternalLinks(homepageDoc, url.href, url.origin);
+                internalLinks.forEach(l => { seen.add(l); seen.add(l.replace(/\/$/, '')); queue.push(l); });
+                
+                while (crawlIndex < queue.length && internalLinks.length < 500) { // Gather a larger pool first
+                    const currentUrl = queue[crawlIndex++];
+                    if (currentUrl === url.href) continue;
+                    try {
+                        const pageHtml = await fetchViaProxy(currentUrl);
+                        const pageDoc = parser.parseFromString(pageHtml, 'text/html');
+                        const pageLinks = extractInternalLinks(pageDoc, currentUrl, url.origin);
+                        
+                        for (const link of pageLinks) {
+                            const normalized = link.split('#')[0];
+                            if (!seen.has(normalized)) {
+                                seen.add(normalized);
+                                seen.add(normalized.replace(/\/$/, ''));
+                                internalLinks.push(normalized);
+                                queue.push(normalized);
+                                if (internalLinks.length >= 500) break;
+                            }
+                        }
+                    } catch (e) {}
+                }
+                // Randomly select exactly 50 pages from the gathered pool (if we have that many)
+                internalLinks = shuffle(internalLinks).slice(0, 50);
+            } catch (e) {
+                console.warn("Homepage fetch / crawl failed:", e);
+            }
 
-                <!-- 0. Website Screenshot -->
-                <div class="card" id="card-screenshot">
-                    <h3>Website Screenshot</h3>
-                    <div class="screenshot-container">
-                        <img id="screenshot-img" src="" alt="Website Screenshot" class="hidden">
-                        <div id="screenshot-placeholder" class="screenshot-placeholder">
-                            <div class="pulse-loader"></div>
-                            <span>Capturing screenshot...</span>
-                        </div>
-                    </div>
-                </div>
+            // ── Step 2: PageSpeed Mobile + Desktop (runs in background) ──
+            setStatus("Requesting PageSpeed scores…");
+            const psPromise = runPageSpeed(url.href);
 
-                <!-- Open Page Rank -->
-                <div class="card card-ahrefs" id="card-opr">
-                    <div class="card-header">
-                        <i class="fas fa-chart-line"></i>
-                        <h3>Open Page Rank</h3>
-                    </div>
-                    <div class="ahrefs-metrics" id="opr-metrics">
-                        <div class="metric-item" style="flex:1;">
-                            <span class="metric-label">Page Rank</span>
-                            <span class="metric-value" id="opr-page-rank">-</span>
-                        </div>
-                        <div class="metric-item" style="flex:1;">
-                            <span class="metric-label">Global Rank</span>
-                            <span class="metric-value" id="opr-global-rank">-</span>
-                        </div>
-                    </div>
-                    <ul class="check-list" id="opr-list"></ul>
-                </div>
+            // ── Step 2.5: Website Screenshot ──
+            runScreenshotCapture(url.href);
 
+            // ── Step 2.6: Open Page Rank ──
+            setStatus("Fetching Open Page Rank metrics…");
+            const oprPromise = runOpenPageRankCheck(url.hostname);
 
+            // ── Step 3: Instant homepage checks ──
+            if (homepageDoc) {
+                runStructuredDataCheck(homepageDoc);
+                runIconsCheck(homepageDoc);
+                runSslCheck(url);
+                runMobileUsabilityCheck(homepageDoc);
+                runFlashCheck(homepageDoc);
+                runIframesCheck(homepageDoc);
+                runCharsetCheck(homepageDoc);
+                runLoremIpsumCheck(homepageDoc);
+                runOpenGraphCheck(homepageDoc);
+            } else {
+                setCardError('schema-list', "Could not fetch homepage HTML.");
+                setCardError('icons-list', "Could not fetch homepage HTML.");
+                setCardError('ssl-list', "Could not fetch homepage HTML.");
+                setCardError('mobile-usability-list', "Could not fetch homepage HTML.");
+                setCardError('flash-list', "Could not fetch homepage HTML.");
+                setCardError('iframes-list', "Could not fetch homepage HTML.");
+                setCardError('charset-list', "Could not fetch homepage HTML.");
+                setCardError('lorem-list', "Could not fetch homepage HTML.");
+                setCardError('opengraph-list', "Could not fetch homepage HTML.");
+            }
 
-                <!-- 1. PageSpeed (Mobile + Desktop) -->
-                <div class="card" id="card-speed">
-                    <h3>PageSpeed Insights</h3>
-                    <div class="speed-container">
-                        <div class="speed-item">
-                            <div class="metric-circle" id="speed-mobile">--</div>
-                            <span class="speed-label">Mobile Score</span>
-                            <div class="speed-details" id="speed-details-mobile"></div>
-                        </div>
-                        <div class="speed-divider"></div>
-                        <div class="speed-item">
-                            <div class="metric-circle" id="speed-desktop">--</div>
-                            <span class="speed-label">Desktop Score</span>
-                            <div class="speed-details" id="speed-details-desktop"></div>
-                        </div>
-                    </div>
-                </div>
+            // ── Step 4: robots.txt → llms.txt → sitemap (sequential) ──
+            setStatus("Checking robots.txt…");
+            const robotsSitemap = await runRobotsTxtInspector(url.origin);
 
-                <!-- 2. H1 Elements (50 pages) -->
-                <div class="card" id="card-h1">
-                    <h3>H1 Elements</h3>
-                    <p class="subtitle" id="h1-subtitle">Scanning exactly 50 pages…</p>
-                    <div class="scan-stats" id="h1-stats"></div>
-                    <ul class="check-list mini-list" id="h1-list"></ul>
-                </div>
+            setStatus("Checking llms.txt…");
+            await runLlmsTxtInspector(url.origin);
 
-                <!-- 3. Meta Titles (50 pages) -->
-                <div class="card" id="card-titles">
-                    <h3>Meta Titles</h3>
-                    <p class="subtitle" id="titles-subtitle">Scanning exactly 50 pages…</p>
-                    <div class="scan-stats" id="titles-stats"></div>
-                    <ul class="check-list mini-list" id="titles-list"></ul>
-                </div>
+            setStatus("Checking sitemap.xml…");
+            await runSitemapInspector(url.origin, robotsSitemap);
 
-                <!-- 4. Internal Links -->
-                <div class="card" id="card-links">
-                    <h3>Internal Links</h3>
-                    <div class="links-summary">
-                        <div class="stat"><span id="total-links">0</span> Total</div>
-                        <div class="stat"><span id="broken-links" class="error">0</span> Broken</div>
-                    </div>
-                    <ul class="check-list mini-list" id="broken-links-list"></ul>
-                </div>
+            // ── Step 5: Site-wide scan (H1 + Meta Titles across 50 pages strictly) ──
+            setStatus(`Scanning pages for H1 & Meta Title issues (0 of ${Math.min(internalLinks.length + 1, 50)})…`);
+            await runSitewideScan(url.href, internalLinks, (done, total) => {
+                setStatus(`Scanning pages for H1 & Meta Title issues (${done} of ${total})…`);
+            });
 
-                <!-- 5. Image Alt Tags -->
-                <div class="card" id="card-alt">
-                    <h3>Image Alt Tags</h3>
-                    <p class="subtitle" id="alt-subtitle">Scanning exactly 50 pages…</p>
-                    <div class="scan-stats" id="alt-stats"></div>
-                    <ul class="check-list mini-list" id="alt-list"></ul>
-                </div>
+            // ── Step 6: Internal link checker (sample 50) ──
+            setStatus("Checking for broken internal links…");
+            await runInternalLinkCheck(internalLinks);
 
+            // ── Wait for Async Tasks ──
+            await Promise.all([psPromise, oprPromise]);
 
-                <!-- 6. Canonical URL -->
-                <div class="card" id="card-canonical">
-                    <h3>Canonical URL</h3>
-                    <p class="subtitle" id="canonical-subtitle">Scanning exactly 50 pages…</p>
-                    <div class="scan-stats" id="canonical-stats"></div>
-                    <ul class="check-list mini-list" id="canonical-list"></ul>
-                </div>
+            renderSummary();
+            setStatus("Audit complete!");
+            showResults();
+        } catch (err) {
+            showError("Audit failed: " + err.message);
+        } finally {
+            stopLoading();
+        }
+    });
 
 
-                <!-- 7. Sitemap.xml -->
-                <div class="card" id="card-sitemap">
-                    <h3>Sitemap.xml</h3>
-                    <ul class="check-list" id="sitemap-list"></ul>
-                </div>
+    // ═══════════════════════════════════════
+    //  UI Helpers
+    // ═══════════════════════════════════════
 
-                <!-- 8. AI Bot Whitelist & Robots.txt -->
-                <div class="card" id="card-ai">
-                    <h3>Robots.txt Analysis</h3>
-                    <p class="subtitle" id="ai-subtitle">Analyzing robots.txt patterns</p>
-                    <ul class="check-list" id="ai-list"></ul>
-                </div>
+    function startLoading() {
+        btn.disabled = true;
+        btnText.classList.add('hidden');
+        spinner.classList.remove('hidden');
+        results.classList.add('hidden');
+        const summaryBar = document.getElementById('summary-bar');
+        if (summaryBar) summaryBar.classList.add('hidden');
+        errorMsg.classList.add('hidden');
+        statusMsg.classList.remove('hidden');
+    }
 
-                <!-- 9. LLMs.txt Inspector -->
-                <div class="card" id="card-llms">
-                    <h3>LLMs.txt Inspector</h3>
-                    <ul class="check-list" id="llms-list"></ul>
-                </div>
+    function stopLoading() {
+        btn.disabled = false;
+        btnText.classList.remove('hidden');
+        spinner.classList.add('hidden');
+        setTimeout(() => statusMsg.classList.add('hidden'), 2000);
+    }
 
-                <!-- 10. Structured Data -->
-                <div class="card" id="card-schema">
-                    <h3>Structured Data</h3>
-                    <ul class="check-list" id="schema-list"></ul>
-                </div>
+    function showResults() {
+        results.classList.remove('hidden');
+        const summaryBar = document.getElementById('summary-bar');
+        if (summaryBar) summaryBar.classList.remove('hidden');
+    }
+    function showError(msg) { errorMsg.textContent = msg; errorMsg.classList.remove('hidden'); }
+    function setStatus(msg) { statusMsg.textContent = msg; }
 
-                <!-- 11. Security (HTTPS) -->
-                <div class="card" id="card-security">
-                    <h3>Security (HTTPS)</h3>
-                    <p class="subtitle" id="security-subtitle">Scanning exactly 50 pages…</p>
-                    <div class="scan-stats" id="security-stats"></div>
-                    <ul class="check-list mini-list" id="security-list"></ul>
-                </div>
+    function renderSummary() {
+        const total = window.auditSummary.passed + window.auditSummary.warnings + window.auditSummary.failed;
+        const sp = document.getElementById('summary-passed');
+        const sw = document.getElementById('summary-warnings');
+        const sf = document.getElementById('summary-failed');
+        if (sp) sp.textContent = window.auditSummary.passed;
+        if (sw) sw.textContent = window.auditSummary.warnings;
+        if (sf) sf.textContent = window.auditSummary.failed;
+        
+        const bar = document.getElementById('summary-score-bar');
+        if (bar && total > 0) {
+            const passedPct = (window.auditSummary.passed / total) * 100;
+            const warnPct = (window.auditSummary.warnings / total) * 100;
+            const failedPct = (window.auditSummary.failed / total) * 100;
+            bar.style.background = `linear-gradient(to right, 
+                var(--success) 0%, var(--success) ${passedPct}%, 
+                var(--warning) ${passedPct}%, var(--warning) ${passedPct + warnPct}%, 
+                var(--danger) ${passedPct + warnPct}%, var(--danger) 100%)`;
+        } else if (bar) {
+            bar.style.background = 'transparent';
+        }
+    }
 
-                <!-- 11.5 Mixed Content -->
-                <div class="card" id="card-mixed-content">
-                    <h3>Mixed Content</h3>
-                    <p class="subtitle" id="mixed-content-subtitle">Scanning exactly 50 pages…</p>
-                    <div class="scan-stats" id="mixed-content-stats"></div>
-                    <ul class="check-list mini-list" id="mixed-content-list"></ul>
-                </div>
+    function clearResults() {
+        ['speed-mobile', 'speed-desktop'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) { el.textContent = '--'; el.className = 'metric-circle'; }
+        });
+        ['speed-details-mobile', 'speed-details-desktop'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = '';
+        });
+        ['h1-list', 'h1-stats', 'titles-list', 'titles-stats',
+            'alt-list', 'alt-stats', 'canonical-list', 'canonical-stats', 'sitemap-list',
+            'ai-list', 'llms-list', 'schema-list', 'broken-links-list', 'mixed-content-list', 'mixed-content-stats',
+            'security-list', 'security-stats', 'content-list', 'content-stats', 'icons-list',
+            'ssl-list', 'mobile-usability-list', 'flash-list', 'iframes-list',
+            'charset-list', 'lorem-list', 'opengraph-list'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.innerHTML = '';
+            });
+        ['h1-subtitle', 'titles-subtitle', 'alt-subtitle',
+            'canonical-subtitle', 'security-subtitle', 'content-subtitle', 'mixed-content-subtitle'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = 'Scanning exactly 50 pages…';
+            });
 
-                <!-- 12. Content Quality (Word Count) -->
-                <div class="card" id="card-content">
-                    <h3>Content Quality</h3>
-                    <p class="subtitle" id="content-subtitle">Scanning exactly 50 pages…</p>
-                    <div class="scan-stats" id="content-stats"></div>
-                    <ul class="check-list mini-list" id="content-list"></ul>
-                </div>
+        const aiSub = document.getElementById('ai-subtitle');
+        if (aiSub) aiSub.textContent = 'Analyzing robots.txt patterns';
+        const totalLinks = document.getElementById('total-links');
+        if (totalLinks) totalLinks.textContent = '0';
+        const brokenLinks = document.getElementById('broken-links');
+        if (brokenLinks) brokenLinks.textContent = '0';
 
-                <!-- 13. Web Icons -->
-                <div class="card" id="card-icons">
-                    <h3>Web Icons</h3>
-                    <ul class="check-list" id="icons-list"></ul>
-                </div>
+        const sImg = document.getElementById('screenshot-img');
+        const sPlace = document.getElementById('screenshot-placeholder');
+        if (sImg) {
+            sImg.src = '';
+            sImg.classList.add('hidden');
+        }
+        if (sPlace) sPlace.classList.remove('hidden');
 
-                <!-- 14. SSL Check -->
-                <div class="card" id="card-ssl">
-                    <h3>SSL Certificate Check</h3>
-                    <ul class="check-list" id="ssl-list"></ul>
-                </div>
+        // Open Page Rank Clear
+        ['opr-page-rank', 'opr-global-rank'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = '-';
+        });
+        const oprList = document.getElementById('opr-list');
+        if (oprList) oprList.innerHTML = '';
+        
+        ['summary-passed', 'summary-warnings', 'summary-failed'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = '0';
+        });
+        const bar = document.getElementById('summary-score-bar');
+        if (bar) bar.style.background = 'transparent';
+    }
 
-                <!-- 15. Mobile Usability -->
-                <div class="card" id="card-mobile-usability">
-                    <h3>Mobile Usability</h3>
-                    <ul class="check-list" id="mobile-usability-list"></ul>
-                </div>
+    function setCardError(listId, msg) {
+        const el = document.getElementById(listId);
+        if (el) el.innerHTML = li('err', msg, '');
+    }
 
-                <!-- 16. Flash Usage -->
-                <div class="card" id="card-flash">
-                    <h3>Flash Usage</h3>
-                    <ul class="check-list" id="flash-list"></ul>
-                </div>
+    // ═══════════════════════════════════════
+    //  Proxy Fetch (3-proxy waterfall + timeout)
+    // ═══════════════════════════════════════
 
-                <!-- 18. Character Encoding -->
-                <div class="card" id="card-charset">
-                    <h3>Character Encoding</h3>
-                    <ul class="check-list" id="charset-list"></ul>
-                </div>
+    function withTimeout(promise, ms) {
+        return Promise.race([
+            promise,
+            new Promise((_, reject) => setTimeout(() => reject(new Error("Timed out")), ms))
+        ]);
+    }
 
-                <!-- 19. Lorem Ipsum -->
-                <div class="card" id="card-lorem">
-                    <h3>Lorem Ipsum Test</h3>
-                    <ul class="check-list" id="lorem-list"></ul>
-                </div>
+    async function fetchViaProxy(url) {
+        const enc = encodeURIComponent(url);
+        try {
+            const res = await withTimeout(fetch(`/api/proxy?url=${enc}`), 10000);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return await res.text();
+        } catch (e) {
+            console.error("Proxy Error:", e.message);
+            throw e;
+        }
+    }
 
-                <!-- 20. OpenGraph Tags -->
-                <div class="card" id="card-opengraph">
-                    <h3>OpenGraph Tags</h3>
-                    <ul class="check-list" id="opengraph-list"></ul>
-                </div>
+    // ═══════════════════════════════════════
+    //  Internal Link Extractor
+    // ═══════════════════════════════════════
 
-            </div>
-        </main>
-    </div>
+    function extractInternalLinks(doc, baseUrl, origin) {
+        const seen = new Set();
+        Array.from(doc.querySelectorAll('a[href]')).forEach(a => {
+            const href = a.getAttribute('href');
+            if (!href || /^(javascript|mailto|tel|#)/.test(href)) return;
+            try {
+                const resolved = new URL(href, baseUrl);
+                if (resolved.origin === origin) {
+                    // Exclude image and media files
+                    if (/\.(png|jpe?g|gif|webp|svg|ico|bmp|tiff|pdf|mp4|webm)$/i.test(resolved.pathname)) return;
+                    
+                    // Exclude URLs with parameters
+                    if (resolved.search) return;
+                    
+                    seen.add(resolved.href.split('#')[0]);
+                }
+            } catch (e) { }
+        });
+        seen.delete(baseUrl);
+        seen.delete(baseUrl.replace(/\/$/, ''));
+        return Array.from(seen);
+    }
 
-    <script src="script.js"></script>
-</body>
+    function shuffle(arr) {
+        const a = [...arr];
+        for (let i = a.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [a[i], a[j]] = [a[j], a[i]];
+        }
+        return a;
+    }
 
-</html>
+    // ═══════════════════════════════════════
+    //  1. PageSpeed (Mobile + Desktop)
+    // ═══════════════════════════════════════
+
+    async function runPageSpeed(url) {
+        const key = "AIzaSyDq_Fam7GNCloxDbbryv3sA8brDbZZum8I";
+        const fetchScore = async (strategy) => {
+            const res = await fetch(`https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&strategy=${strategy}&key=${key}`);
+            const data = await res.json();
+            
+            const audits = data.lighthouseResult?.audits || {};
+            return {
+                score: Math.round((data.lighthouseResult?.categories?.performance?.score || 0) * 100),
+                fcp: audits['first-contentful-paint']?.displayValue || 'N/A',
+                lcp: audits['largest-contentful-paint']?.displayValue || 'N/A',
+                cls: audits['cumulative-layout-shift']?.displayValue || 'N/A',
+                tbt: audits['total-blocking-time']?.displayValue || 'N/A'
+            };
+        };
+        try {
+            const [mobile, desktop] = await Promise.all([fetchScore('mobile'), fetchScore('desktop')]);
+            [['mobile', mobile], ['desktop', desktop]].forEach(([type, data]) => {
+                const el = document.getElementById(`speed-${type}`);
+                const score = data.score;
+                el.textContent = score;
+                el.className = 'metric-circle ' + (score >= 90 ? 'good' : score >= 50 ? 'needs-improvement' : 'poor');
+
+                if (score >= 90) window.auditSummary.passed++;
+                else if (score >= 50) window.auditSummary.warnings++;
+                else window.auditSummary.failed++;
+
+                const detailsEl = document.getElementById(`speed-details-${type}`);
+                if (detailsEl) {
+                    detailsEl.innerHTML = `
+                        <div class="speed-metric"><span>FCP:</span> <span>${data.fcp}</span></div>
+                        <div class="speed-metric"><span>LCP:</span> <span>${data.lcp}</span></div>
+                        <div class="speed-metric"><span>CLS:</span> <span>${data.cls}</span></div>
+                        <div class="speed-metric"><span>TBT:</span> <span>${data.tbt}</span></div>
+                    `;
+                }
+            });
+        } catch (e) {
+            ['mobile', 'desktop'].forEach(t => { 
+                const el = document.getElementById(`speed-${t}`);
+                if (el) el.textContent = 'Err'; 
+            });
+        }
+    }
+
+    // ═══════════════════════════════════════
+    //  0. Screenshot Capture
+    // ═══════════════════════════════════════
+
+    function runScreenshotCapture(targetUrl) {
+        const key = "20c343";
+        const apiUrl = `https://api.screenshotmachine.com?key=${key}&url=${encodeURIComponent(targetUrl)}&dimension=1280x800`;
+
+        const img = document.getElementById('screenshot-img');
+        const placeholder = document.getElementById('screenshot-placeholder');
+
+        if (!img || !placeholder) return;
+
+        img.src = apiUrl;
+        img.onload = () => {
+            img.classList.remove('hidden');
+            placeholder.classList.add('hidden');
+        };
+        img.onerror = () => {
+            placeholder.innerHTML = '<span>Failed to capture screenshot</span>';
+        };
+    }
+
+    // ═══════════════════════════════════════
+    //  Open Page Rank
+    // ═══════════════════════════════════════
+
+    async function runOpenPageRankCheck(hostname) {
+        const list = document.getElementById('opr-list');
+        const prEl = document.getElementById('opr-page-rank');
+        const rankEl = document.getElementById('opr-global-rank');
+
+        try {
+            const response = await fetch(`/api/opr?domain=${encodeURIComponent(hostname)}`);
+
+            if (!response.ok) {
+                let errMsg = `HTTP ${response.status}`;
+                try {
+                    const err = await response.json();
+                    if (err.error) errMsg = err.error;
+                } catch { }
+                throw new Error(errMsg);
+            }
+
+            const data = await response.json();
+            
+            // OPR API returns data in response[0]
+            const resultData = data.response && data.response[0] ? data.response[0] : {};
+
+            const pageRank = resultData.page_rank_decimal ?? 0;
+            const globalRank = resultData.rank ?? 0;
+
+            if (prEl) prEl.textContent = Number(pageRank).toFixed(2);
+            if (rankEl) rankEl.textContent = globalRank > 0 ? Number(globalRank).toLocaleString() : 'N/A';
+
+            if (list) {
+                list.innerHTML = li('ok', 'Open Page Rank Synced', `Metrics for ${hostname} fetched.`);
+            }
+        } catch (e) {
+            console.error('Open Page Rank Error:', e);
+            if (list) list.innerHTML = li('err', 'API Sync Failed', e.message);
+            [prEl, rankEl].forEach(el => {
+                if (el) el.textContent = 'Err';
+            });
+        }
+    }
+
+
+    // ═══════════════════════════════════════
+    //  5. Sitemap.xml
+    // ═══════════════════════════════════════
+
+    async function runSitemapInspector(origin, robotsSitemap) {
+        const list = document.getElementById('sitemap-list');
+        list.innerHTML = '';
+
+        if (robotsSitemap) {
+            list.innerHTML += li('ok', 'Found in robots.txt', `<a href="${robotsSitemap}" target="_blank" class="check-link">${robotsSitemap}</a>`);
+        }
+
+        const paths = ['/sitemap.xml', '/sitemap_index.xml', '/sitemap.xml.gz'];
+        let foundAny = !!robotsSitemap;
+
+        for (const path of paths) {
+            const fullPath = `${origin}${path}`;
+            if (robotsSitemap === fullPath) continue; // Skip if already found via robots.txt
+
+            try {
+                const txt = await fetchViaProxy(fullPath);
+                if (txt && (txt.includes('<urlset') || txt.includes('<sitemapindex'))) {
+                    const urls = (txt.match(/<url>/g) || []).length;
+                    const maps = (txt.match(/<sitemap>/g) || []).length;
+                    list.innerHTML += li('ok', `Found at ${path}`,
+                        maps > 0 ? `Sitemap index with ${maps} child sitemaps.` : `${urls} URL entries.`);
+                    foundAny = true;
+                }
+            } catch (e) { }
+        }
+
+        if (!foundAny) {
+            list.innerHTML = li('err', 'No Sitemap Found', `Checked robots.txt and common paths: ${paths.join(', ')}`);
+        }
+    }
+
+
+    // ═══════════════════════════════════════
+    //  8. Structured Data / JSON-LD (homepage)
+    // ═══════════════════════════════════════
+
+    function runStructuredDataCheck(doc) {
+        const list = document.getElementById('schema-list');
+        const scripts = Array.from(doc.querySelectorAll('script[type="application/ld+json"]'));
+        if (scripts.length === 0) {
+            list.innerHTML = li('warn', 'No JSON-LD Found', 'No structured data (Schema.org) on the homepage.');
+            return;
+        }
+
+        let validBlocks = 0, errorBlocks = 0;
+        const allTypes = []; // collects every individual @type found
+
+        function extractTypes(obj) {
+            // Handle @graph containers
+            if (obj['@graph'] && Array.isArray(obj['@graph'])) {
+                obj['@graph'].forEach(node => extractTypes(node));
+                return;
+            }
+            // Handle @type as string or array
+            let types = obj['@type'];
+            if (!types) {
+                allTypes.push('Unknown');
+                return;
+            }
+            if (!Array.isArray(types)) types = [types];
+
+            types.forEach(t => {
+                if (t && t !== 'SiteNavigationElement' && t !== 'BreadcrumbList') {
+                    allTypes.push(t);
+                }
+            });
+        }
+
+
+        scripts.forEach(s => {
+            try {
+                const obj = JSON.parse(s.textContent.trim());
+                validBlocks++;
+                // obj could be an array at top level too
+                (Array.isArray(obj) ? obj : [obj]).forEach(extractTypes);
+            } catch (e) {
+                errorBlocks++;
+            }
+        });
+
+        const summary = `${allTypes.length} schema type${allTypes.length !== 1 ? 's' : ''} across ${validBlocks} block${validBlocks !== 1 ? 's' : ''}`;
+        list.innerHTML = li('ok', `${validBlocks}/${scripts.length} Valid JSON-LD Blocks`, summary);
+
+        // List each type individually
+        allTypes.forEach(t => {
+            list.innerHTML += `<li><div class="check-detail">📎 ${t}</div></li>`;
+        });
+
+        if (errorBlocks > 0) {
+            list.innerHTML += li('err', `${errorBlocks} Invalid JSON-LD Block${errorBlocks > 1 ? 's' : ''}`,
+                'JSON parse error. Validate at <a href="https://validator.schema.org/" target="_blank" class="check-link">schema.org/validator</a>.');
+        }
+    }
+
+    // ═══════════════════════════════════════
+    //  4. Web Icons Check
+    // ═══════════════════════════════════════
+
+    function runIconsCheck(doc) {
+        const list = document.getElementById('icons-list');
+        list.innerHTML = '';
+
+        // 1. Favicon
+        const favicon = doc.querySelector('link[rel*="icon"]');
+        if (favicon) {
+            list.innerHTML += li('ok', 'Favicon Found', favicon.getAttribute('href'));
+        } else {
+            list.innerHTML += li('err', 'Missing Favicon', 'No &lt;link rel="icon"&gt; found.');
+        }
+
+        // 2. Apple Touch Icon
+        const appleIcon = doc.querySelector('link[rel="apple-touch-icon"]');
+        if (appleIcon) {
+            list.innerHTML += li('ok', 'Apple Touch Icon Found', appleIcon.getAttribute('href'));
+        } else {
+            list.innerHTML += li('warn', 'Missing Apple Touch Icon', 'Recommended for mobile book-marking.');
+        }
+    }
+
+    // ═══════════════════════════════════════
+    //  New Checks: SSL, Mobile, Flash, iFrames
+    // ═══════════════════════════════════════
+
+    function runSslCheck(url) {
+        const list = document.getElementById('ssl-list');
+        if (!list) return;
+        list.innerHTML = '';
+        if (url.protocol === 'https:') {
+            list.innerHTML = li('ok', 'SSL Enabled', 'Website is using HTTPS.');
+        } else {
+            list.innerHTML = li('err', 'SSL Missing', 'Website is using insecure HTTP.');
+        }
+    }
+
+    function runMobileUsabilityCheck(doc) {
+        const list = document.getElementById('mobile-usability-list');
+        if (!list) return;
+        list.innerHTML = '';
+        const viewport = doc.querySelector('meta[name="viewport"]');
+        if (viewport && viewport.getAttribute('content') && viewport.getAttribute('content').includes('width=device-width')) {
+            list.innerHTML = li('ok', 'Mobile Viewport Configured', 'Found meta viewport tag.');
+        } else {
+            list.innerHTML = li('err', 'Viewport Missing', 'No mobile viewport meta tag found. Important for mobile usability.');
+        }
+    }
+
+    function runFlashCheck(doc) {
+        const list = document.getElementById('flash-list');
+        if (!list) return;
+        list.innerHTML = '';
+        const flashElements = Array.from(doc.querySelectorAll('object, embed')).filter(el => {
+            const type = el.getAttribute('type') || '';
+            const src = el.getAttribute('src') || el.getAttribute('data') || '';
+            return type.includes('application/x-shockwave-flash') || src.includes('.swf');
+        });
+        
+        if (flashElements.length > 0) {
+            list.innerHTML = li('err', 'Flash Usage Detected', `${flashElements.length} Flash element(s) found. Flash is obsolete and not supported by modern browsers.`);
+        } else {
+            list.innerHTML = li('ok', 'No Flash Found', 'Website is not using obsolete Flash elements.');
+        }
+    }
+
+    function runIframesCheck(doc) {
+        const list = document.getElementById('iframes-list');
+        if (!list) return;
+        list.innerHTML = '';
+        const iframes = Array.from(doc.querySelectorAll('iframe'));
+        
+        if (iframes.length > 0) {
+            list.innerHTML = li('warn', 'iFrames Usage Detected', `${iframes.length} iframe(s) found. Excessive use can impact SEO and usability.`);
+        } else {
+            list.innerHTML = li('ok', 'No iFrames Found', 'Website is not using iframes.');
+        }
+    }
+
+    // ═══════════════════════════════════════
+    //  New Checks: Charset, Lorem Ipsum, OpenGraph
+    // ═══════════════════════════════════════
+
+    function runCharsetCheck(doc) {
+        const list = document.getElementById('charset-list');
+        if (!list) return;
+        list.innerHTML = '';
+
+        // Check for <meta charset="utf-8"> or <meta http-equiv="Content-Type" content="...charset=utf-8">
+        const charsetMatch = doc.querySelector('meta[charset]') || doc.querySelector('meta[http-equiv="Content-Type"]');
+        let charset = null;
+        
+        if (charsetMatch) {
+            if (charsetMatch.hasAttribute('charset')) {
+                charset = charsetMatch.getAttribute('charset').toLowerCase();
+            } else if (charsetMatch.hasAttribute('content')) {
+                const content = charsetMatch.getAttribute('content').toLowerCase();
+                const match = content.match(/charset=([^;]+)/);
+                if (match) charset = match[1];
+            }
+        }
+
+        if (charset === 'utf-8' || charset === 'utf8') {
+            list.innerHTML = li('ok', 'UTF-8 Encoding Verified', 'Character encoding is explicitly set to UTF-8.');
+        } else if (charset) {
+            list.innerHTML = li('warn', `Encoding set to ${charset}`, 'It is highly recommended to use UTF-8 character encoding.');
+        } else {
+            list.innerHTML = li('err', 'Missing Charset Meta Tag', 'No character encoding declaration found.');
+        }
+    }
+
+    function runLoremIpsumCheck(doc) {
+        const list = document.getElementById('lorem-list');
+        if (!list) return;
+        list.innerHTML = '';
+
+        const textContent = doc.body ? doc.body.innerText.toLowerCase() : '';
+        const hasLorem = textContent.includes('lorem ipsum');
+
+        if (hasLorem) {
+            list.innerHTML = li('err', 'Dummy Text Detected', 'Found "Lorem Ipsum" placeholder text on the page.');
+        } else {
+            list.innerHTML = li('ok', 'No Dummy Text', 'No "Lorem Ipsum" placeholder text detected.');
+        }
+    }
+
+    function runOpenGraphCheck(doc) {
+        const list = document.getElementById('opengraph-list');
+        if (!list) return;
+        list.innerHTML = '';
+
+        const ogTags = ['og:title', 'og:description', 'og:image'];
+        let missing = [];
+
+        ogTags.forEach(tag => {
+            const el = doc.querySelector(`meta[property="${tag}"]`) || doc.querySelector(`meta[name="${tag}"]`);
+            if (!el || !el.getAttribute('content')) {
+                missing.push(tag);
+            }
+        });
+
+        if (missing.length === 0) {
+            list.innerHTML = li('ok', 'OpenGraph Verified', 'Found og:title, og:description, and og:image.');
+        } else if (missing.length < ogTags.length) {
+            list.innerHTML = li('warn', 'Partial OpenGraph Tags', `Missing: ${missing.join(', ')}. Useful for rich previews on social media.`);
+        } else {
+            list.innerHTML = li('err', 'No OpenGraph Tags Found', 'Missing essential Social Media OpenGraph tags (title, description, image).');
+        }
+    }
+
+    // ═══════════════════════════════════════
+    //  Site-wide Scan: H1 + Meta Titles (≤50 pages)
+
+    // ═══════════════════════════════════════
+
+    async function runSitewideScan(homeUrl, links, onProgress) {
+        // ALWAYS scan strictly 50 pages if available
+        const pool = [homeUrl, ...links].slice(0, 50);
+        const total = pool.length;
+
+        // Init UI
+        document.getElementById('h1-list').innerHTML = '<li><div class="check-detail">Scanning…</div></li>';
+        document.getElementById('titles-list').innerHTML = '<li><div class="check-detail">Scanning…</div></li>';
+
+        const h1R = { ok: 0, missing: 0, multiple: 0, issues: [] };
+        const titR = { ok: 0, missing: 0, long: 0, short: 0, duplicate: 0, scanned: [], issues: [] };
+        const altR = { ok: 0, missing: 0, issues: [] };
+        const canR = { ok: 0, missing: 0, multiple: 0, issues: [] };
+        const secR = { ok: 0, missing: 0, issues: [] };
+        const mixR = { ok: 0, missing: 0, issues: [] };
+        const cntR = { ok: 0, missing: 0, issues: [] };
+        let done = 0;
+
+
+        // Concurrency pool of 5
+        for (let i = 0; i < pool.length; i += 5) {
+            const batch = pool.slice(i, i + 5);
+            await Promise.all(batch.map(async pageUrl => {
+                try {
+                    const html = await fetchViaProxy(pageUrl);
+                    const doc = new DOMParser().parseFromString(html, 'text/html');
+
+                    // 1. H1
+                    const h1s = Array.from(doc.querySelectorAll('h1'))
+                        .map(el => el.textContent.trim()).filter(Boolean);
+                    if (h1s.length === 0) {
+                        h1R.missing++;
+                        h1R.issues.push({ url: pageUrl, icon: 'err', label: 'Missing H1' });
+                    } else if (h1s.length > 1) {
+                        h1R.multiple++;
+                        h1R.issues.push({ url: pageUrl, icon: 'warn', label: `Multiple H1 (${h1s.length})` });
+                    } else {
+                        h1R.ok++;
+                    }
+
+                    // 2. Meta Title
+                    const titles = Array.from(doc.querySelectorAll('title'))
+                        .map(el => el.textContent.trim()).filter(Boolean);
+                    titR.scanned.push({ url: pageUrl, title: titles.length > 0 ? titles[0] : null });
+
+                    // 3. HTTPS Check
+                    if (pageUrl.startsWith('https://')) {
+                        secR.ok++;
+                    } else {
+                        secR.missing++;
+                        secR.issues.push({ url: pageUrl, icon: 'err', label: 'Insecure (HTTP)' });
+                    }
+
+                    // 3.5 Mixed Content Check
+                    if (pageUrl.startsWith('https://')) {
+                        const insecureAssets = Array.from(doc.querySelectorAll('img[src^="http://"], script[src^="http://"], link[rel="stylesheet"][href^="http://"], iframe[src^="http://"]'));
+                        if (insecureAssets.length > 0) {
+                            mixR.missing++;
+                            mixR.issues.push({ url: pageUrl, icon: 'err', label: `Mixed Content: ${insecureAssets.length} insecure asset(s)` });
+                        } else {
+                            mixR.ok++;
+                        }
+                    } else {
+                        // If the page itself is HTTP, mixed content isn't the primary issue
+                        mixR.ok++;
+                    }
+
+                    // 4. Word Count (Thin Content)
+                    const text = doc.body ? doc.body.innerText : '';
+                    const words = text.trim().split(/\s+/).filter(w => w.length > 0).length;
+                    if (words < 300) {
+                        cntR.missing++;
+                        cntR.issues.push({ url: pageUrl, icon: 'warn', label: `Thin Content (${words} words)` });
+                    } else {
+                        cntR.ok++;
+                    }
+
+                    // 5. Image Alt Tags
+                    const imgs = Array.from(doc.querySelectorAll('img'));
+                    if (imgs.length > 0) {
+                        const missing = imgs.filter(img => img.getAttribute('alt') === null || img.getAttribute('alt') === '').length;
+                        if (missing > 0) {
+                            altR.missing += missing;
+                            altR.issues.push({ url: pageUrl, icon: 'err', label: `${missing} Missing/Empty Alt Tags` });
+                        }
+                        altR.ok += (imgs.length - missing);
+                    }
+
+                    // 6. Canonical URL
+                    const caps = Array.from(doc.querySelectorAll('link[rel="canonical"]'));
+                    if (caps.length === 0) {
+                        canR.missing++;
+                        canR.issues.push({ url: pageUrl, icon: 'err', label: 'Missing Canonical Tag' });
+                    } else if (caps.length > 1) {
+                        canR.multiple++;
+                        canR.issues.push({ url: pageUrl, icon: 'warn', label: `Multiple Canonicals (${caps.length})` });
+                    } else {
+                        canR.ok++;
+                    }
+
+
+                } catch (e) { /* skip unreachable page */ }
+                done++;
+                onProgress(done, total);
+            }));
+            if (i + 5 < pool.length) await delay(300);
+        }
+
+        // ── Process Meta Titles for Duplicates ──
+        const titleCounts = {};
+        titR.scanned.forEach(item => {
+            if (item.title) titleCounts[item.title] = (titleCounts[item.title] || 0) + 1;
+        });
+
+        titR.scanned.forEach(item => {
+            if (!item.title) {
+                titR.missing++;
+                titR.issues.push({ url: item.url, icon: 'err', label: 'Missing Title' });
+                return;
+            }
+            
+            const len = item.title.length;
+            const isDup = titleCounts[item.title] > 1;
+            
+            if (isDup) {
+                titR.duplicate++;
+                titR.issues.push({ url: item.url, icon: 'err', label: `Duplicate Title`, detail: item.title });
+            } else if (len > 60) {
+                titR.long++;
+                titR.issues.push({ url: item.url, icon: 'warn', label: `Too Long (${len} chars)`, detail: item.title });
+            } else if (len < 30) {
+                titR.short++;
+                titR.issues.push({ url: item.url, icon: 'warn', label: `Too Short (${len} chars)`, detail: item.title });
+            } else {
+                titR.ok++;
+            }
+        });
+
+        // ── Render H1 results ──
+        renderScanResults('h1', h1R, 'All pages have a single H1');
+        // ── Render Meta Title results ──
+        renderScanResults('titles', titR, 'All titles look good');
+        // ── Render Image Alt results ──
+        renderScanResults('alt', altR, 'All images have alt text');
+        // ── Render Canonical results ──
+        renderScanResults('canonical', canR, 'All pages have valid canonicals');
+        // ── Render Security results ──
+        renderScanResults('security', secR, 'All pages are secure (HTTPS)');
+        // ── Render Mixed Content results ──
+        renderScanResults('mixed-content', mixR, 'No mixed content (HTTP) found on secure pages');
+        // ── Render Content results ──
+        renderScanResults('content', cntR, 'All pages have sufficient content');
+    }
+
+
+    function renderScanResults(prefix, data, okMsg) {
+        let total = (data.ok || 0) + (data.missing || 0) + (data.multiple || 0) + (data.long || 0) + (data.short || 0) + (data.duplicate || 0);
+        const sub = document.getElementById(`${prefix}-subtitle`);
+
+        if (prefix === 'alt') {
+            // For alt tags, total is total images found across all pages
+            if (sub) sub.textContent = `Scanned images across 50 pages`;
+        } else if (sub) {
+            sub.textContent = `Scanned ${total} page${total !== 1 ? 's' : ''}`;
+        }
+
+        const stats = document.getElementById(`${prefix}-stats`);
+        if (stats) {
+            const warn = (data.multiple || 0) + (data.long || 0) + (data.short || 0) + (prefix === 'content' ? data.missing : 0);
+            const err = (prefix === 'content' ? 0 : data.missing) + (data.duplicate || 0);
+            stats.innerHTML = statPills(data.ok, warn, err);
+        }
+
+        const list = document.getElementById(`${prefix}-list`);
+        if (list) {
+            list.innerHTML = data.issues.length === 0
+                ? li('ok', okMsg, '')
+                : data.issues.map(r => li(r.icon, r.label,
+                    (r.detail ? `"${r.detail.slice(0, 50)}…" — ` : '') + linkTag(r.url)
+                )).join('');
+        }
+    }
+
+
+
+    // ═══════════════════════════════════════
+    //  Internal Link Checker (sample 50)
+    // ═══════════════════════════════════════
+
+    async function runInternalLinkCheck(links) {
+        const blList = document.getElementById('broken-links-list');
+        document.getElementById('total-links').textContent = links.length;
+        const sample = links.slice(0, 50);
+        blList.innerHTML = '<li><div class="check-detail">Checking…</div></li>';
+        let broken = 0;
+        for (const url of sample) {
+            try {
+                const enc = encodeURIComponent(url);
+                const res = await withTimeout(fetch(`https://api.allorigins.win/get?url=${enc}`), 8000);
+                const d = await res.json();
+                if (d.status?.http_code >= 400) {
+                    broken++;
+                    if (broken === 1) blList.innerHTML = '';
+                    blList.innerHTML += `<li><div class="check-detail error">❌ HTTP ${d.status.http_code}: ${linkTag(url)}</div></li>`;
+                }
+            } catch (e) { }
+            await delay(200);
+        }
+        document.getElementById('broken-links').textContent = broken;
+        if (broken === 0) {
+            blList.innerHTML = li('ok', `No broken links found (sampled ${sample.length})`, '');
+        } else {
+            window.auditSummary.failed += broken; // since they didn't go through the li helper
+        }
+    }
+
+
+
+    // ═══════════════════════════════════════
+    //  Robots.txt Analysis
+    // ═══════════════════════════════════════
+
+    async function runRobotsTxtInspector(origin) {
+        const aiBots = ["GPTBot", "Google-Extended", "Anthropic-AI", "FacebookBot", "Applebot-Extended",
+            "CCBot", "Bytespider"];
+        const importantBots = ["Googlebot", "Bingbot", "Yandex", "DuckDuckBot", "Baidu"];
+        
+        const list = document.getElementById('ai-list');
+        if(!list) return null;
+        list.innerHTML = '';
+        try {
+            const txt = await fetchViaProxy(`${origin}/robots.txt`);
+            if (!txt) throw new Error("Empty");
+            const lines = txt.split('\n').map(l => l.trim().toLowerCase());
+            let html = '', allowedAI = 0, summaryIssues = 0;
+            
+            // Check important search engine bots
+            importantBots.forEach(bot => {
+                const bLow = bot.toLowerCase();
+                let found = false, blocked = false;
+                for (let i = 0; i < lines.length; i++) {
+                    if (lines[i].startsWith('user-agent:') && lines[i].includes(bLow)) {
+                        found = true;
+                        for (let j = i + 1; j < lines.length; j++) {
+                            if (lines[j].startsWith('user-agent:')) break;
+                            if (lines[j].startsWith('disallow: /') && lines[j].length <= 13) blocked = true; // Broad disallow
+                        }
+                        break;
+                    }
+                }
+                
+                // Also check if * blocks them
+                if(!found) {
+                     for (let i = 0; i < lines.length; i++) {
+                        if (lines[i].startsWith('user-agent: *')) {
+                            for (let j = i + 1; j < lines.length; j++) {
+                                if (lines[j].startsWith('user-agent:')) break;
+                                if (lines[j].startsWith('disallow: /') && lines[j].length <= 13) blocked = true; // Broad disallow on *
+                            }
+                            break;
+                        }
+                    }
+                }
+
+                if (blocked) { html += li('err', `${bot} is Blocked`, 'A crucial search engine bot is blocked from crawling.'); summaryIssues++; }
+                else { html += li('ok', bot, 'Allowed to crawl.'); }
+            });
+
+            // Check AI Bots
+            html += `<li><div style="font-size:0.8rem; margin:10px 0 5px; opacity:0.7">AI Crawler Rules</div></li>`;
+            aiBots.forEach(bot => {
+                const bLow = bot.toLowerCase();
+                let found = false, blocked = false;
+                for (let i = 0; i < lines.length; i++) {
+                    if (lines[i].startsWith('user-agent:') && lines[i].includes(bLow)) {
+                        found = true;
+                        for (let j = i + 1; j < lines.length; j++) {
+                            if (lines[j].startsWith('user-agent:')) break;
+                            if (lines[j].startsWith('disallow: /')) blocked = true;
+                        }
+                        break;
+                    }
+                }
+                if (found && !blocked) { html += li('warn', bot, 'Explicitly whitelisted.'); allowedAI++; }
+                else if (found) { html += li('ok', bot, 'Explicitly blocked.'); } // Blocking AI is usually preferred by publishers now
+                else { html += li('warn', bot, 'Not explicitly blocked.'); }
+            });
+
+            // Check Crawl-Delay
+            html += `<li><div style="font-size:0.8rem; margin:10px 0 5px; opacity:0.7">Crawl Directives</div></li>`;
+            let crawlDelayFound = false;
+            for (let i = 0; i < lines.length; i++) {
+                if (lines[i].startsWith('crawl-delay:')) {
+                    crawlDelayFound = true;
+                    html += li('warn', 'Crawl-Delay Directive Used', `Found: ${lines[i]}. Googlebot ignores this, but others use it. Extremely slow delays hurt indexing.`);
+                    summaryIssues++;
+                    break;
+                }
+            }
+            if (!crawlDelayFound) {
+                html += li('ok', 'No Crawl-Delay', 'Crawlers allowed to crawl normally.');
+            }
+
+            // Check for Sitemap link
+            const sitemapMatch = txt.match(/^sitemap:\s*(.+)$/im);
+            const robotsSitemap = sitemapMatch ? sitemapMatch[1].trim() : null;
+
+            list.innerHTML = html;
+            document.getElementById('ai-subtitle').textContent = summaryIssues > 0 ? `${summaryIssues} warning(s) found in robots.txt` : 'robots.txt configuration looks good.';
+
+            return robotsSitemap;
+        } catch (e) {
+            list.innerHTML = li('err', 'robots.txt not found or unavailable.', '');
+            return null;
+        }
+    }
+
+
+    // ═══════════════════════════════════════
+    //  LLMs.txt Inspector from my github
+    // ═══════════════════════════════════════
+
+    async function runLlmsTxtInspector(origin) {
+        const list = document.getElementById('llms-list');
+        list.innerHTML = '';
+        try {
+            let txt, path = '/llms.txt';
+            try { txt = await fetchViaProxy(`${origin}/llms.txt`); }
+            catch (e) { txt = await fetchViaProxy(`${origin}/.well-known/llms.txt`); path = '/.well-known/llms.txt'; }
+            if (!txt || txt.includes('<html')) throw new Error("Not valid");
+            list.innerHTML = li('ok', `Found at ${path}`, '');
+            list.innerHTML += li(/^#\s+.+/m.test(txt) ? 'ok' : 'err', 'Title (H1)', /^#\s+.+/m.test(txt) ? 'Found markdown heading' : 'Missing # title');
+            list.innerHTML += li(/^>\s+.+/m.test(txt) ? 'ok' : 'warn', 'Optional Summary', /^>\s+.+/m.test(txt) ? 'Found blockquote summary' : 'No > summary found');
+            list.innerHTML += li(/\[.+\]\(.+\)/.test(txt) ? 'ok' : 'warn', 'Additional Links', /\[.+\]\(.+\)/.test(txt) ? 'Markdown links found' : 'No links referenced');
+        } catch (e) {
+            list.innerHTML = li('err', 'No valid llms.txt found.', 'Checked /llms.txt and /.well-known/llms.txt');
+        }
+    }
+
+    // ═══════════════════════════════════════
+    //  Web icons & UI Helpers
+    // ═══════════════════════════════════════
+
+    function li(icon, title, detail) {
+        if (window.auditSummary) {
+            if (icon === 'ok') window.auditSummary.passed++;
+            else if (icon === 'warn') window.auditSummary.warnings++;
+            else if (icon === 'err') window.auditSummary.failed++;
+        }
+        const icons = { ok: '<span class="icon-ok">✅</span>', warn: '<span class="icon-warn">⚠️</span>', err: '<span class="icon-err">❌</span>' };
+        return `<li><div class="check-status">${icons[icon] || ''} ${title}</div>${detail ? `<div class="check-detail">${detail}</div>` : ''}</li>`;
+    }
+
+    function statPills(good, warn, bad) {
+        return `<div class="scan-stat good">${good} ✅ Good</div>
+                <div class="scan-stat warn">${warn} ⚠️ Issues</div>
+                <div class="scan-stat bad">${bad} ❌ Missing</div>`;
+    }
+
+    function linkTag(url) {
+        let label = url;
+        try { const u = new URL(url); label = (u.pathname + u.search) || '/'; } catch (e) { }
+        if (label.length > 55) label = label.slice(0, 55) + '…';
+        return `<a href="${url}" target="_blank" rel="noopener" class="check-link">${label}</a>`;
+    }
+
+    function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+});
