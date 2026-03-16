@@ -96,6 +96,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 runMobileUsabilityCheck(homepageDoc);
                 runFlashCheck(homepageDoc);
                 runIframesCheck(homepageDoc);
+                runCharsetCheck(homepageDoc);
+                runLoremIpsumCheck(homepageDoc);
+                runOpenGraphCheck(homepageDoc);
             } else {
                 setCardError('schema-list', "Could not fetch homepage HTML.");
                 setCardError('icons-list', "Could not fetch homepage HTML.");
@@ -103,6 +106,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 setCardError('mobile-usability-list', "Could not fetch homepage HTML.");
                 setCardError('flash-list', "Could not fetch homepage HTML.");
                 setCardError('iframes-list', "Could not fetch homepage HTML.");
+                setCardError('charset-list', "Could not fetch homepage HTML.");
+                setCardError('lorem-list', "Could not fetch homepage HTML.");
+                setCardError('opengraph-list', "Could not fetch homepage HTML.");
             }
 
             // ── Step 4: robots.txt → llms.txt → sitemap (sequential) ──
@@ -205,7 +211,8 @@ document.addEventListener('DOMContentLoaded', () => {
             'alt-list', 'alt-stats', 'canonical-list', 'canonical-stats', 'sitemap-list',
             'ai-list', 'llms-list', 'schema-list', 'broken-links-list', 'mixed-content-list', 'mixed-content-stats',
             'security-list', 'security-stats', 'content-list', 'content-stats', 'icons-list',
-            'ssl-list', 'mobile-usability-list', 'flash-list', 'iframes-list'].forEach(id => {
+            'ssl-list', 'mobile-usability-list', 'flash-list', 'iframes-list',
+            'charset-list', 'lorem-list', 'opengraph-list'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.innerHTML = '';
             });
@@ -216,7 +223,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
         const aiSub = document.getElementById('ai-subtitle');
-        if (aiSub) aiSub.textContent = 'Checking robots.txt for AI bots';
+        if (aiSub) aiSub.textContent = 'Analyzing robots.txt patterns';
         const totalLinks = document.getElementById('total-links');
         if (totalLinks) totalLinks.textContent = '0';
         const brokenLinks = document.getElementById('broken-links');
@@ -609,6 +616,77 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ═══════════════════════════════════════
+    //  New Checks: Charset, Lorem Ipsum, OpenGraph
+    // ═══════════════════════════════════════
+
+    function runCharsetCheck(doc) {
+        const list = document.getElementById('charset-list');
+        if (!list) return;
+        list.innerHTML = '';
+
+        // Check for <meta charset="utf-8"> or <meta http-equiv="Content-Type" content="...charset=utf-8">
+        const charsetMatch = doc.querySelector('meta[charset]') || doc.querySelector('meta[http-equiv="Content-Type"]');
+        let charset = null;
+        
+        if (charsetMatch) {
+            if (charsetMatch.hasAttribute('charset')) {
+                charset = charsetMatch.getAttribute('charset').toLowerCase();
+            } else if (charsetMatch.hasAttribute('content')) {
+                const content = charsetMatch.getAttribute('content').toLowerCase();
+                const match = content.match(/charset=([^;]+)/);
+                if (match) charset = match[1];
+            }
+        }
+
+        if (charset === 'utf-8' || charset === 'utf8') {
+            list.innerHTML = li('ok', 'UTF-8 Encoding Verified', 'Character encoding is explicitly set to UTF-8.');
+        } else if (charset) {
+            list.innerHTML = li('warn', `Encoding set to ${charset}`, 'It is highly recommended to use UTF-8 character encoding.');
+        } else {
+            list.innerHTML = li('err', 'Missing Charset Meta Tag', 'No character encoding declaration found.');
+        }
+    }
+
+    function runLoremIpsumCheck(doc) {
+        const list = document.getElementById('lorem-list');
+        if (!list) return;
+        list.innerHTML = '';
+
+        const textContent = doc.body ? doc.body.innerText.toLowerCase() : '';
+        const hasLorem = textContent.includes('lorem ipsum');
+
+        if (hasLorem) {
+            list.innerHTML = li('err', 'Dummy Text Detected', 'Found "Lorem Ipsum" placeholder text on the page.');
+        } else {
+            list.innerHTML = li('ok', 'No Dummy Text', 'No "Lorem Ipsum" placeholder text detected.');
+        }
+    }
+
+    function runOpenGraphCheck(doc) {
+        const list = document.getElementById('opengraph-list');
+        if (!list) return;
+        list.innerHTML = '';
+
+        const ogTags = ['og:title', 'og:description', 'og:image'];
+        let missing = [];
+
+        ogTags.forEach(tag => {
+            const el = doc.querySelector(`meta[property="${tag}"]`) || doc.querySelector(`meta[name="${tag}"]`);
+            if (!el || !el.getAttribute('content')) {
+                missing.push(tag);
+            }
+        });
+
+        if (missing.length === 0) {
+            list.innerHTML = li('ok', 'OpenGraph Verified', 'Found og:title, og:description, and og:image.');
+        } else if (missing.length < ogTags.length) {
+            list.innerHTML = li('warn', 'Partial OpenGraph Tags', `Missing: ${missing.join(', ')}. Useful for rich previews on social media.`);
+        } else {
+            list.innerHTML = li('err', 'No OpenGraph Tags Found', 'Missing essential Social Media OpenGraph tags (title, description, image).');
+        }
+    }
+
+    // ═══════════════════════════════════════
     //  Site-wide Scan: H1 + Meta Titles (≤50 pages)
 
     // ═══════════════════════════════════════
@@ -832,20 +910,58 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     // ═══════════════════════════════════════
-    //  AI Bot Whitelist (robots.txt) from my github
+    //  Robots.txt Analysis
     // ═══════════════════════════════════════
 
     async function runRobotsTxtInspector(origin) {
-        const bots = ["GPTBot", "Google-Extended", "Anthropic-AI", "FacebookBot", "Applebot-Extended",
-            "CCBot", "Bytespider", "Googlebot", "Bingbot", "Yandex", "DuckDuckBot", "Baidu"];
+        const aiBots = ["GPTBot", "Google-Extended", "Anthropic-AI", "FacebookBot", "Applebot-Extended",
+            "CCBot", "Bytespider"];
+        const importantBots = ["Googlebot", "Bingbot", "Yandex", "DuckDuckBot", "Baidu"];
+        
         const list = document.getElementById('ai-list');
+        if(!list) return null;
         list.innerHTML = '';
         try {
             const txt = await fetchViaProxy(`${origin}/robots.txt`);
             if (!txt) throw new Error("Empty");
             const lines = txt.split('\n').map(l => l.trim().toLowerCase());
-            let html = '', allowed = 0;
-            bots.forEach(bot => {
+            let html = '', allowedAI = 0, summaryIssues = 0;
+            
+            // Check important search engine bots
+            importantBots.forEach(bot => {
+                const bLow = bot.toLowerCase();
+                let found = false, blocked = false;
+                for (let i = 0; i < lines.length; i++) {
+                    if (lines[i].startsWith('user-agent:') && lines[i].includes(bLow)) {
+                        found = true;
+                        for (let j = i + 1; j < lines.length; j++) {
+                            if (lines[j].startsWith('user-agent:')) break;
+                            if (lines[j].startsWith('disallow: /') && lines[j].length <= 13) blocked = true; // Broad disallow
+                        }
+                        break;
+                    }
+                }
+                
+                // Also check if * blocks them
+                if(!found) {
+                     for (let i = 0; i < lines.length; i++) {
+                        if (lines[i].startsWith('user-agent: *')) {
+                            for (let j = i + 1; j < lines.length; j++) {
+                                if (lines[j].startsWith('user-agent:')) break;
+                                if (lines[j].startsWith('disallow: /') && lines[j].length <= 13) blocked = true; // Broad disallow on *
+                            }
+                            break;
+                        }
+                    }
+                }
+
+                if (blocked) { html += li('err', `${bot} is Blocked`, 'A crucial search engine bot is blocked from crawling.'); summaryIssues++; }
+                else { html += li('ok', bot, 'Allowed to crawl.'); }
+            });
+
+            // Check AI Bots
+            html += `<li><div style="font-size:0.8rem; margin:10px 0 5px; opacity:0.7">AI Crawler Rules</div></li>`;
+            aiBots.forEach(bot => {
                 const bLow = bot.toLowerCase();
                 let found = false, blocked = false;
                 for (let i = 0; i < lines.length; i++) {
@@ -858,17 +974,32 @@ document.addEventListener('DOMContentLoaded', () => {
                         break;
                     }
                 }
-                if (found && !blocked) { html += li('ok', bot, 'Explicitly whitelisted.'); allowed++; }
-                else if (found) { html += li('err', bot, 'Explicitly blocked.'); }
-                else { html += li('warn', bot, 'Not explicitly mentioned.'); }
+                if (found && !blocked) { html += li('warn', bot, 'Explicitly whitelisted.'); allowedAI++; }
+                else if (found) { html += li('ok', bot, 'Explicitly blocked.'); } // Blocking AI is usually preferred by publishers now
+                else { html += li('warn', bot, 'Not explicitly blocked.'); }
             });
 
-            // Check for Sitemap link (now separate)
+            // Check Crawl-Delay
+            html += `<li><div style="font-size:0.8rem; margin:10px 0 5px; opacity:0.7">Crawl Directives</div></li>`;
+            let crawlDelayFound = false;
+            for (let i = 0; i < lines.length; i++) {
+                if (lines[i].startsWith('crawl-delay:')) {
+                    crawlDelayFound = true;
+                    html += li('warn', 'Crawl-Delay Directive Used', `Found: ${lines[i]}. Googlebot ignores this, but others use it. Extremely slow delays hurt indexing.`);
+                    summaryIssues++;
+                    break;
+                }
+            }
+            if (!crawlDelayFound) {
+                html += li('ok', 'No Crawl-Delay', 'Crawlers allowed to crawl normally.');
+            }
+
+            // Check for Sitemap link
             const sitemapMatch = txt.match(/^sitemap:\s*(.+)$/im);
             const robotsSitemap = sitemapMatch ? sitemapMatch[1].trim() : null;
 
             list.innerHTML = html;
-            document.getElementById('ai-subtitle').textContent = `Found ${allowed}/${bots.length} allowed.`;
+            document.getElementById('ai-subtitle').textContent = summaryIssues > 0 ? `${summaryIssues} warning(s) found in robots.txt` : 'robots.txt configuration looks good.';
 
             return robotsSitemap;
         } catch (e) {
