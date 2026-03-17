@@ -131,6 +131,10 @@ document.addEventListener('DOMContentLoaded', () => {
             setStatus("Checking for broken internal links…");
             await runInternalLinkCheck(internalLinks);
 
+            // ── Step 7: Shopify URL Structure Check ──
+            setStatus("Checking Shopify URL structure…");
+            runShopifyUrlCheck(internalLinks);
+
             // ── Wait for Async Tasks ──
             await Promise.all([psPromise, oprPromise]);
 
@@ -212,7 +216,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'ai-list', 'llms-list', 'schema-list', 'broken-links-list', 'mixed-content-list', 'mixed-content-stats',
             'security-list', 'security-stats', 'content-list', 'content-stats', 'icons-list',
             'ssl-list', 'mobile-usability-list', 'flash-list', 'iframes-list',
-            'charset-list', 'lorem-list', 'opengraph-list'].forEach(id => {
+            'charset-list', 'lorem-list', 'opengraph-list', 'shopify-list'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.innerHTML = '';
             });
@@ -907,6 +911,29 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // ═══════════════════════════════════════
+    //  Shopify URL Structure Check
+    // ═══════════════════════════════════════
+
+    function runShopifyUrlCheck(links) {
+        const list = document.getElementById('shopify-list');
+        if (!list) return;
+        list.innerHTML = '';
+        
+        const unoptimized = links.filter(link => link.includes('/collections/') && link.includes('/products/'));
+        
+        if (unoptimized.length > 0) {
+            list.innerHTML = li('warn', 'Unoptimized Shopify URLs Found', `${unoptimized.length} URL(s) contain both /collections/ and /products/. This can cause duplicate content issues.`);
+            unoptimized.slice(0, 5).forEach(url => {
+                list.innerHTML += `<li><div class="check-detail">${linkTag(url)}</div></li>`;
+            });
+            if (unoptimized.length > 5) {
+                list.innerHTML += `<li><div class="check-detail" style="opacity: 0.7;">...and ${unoptimized.length - 5} more.</div></li>`;
+            }
+        } else {
+            list.innerHTML = li('ok', 'URL Structure Looks Good', 'No URLs containing both /collections/ and /products/ were found.');
+        }
+    }
 
 
     // ═══════════════════════════════════════
