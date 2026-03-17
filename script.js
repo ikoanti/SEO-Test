@@ -100,6 +100,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 runLoremIpsumCheck(homepageDoc);
                 runOpenGraphCheck(homepageDoc);
                 runIntlDomainsCheck(homepageDoc);
+                runTrustSignalsCheck(homepageDoc);
+                runLazyLoadImagesCheck(homepageDoc);
             } else {
                 setCardError('schema-list', "Could not fetch homepage HTML.");
                 setCardError('icons-list', "Could not fetch homepage HTML.");
@@ -111,6 +113,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 setCardError('lorem-list', "Could not fetch homepage HTML.");
                 setCardError('opengraph-list', "Could not fetch homepage HTML.");
                 setCardError('intl-list', "Could not fetch homepage HTML.");
+                setCardError('trust-list', "Could not fetch homepage HTML.");
+                setCardError('lazy-load-list', "Could not fetch homepage HTML.");
             }
 
             // ── Step 4: robots.txt → llms.txt → sitemap (sequential) ──
@@ -137,8 +141,12 @@ document.addEventListener('DOMContentLoaded', () => {
             setStatus("Checking Shopify URL structure…");
             runShopifyUrlCheck(internalLinks);
 
+            // ── Step 8: Architecture & Redirect Checks ──
+            setStatus("Checking URL resolutions…");
+            const redirectPromise = runRedirectChecks(url);
+
             // ── Wait for Async Tasks ──
-            await Promise.all([psPromise, oprPromise]);
+            await Promise.all([psPromise, oprPromise, redirectPromise]);
 
             renderSummary();
             setStatus("Audit complete!");
@@ -218,7 +226,8 @@ document.addEventListener('DOMContentLoaded', () => {
             'ai-list', 'llms-list', 'schema-list', 'broken-links-list', 'mixed-content-list', 'mixed-content-stats',
             'security-list', 'security-stats', 'content-list', 'content-stats', 'icons-list',
             'ssl-list', 'mobile-usability-list', 'flash-list', 'iframes-list',
-            'charset-list', 'lorem-list', 'opengraph-list', 'shopify-list', 'intl-list'].forEach(id => {
+            'charset-list', 'lorem-list', 'opengraph-list', 'shopify-list', 'intl-list',
+            'trailing-slash-list', 'www-resolve-list', 'trust-list', 'tap-targets-list', 'lazy-load-list'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.innerHTML = '';
             });
@@ -339,7 +348,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 fcp: audits['first-contentful-paint']?.displayValue || 'N/A',
                 lcp: audits['largest-contentful-paint']?.displayValue || 'N/A',
                 cls: audits['cumulative-layout-shift']?.displayValue || 'N/A',
-                tbt: audits['total-blocking-time']?.displayValue || 'N/A'
+                tbt: audits['total-blocking-time']?.displayValue || 'N/A',
+                tapTargets: audits['tap-targets']
             };
         };
         try {
@@ -353,6 +363,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (score >= 90) window.auditSummary.passed++;
                 else if (score >= 50) window.auditSummary.warnings++;
                 else window.auditSummary.failed++;
+
+                if (type === 'mobile' && data.tapTargets) {
+                    const tapList = document.getElementById('tap-targets-list');
+                    if (tapList) {
+                        if (data.tapTargets.score === 1) {
+                            tapList.innerHTML = li('ok', 'Tap Targets Properly Sized', 'Buttons and links are easy to tap on mobile.');
+                        } else {
+                            tapList.innerHTML = li('warn', 'Tap Targets Too Small', data.tapTargets.title || 'Some tap targets are too closely spaced.');
+                        }
+                    }
+                }
 
                 const detailsEl = document.getElementById(`speed-details-${type}`);
                 if (detailsEl) {
@@ -734,8 +755,130 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ═══════════════════════════════════════
-    //  Site-wide Scan: H1 + Meta Titles (≤50 pages)
+    //  Additional Checks
+    // ═══════════════════════════════════════
 
+    async function runRedirectChecks(urlObj) {
+        const tsList = document.getElementById('trailing-slash-list');
+        const wwwList = document.getElementById('www-resolve-list');
+        if (tsList) tsList.innerHTML = '';
+        if (wwwList) wwwList.innerHTML = '';
+
+        const dummyWithSlash = urlObj.origin + '/test-check-slash-123/';
+        const dummyWithoutSlash = urlObj.origin + '/test-check-slash-123';
+
+        try {
+            // Trailing Slash Check (on dummy path)
+            const [resSlash, resNoSlash] = await Promise.all([
+                fetch(`/api/check-redirect?url=${encodeURIComponent(dummyWithSlash)}`).then(r => r.json()),
+                fetch(`/api/check-redirect?url=${encodeURIComponent(dummyWithoutSlash)}`).then(r => r.json())
+            ]);
+            
+            // If both return 200, duplicate content
+            if (resSlash.status === 200 && resNoSlash.status === 200) {
+                if (tsList) tsList.innerHTML = li('err', 'Trailing Slash Issue', 'Both slashed and non-slashed URLs return 200 OK. This causes duplicate content. One should 301 redirect to the other.');
+            } else if (resSlash.status >= 300 && resSlash.status < 400 || resNoSlash.status >= 300 && resNoSlash.status < 400) {
+                 if (tsList) tsList.innerHTML = li('ok', 'Trailing Slash Configured', 'Redirects are properly handling trailing slashes.');
+            } else {
+                 if (tsList) tsList.innerHTML = li('warn', 'Trailing Slash Check Inconclusive', 'Could not fully verify trailing slash redirect behavior on a test path.');
+            }
+        } catch(e) {
+             if (tsList) tsList.innerHTML = li('warn', 'Trailing Slash Check Failed', e.message);
+        }
+
+        try {
+            // WWW Check
+            const isWww = urlObj.hostname.startsWith('www.');
+            const altHostname = isWww ? urlObj.hostname.replace('www.', '') : 'www.' + urlObj.hostname;
+            const altUrl = urlObj.protocol + '//' + altHostname + '/';
+
+            const resAlt = await fetch(`/api/check-redirect?url=${encodeURIComponent(altUrl)}`).then(r => r.json());
+
+            if (resAlt.status === 200) {
+                if (wwwList) wwwList.innerHTML = li('err', 'WWW / Non-WWW Resolution Issue', `Both ${urlObj.hostname} and ${altHostname} return 200 OK. One must redirect to the other.`);
+            } else if (resAlt.isRedirect) {
+                if (wwwList) wwwList.innerHTML = li('ok', 'WWW Resolution Configured', `${altHostname} properly redirects.`);
+            } else if (resAlt.status === 0 || resAlt.status >= 400) { 
+                if (wwwList) wwwList.innerHTML = li('warn', 'Alternate Domain Inaccessible', `${altHostname} does not resolve or return a valid response. Consider registering and redirecting it.`);
+            }
+
+        } catch(e) {
+            if (wwwList) wwwList.innerHTML = li('warn', 'WWW Check Failed', e.message);
+        }
+    }
+
+    function runTrustSignalsCheck(doc) {
+        const list = document.getElementById('trust-list');
+        if (!list) return;
+        list.innerHTML = '';
+
+        const textContent = doc.body ? doc.body.innerText.toLowerCase() : '';
+        const htmlContent = doc.body ? doc.body.innerHTML.toLowerCase() : '';
+
+        // Search for Privacy Policy or TOS links
+        const hasPrivacy = Array.from(doc.querySelectorAll('a')).some(a => {
+            const t = a.textContent.toLowerCase();
+            const h = a.getAttribute('href') || '';
+            return t.includes('privacy') || h.includes('privacy');
+        });
+
+        const hasTos = Array.from(doc.querySelectorAll('a')).some(a => {
+            const t = a.textContent.toLowerCase();
+            const h = a.getAttribute('href') || '';
+            return t.includes('terms') || h.includes('terms') || t.includes('tos');
+        });
+
+        if (hasPrivacy && hasTos) {
+            list.innerHTML += li('ok', 'Legal Pages Found', 'Links to Privacy Policy and Terms of Service detected.');
+        } else if (hasPrivacy || hasTos) {
+             list.innerHTML += li('warn', 'Partial Legal Pages', `Found link to ${hasPrivacy ? 'Privacy Policy' : 'Terms of Service'} but missing the other.`);
+        } else {
+             list.innerHTML += li('err', 'Missing Legal Pages', 'Could not find links to a Privacy Policy or Terms of Service. Important for trust.');
+        }
+
+        // Search for email or phone
+        const hasEmail = htmlContent.includes('mailto:') || /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i.test(textContent);
+        const hasPhone = htmlContent.includes('tel:') || /(?:\+?\d{1,3}[\s-]?)?\(?\d{3}\)?[\s-]?\d{3}[\s-]?\d{4}/.test(textContent);
+
+        if (hasEmail || hasPhone) {
+             list.innerHTML += li('ok', 'Contact Info Found', `Detected ${hasEmail ? 'Email' : ''} ${hasEmail && hasPhone ? '&' : ''} ${hasPhone ? 'Phone Number' : ''}.`);
+        } else {
+             list.innerHTML += li('warn', 'Missing Contact Info', 'No clear email or phone number detected on the homepage.');
+        }
+    }
+
+    function runLazyLoadImagesCheck(doc) {
+        const list = document.getElementById('lazy-load-list');
+        if (!list) return;
+        list.innerHTML = '';
+
+        const imgs = Array.from(doc.querySelectorAll('img'));
+        if (imgs.length === 0) {
+             list.innerHTML = li('ok', 'No Images Found', 'No images to check for lazy loading.');
+             return;
+        }
+
+        const lazyImgs = imgs.filter(img => img.getAttribute('loading') === 'lazy');
+        
+        if (lazyImgs.length > 0) {
+            if (lazyImgs.length === imgs.length) {
+                 list.innerHTML = li('ok', 'Native Lazy Loading Active', `All ${imgs.length} image(s) use loading="lazy".`);
+            } else {
+                 list.innerHTML = li('ok', 'Partial Lazy Loading', `${lazyImgs.length} out of ${imgs.length} image(s) use loading="lazy".`);
+            }
+        } else {
+             const hasJsLazy = imgs.some(img => img.classList.contains('lazy') || img.classList.contains('lazyload') || img.hasAttribute('data-src'));
+             if (hasJsLazy) {
+                  list.innerHTML = li('ok', 'JS Lazy Loading Active', 'Images appear to use a JS-based lazy loading solution (e.g., data-src or class="lazy").');
+             } else {
+                  list.innerHTML = li('warn', 'Missing Native Lazy Loading', `None of the ${imgs.length} image(s) use the loading="lazy" attribute.`);
+             }
+        }
+    }
+
+
+    // ═══════════════════════════════════════
+    //  Site-wide Scan: H1 + Meta Titles (≤50 pages)
     // ═══════════════════════════════════════
 
     async function runSitewideScan(homeUrl, links, onProgress) {
