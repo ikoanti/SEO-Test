@@ -99,6 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 runCharsetCheck(homepageDoc);
                 runLoremIpsumCheck(homepageDoc);
                 runOpenGraphCheck(homepageDoc);
+                runIntlDomainsCheck(homepageDoc);
             } else {
                 setCardError('schema-list', "Could not fetch homepage HTML.");
                 setCardError('icons-list', "Could not fetch homepage HTML.");
@@ -109,6 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 setCardError('charset-list', "Could not fetch homepage HTML.");
                 setCardError('lorem-list', "Could not fetch homepage HTML.");
                 setCardError('opengraph-list', "Could not fetch homepage HTML.");
+                setCardError('intl-list', "Could not fetch homepage HTML.");
             }
 
             // ── Step 4: robots.txt → llms.txt → sitemap (sequential) ──
@@ -216,7 +218,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'ai-list', 'llms-list', 'schema-list', 'broken-links-list', 'mixed-content-list', 'mixed-content-stats',
             'security-list', 'security-stats', 'content-list', 'content-stats', 'icons-list',
             'ssl-list', 'mobile-usability-list', 'flash-list', 'iframes-list',
-            'charset-list', 'lorem-list', 'opengraph-list', 'shopify-list'].forEach(id => {
+            'charset-list', 'lorem-list', 'opengraph-list', 'shopify-list', 'intl-list'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.innerHTML = '';
             });
@@ -687,6 +689,47 @@ document.addEventListener('DOMContentLoaded', () => {
             list.innerHTML = li('warn', 'Partial OpenGraph Tags', `Missing: ${missing.join(', ')}. Useful for rich previews on social media.`);
         } else {
             list.innerHTML = li('err', 'No OpenGraph Tags Found', 'Missing essential Social Media OpenGraph tags (title, description, image).');
+        }
+    }
+
+
+    function runIntlDomainsCheck(doc) {
+        const list = document.getElementById('intl-list');
+        if (!list) return;
+        list.innerHTML = '';
+
+        const hreflangs = Array.from(doc.querySelectorAll('link[rel="alternate"][hreflang]'));
+        const htmlLang = doc.documentElement.getAttribute('lang');
+
+        // Check HTML lang attribute
+        if (htmlLang) {
+            list.innerHTML += li('ok', 'HTML Lang Attribute', `Present: lang="${htmlLang}"`);
+        } else {
+            list.innerHTML += li('err', 'Missing HTML Lang Attribute', 'Essential for international SEO and accessibility.');
+        }
+
+        if (hreflangs.length > 0) {
+            list.innerHTML += li('ok', 'Hreflang Tags Found', `${hreflangs.length} hreflang tag(s) detected for international targeting.`);
+            
+            const hasXDefault = hreflangs.some(el => el.getAttribute('hreflang').toLowerCase() === 'x-default');
+            if (hasXDefault) {
+                list.innerHTML += li('ok', 'x-default Configured', 'Found x-default hreflang tag.');
+            } else {
+                list.innerHTML += li('warn', 'Missing x-default', 'No x-default hreflang tag found. It is strongly recommended for international domains as a fallback.');
+            }
+
+            // Display up to 5 hreflangs
+            list.innerHTML += `<li><div style="font-size:0.8rem; margin:10px 0 5px; opacity:0.7">Detected Locales</div></li>`;
+            hreflangs.slice(0, 5).forEach(el => {
+                const hl = el.getAttribute('hreflang');
+                const href = el.getAttribute('href');
+                list.innerHTML += `<li><div class="check-detail"><strong>${hl}</strong>: ${linkTag(href)}</div></li>`;
+            });
+            if (hreflangs.length > 5) {
+                list.innerHTML += `<li><div class="check-detail" style="opacity: 0.7;">...and ${hreflangs.length - 5} more.</div></li>`;
+            }
+        } else {
+            list.innerHTML += li('warn', 'No Hreflang Tags', 'If this store targets multiple countries/languages, hreflang tags are missing.');
         }
     }
 
