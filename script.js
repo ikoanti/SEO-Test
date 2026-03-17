@@ -41,16 +41,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 const html = await fetchViaProxy(url.href);
                 const parser = new DOMParser();
                 homepageDoc = parser.parseFromString(html, 'text/html');
-                
+
                 // Deep crawl to ensure we get strictly 50 pages if possible
                 const seen = new Set([url.href, url.href.replace(/\/$/, '')]);
                 const queue = [url.href];
                 let crawlIndex = 0;
-                
+
                 // Initial links from homepage
                 internalLinks = extractInternalLinks(homepageDoc, url.href, url.origin);
                 internalLinks.forEach(l => { seen.add(l); seen.add(l.replace(/\/$/, '')); queue.push(l); });
-                
+
                 while (crawlIndex < queue.length && internalLinks.length < 500) { // Gather a larger pool first
                     const currentUrl = queue[crawlIndex++];
                     if (currentUrl === url.href) continue;
@@ -58,7 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         const pageHtml = await fetchViaProxy(currentUrl);
                         const pageDoc = parser.parseFromString(pageHtml, 'text/html');
                         const pageLinks = extractInternalLinks(pageDoc, currentUrl, url.origin);
-                        
+
                         for (const link of pageLinks) {
                             const normalized = link.split('#')[0];
                             if (!seen.has(normalized)) {
@@ -69,7 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 if (internalLinks.length >= 500) break;
                             }
                         }
-                    } catch (e) {}
+                    } catch (e) { }
                 }
                 // Randomly select exactly 50 pages from the gathered pool (if we have that many)
                 internalLinks = shuffle(internalLinks).slice(0, 50);
@@ -197,7 +197,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (sp) sp.textContent = window.auditSummary.passed;
         if (sw) sw.textContent = window.auditSummary.warnings;
         if (sf) sf.textContent = window.auditSummary.failed;
-        
+
         const bar = document.getElementById('summary-score-bar');
         if (bar && total > 0) {
             const passedPct = (window.auditSummary.passed / total) * 100;
@@ -243,6 +243,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (totalLinks) totalLinks.textContent = '0';
         const brokenLinks = document.getElementById('broken-links');
         if (brokenLinks) brokenLinks.textContent = '0';
+        
+        const tapSub = document.getElementById('tap-targets-subtitle');
+        if (tapSub) tapSub.textContent = 'Sourced from PageSpeed API';
+        
+        const tapList = document.getElementById('tap-targets-list');
+        if (tapList) tapList.innerHTML = '<li><div class="check-detail">Checking Mobile Tap Targets…</div></li>';
 
         const sImg = document.getElementById('screenshot-img');
         const sPlace = document.getElementById('screenshot-placeholder');
@@ -259,7 +265,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         const oprList = document.getElementById('opr-list');
         if (oprList) oprList.innerHTML = '';
-        
+
         ['summary-passed', 'summary-warnings', 'summary-failed'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.textContent = '0';
@@ -310,10 +316,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (resolved.origin === origin) {
                     // Exclude image and media files
                     if (/\.(png|jpe?g|gif|webp|svg|ico|bmp|tiff|pdf|mp4|webm)$/i.test(resolved.pathname)) return;
-                    
+
                     // Exclude URLs with parameters
                     if (resolved.search) return;
-                    
+
                     seen.add(resolved.href.split('#')[0]);
                 }
             } catch (e) { }
@@ -341,7 +347,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const fetchScore = async (strategy) => {
             const res = await fetch(`https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&strategy=${strategy}&key=${key}`);
             const data = await res.json();
-            
+
             const audits = data.lighthouseResult?.audits || {};
             return {
                 score: Math.round((data.lighthouseResult?.categories?.performance?.score || 0) * 100),
@@ -386,9 +392,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
         } catch (e) {
-            ['mobile', 'desktop'].forEach(t => { 
+            ['mobile', 'desktop'].forEach(t => {
                 const el = document.getElementById(`speed-${t}`);
-                if (el) el.textContent = 'Err'; 
+                if (el) el.textContent = 'Err';
             });
         }
     }
@@ -438,7 +444,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const data = await response.json();
-            
+
             // OPR API returns data in response[0]
             const resultData = data.response && data.response[0] ? data.response[0] : {};
 
@@ -621,7 +627,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const src = el.getAttribute('src') || el.getAttribute('data') || '';
             return type.includes('application/x-shockwave-flash') || src.includes('.swf');
         });
-        
+
         if (flashElements.length > 0) {
             list.innerHTML = li('err', 'Flash Usage Detected', `${flashElements.length} Flash element(s) found. Flash is obsolete and not supported by modern browsers.`);
         } else {
@@ -634,7 +640,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!list) return;
         list.innerHTML = '';
         const iframes = Array.from(doc.querySelectorAll('iframe'));
-        
+
         if (iframes.length > 0) {
             list.innerHTML = li('warn', 'iFrames Usage Detected', `${iframes.length} iframe(s) found. Excessive use can impact SEO and usability.`);
         } else {
@@ -654,7 +660,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Check for <meta charset="utf-8"> or <meta http-equiv="Content-Type" content="...charset=utf-8">
         const charsetMatch = doc.querySelector('meta[charset]') || doc.querySelector('meta[http-equiv="Content-Type"]');
         let charset = null;
-        
+
         if (charsetMatch) {
             if (charsetMatch.hasAttribute('charset')) {
                 charset = charsetMatch.getAttribute('charset').toLowerCase();
@@ -731,7 +737,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (hreflangs.length > 0) {
             list.innerHTML += li('ok', 'Hreflang Tags Found', `${hreflangs.length} hreflang tag(s) detected for international targeting.`);
-            
+
             const hasXDefault = hreflangs.some(el => el.getAttribute('hreflang').toLowerCase() === 'x-default');
             if (hasXDefault) {
                 list.innerHTML += li('ok', 'x-default Configured', 'Found x-default hreflang tag.');
@@ -773,17 +779,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 fetch(`/api/check-redirect?url=${encodeURIComponent(dummyWithSlash)}`).then(r => r.json()),
                 fetch(`/api/check-redirect?url=${encodeURIComponent(dummyWithoutSlash)}`).then(r => r.json())
             ]);
-            
+
             // If both return 200, duplicate content
             if (resSlash.status === 200 && resNoSlash.status === 200) {
                 if (tsList) tsList.innerHTML = li('err', 'Trailing Slash Issue', 'Both slashed and non-slashed URLs return 200 OK. This causes duplicate content. One should 301 redirect to the other.');
             } else if (resSlash.status >= 300 && resSlash.status < 400 || resNoSlash.status >= 300 && resNoSlash.status < 400) {
-                 if (tsList) tsList.innerHTML = li('ok', 'Trailing Slash Configured', 'Redirects are properly handling trailing slashes.');
+                if (tsList) tsList.innerHTML = li('ok', 'Trailing Slash Configured', 'Redirects are properly handling trailing slashes.');
             } else {
-                 if (tsList) tsList.innerHTML = li('warn', 'Trailing Slash Check Inconclusive', 'Could not fully verify trailing slash redirect behavior on a test path.');
+                if (tsList) tsList.innerHTML = li('warn', 'Trailing Slash Check Inconclusive', 'Could not fully verify trailing slash redirect behavior on a test path.');
             }
-        } catch(e) {
-             if (tsList) tsList.innerHTML = li('warn', 'Trailing Slash Check Failed', e.message);
+        } catch (e) {
+            if (tsList) tsList.innerHTML = li('warn', 'Trailing Slash Check Failed', e.message);
         }
 
         try {
@@ -798,11 +804,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (wwwList) wwwList.innerHTML = li('err', 'WWW / Non-WWW Resolution Issue', `Both ${urlObj.hostname} and ${altHostname} return 200 OK. One must redirect to the other.`);
             } else if (resAlt.isRedirect) {
                 if (wwwList) wwwList.innerHTML = li('ok', 'WWW Resolution Configured', `${altHostname} properly redirects.`);
-            } else if (resAlt.status === 0 || resAlt.status >= 400) { 
+            } else if (resAlt.status === 0 || resAlt.status >= 400) {
                 if (wwwList) wwwList.innerHTML = li('warn', 'Alternate Domain Inaccessible', `${altHostname} does not resolve or return a valid response. Consider registering and redirecting it.`);
             }
 
-        } catch(e) {
+        } catch (e) {
             if (wwwList) wwwList.innerHTML = li('warn', 'WWW Check Failed', e.message);
         }
     }
@@ -831,9 +837,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (hasPrivacy && hasTos) {
             list.innerHTML += li('ok', 'Legal Pages Found', 'Links to Privacy Policy and Terms of Service detected.');
         } else if (hasPrivacy || hasTos) {
-             list.innerHTML += li('warn', 'Partial Legal Pages', `Found link to ${hasPrivacy ? 'Privacy Policy' : 'Terms of Service'} but missing the other.`);
+            list.innerHTML += li('warn', 'Partial Legal Pages', `Found link to ${hasPrivacy ? 'Privacy Policy' : 'Terms of Service'} but missing the other.`);
         } else {
-             list.innerHTML += li('err', 'Missing Legal Pages', 'Could not find links to a Privacy Policy or Terms of Service. Important for trust.');
+            list.innerHTML += li('err', 'Missing Legal Pages', 'Could not find links to a Privacy Policy or Terms of Service. Important for trust.');
         }
 
         // Search for email or phone
@@ -841,9 +847,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const hasPhone = htmlContent.includes('tel:') || /(?:\+?\d{1,3}[\s-]?)?\(?\d{3}\)?[\s-]?\d{3}[\s-]?\d{4}/.test(textContent);
 
         if (hasEmail || hasPhone) {
-             list.innerHTML += li('ok', 'Contact Info Found', `Detected ${hasEmail ? 'Email' : ''} ${hasEmail && hasPhone ? '&' : ''} ${hasPhone ? 'Phone Number' : ''}.`);
+            list.innerHTML += li('ok', 'Contact Info Found', `Detected ${hasEmail ? 'Email' : ''} ${hasEmail && hasPhone ? '&' : ''} ${hasPhone ? 'Phone Number' : ''}.`);
         } else {
-             list.innerHTML += li('warn', 'Missing Contact Info', 'No clear email or phone number detected on the homepage.');
+            list.innerHTML += li('warn', 'Missing Contact Info', 'No clear email or phone number detected on the homepage.');
         }
     }
 
@@ -854,25 +860,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const imgs = Array.from(doc.querySelectorAll('img'));
         if (imgs.length === 0) {
-             list.innerHTML = li('ok', 'No Images Found', 'No images to check for lazy loading.');
-             return;
+            list.innerHTML = li('ok', 'No Images Found', 'No images to check for lazy loading.');
+            return;
         }
 
         const lazyImgs = imgs.filter(img => img.getAttribute('loading') === 'lazy');
-        
+
         if (lazyImgs.length > 0) {
             if (lazyImgs.length === imgs.length) {
-                 list.innerHTML = li('ok', 'Native Lazy Loading Active', `All ${imgs.length} image(s) use loading="lazy".`);
+                list.innerHTML = li('ok', 'Native Lazy Loading Active', `All ${imgs.length} image(s) use loading="lazy".`);
             } else {
-                 list.innerHTML = li('ok', 'Partial Lazy Loading', `${lazyImgs.length} out of ${imgs.length} image(s) use loading="lazy".`);
+                list.innerHTML = li('ok', 'Partial Lazy Loading', `${lazyImgs.length} out of ${imgs.length} image(s) use loading="lazy".`);
             }
         } else {
-             const hasJsLazy = imgs.some(img => img.classList.contains('lazy') || img.classList.contains('lazyload') || img.hasAttribute('data-src'));
-             if (hasJsLazy) {
-                  list.innerHTML = li('ok', 'JS Lazy Loading Active', 'Images appear to use a JS-based lazy loading solution (e.g., data-src or class="lazy").');
-             } else {
-                  list.innerHTML = li('warn', 'Missing Native Lazy Loading', `None of the ${imgs.length} image(s) use the loading="lazy" attribute.`);
-             }
+            const hasJsLazy = imgs.some(img => img.classList.contains('lazy') || img.classList.contains('lazyload') || img.hasAttribute('data-src'));
+            if (hasJsLazy) {
+                list.innerHTML = li('ok', 'JS Lazy Loading Active', 'Images appear to use a JS-based lazy loading solution (e.g., data-src or class="lazy").');
+            } else {
+                list.innerHTML = li('warn', 'Missing Native Lazy Loading', `None of the ${imgs.length} image(s) use the loading="lazy" attribute.`);
+            }
         }
     }
 
@@ -1001,10 +1007,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 titR.issues.push({ url: item.url, icon: 'err', label: 'Missing Title' });
                 return;
             }
-            
+
             const len = item.title.length;
             const isDup = titleCounts[item.title] > 1;
-            
+
             if (isDup) {
                 titR.duplicate++;
                 titR.issues.push({ url: item.url, icon: 'err', label: `Duplicate Title`, detail: item.title });
@@ -1105,9 +1111,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const list = document.getElementById('shopify-list');
         if (!list) return;
         list.innerHTML = '';
-        
+
         const unoptimized = links.filter(link => link.includes('/collections/') && link.includes('/products/'));
-        
+
         if (unoptimized.length > 0) {
             list.innerHTML = li('warn', 'Unoptimized Shopify URLs Found', `${unoptimized.length} URL(s) contain both /collections/ and /products/. This can cause duplicate content issues.`);
             unoptimized.slice(0, 5).forEach(url => {
@@ -1130,16 +1136,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const aiBots = ["GPTBot", "Google-Extended", "Anthropic-AI", "FacebookBot", "Applebot-Extended",
             "CCBot", "Bytespider"];
         const importantBots = ["Googlebot", "Bingbot", "Yandex", "DuckDuckBot", "Baidu"];
-        
+
         const list = document.getElementById('ai-list');
-        if(!list) return null;
+        if (!list) return null;
         list.innerHTML = '';
         try {
             const txt = await fetchViaProxy(`${origin}/robots.txt`);
             if (!txt) throw new Error("Empty");
             const lines = txt.split('\n').map(l => l.trim().toLowerCase());
             let html = '', allowedAI = 0, summaryIssues = 0;
-            
+
             // Check important search engine bots
             importantBots.forEach(bot => {
                 const bLow = bot.toLowerCase();
@@ -1154,10 +1160,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         break;
                     }
                 }
-                
+
                 // Also check if * blocks them
-                if(!found) {
-                     for (let i = 0; i < lines.length; i++) {
+                if (!found) {
+                    for (let i = 0; i < lines.length; i++) {
                         if (lines[i].startsWith('user-agent: *')) {
                             for (let j = i + 1; j < lines.length; j++) {
                                 if (lines[j].startsWith('user-agent:')) break;
