@@ -63,6 +63,34 @@ app.get('/api/proxy', async (req, res) => {
     }
 });
 
+// ── Redirect Check Endpoint ──
+app.get('/api/check-redirect', async (req, res) => {
+    const { url } = req.query;
+    if (!url) return res.status(400).json({ error: "URL is required" });
+
+    try {
+        const response = await axios.get(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            },
+            timeout: 8000,
+            maxRedirects: 0,
+            validateStatus: status => status >= 200 && status < 400
+        });
+
+        const isRedirect = response.status >= 300 && response.status < 400;
+        const location = isRedirect ? response.headers.location : null;
+
+        res.json({
+            status: response.status,
+            isRedirect,
+            location
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message, status: 0 });
+    }
+});
+
 // Serve frontend static files
 app.use(express.static(path.join(__dirname)));
 
