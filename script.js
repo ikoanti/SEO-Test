@@ -102,6 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 runIntlDomainsCheck(homepageDoc);
                 runTrustSignalsCheck(homepageDoc);
                 runLazyLoadImagesCheck(homepageDoc);
+                runMobileTapTargetsCheck(homepageDoc);
             } else {
                 setCardError('schema-list', "Could not fetch homepage HTML.");
                 setCardError('icons-list', "Could not fetch homepage HTML.");
@@ -115,6 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 setCardError('intl-list', "Could not fetch homepage HTML.");
                 setCardError('trust-list', "Could not fetch homepage HTML.");
                 setCardError('lazy-load-list', "Could not fetch homepage HTML.");
+                setCardError('tap-targets-list', "Could not fetch homepage HTML.");
             }
 
             // ── Step 4: robots.txt → llms.txt → sitemap (sequential) ──
@@ -245,7 +247,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (brokenLinks) brokenLinks.textContent = '0';
         
         const tapSub = document.getElementById('tap-targets-subtitle');
-        if (tapSub) tapSub.textContent = 'Sourced from PageSpeed API';
+        if (tapSub) tapSub.textContent = 'Analyzing DOM heuristics';
         
         const tapList = document.getElementById('tap-targets-list');
         if (tapList) tapList.innerHTML = '<li><div class="check-detail">Checking Mobile Tap Targets…</div></li>';
@@ -369,17 +371,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (score >= 90) window.auditSummary.passed++;
                 else if (score >= 50) window.auditSummary.warnings++;
                 else window.auditSummary.failed++;
-
-                if (type === 'mobile' && data.tapTargets) {
-                    const tapList = document.getElementById('tap-targets-list');
-                    if (tapList) {
-                        if (data.tapTargets.score === 1) {
-                            tapList.innerHTML = li('ok', 'Tap Targets Properly Sized', 'Buttons and links are easy to tap on mobile.');
-                        } else {
-                            tapList.innerHTML = li('warn', 'Tap Targets Too Small', data.tapTargets.title || 'Some tap targets are too closely spaced.');
-                        }
-                    }
-                }
 
                 const detailsEl = document.getElementById(`speed-details-${type}`);
                 if (detailsEl) {
@@ -882,6 +873,33 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function runMobileTapTargetsCheck(doc) {
+        const list = document.getElementById('tap-targets-list');
+        if (!list) return;
+        list.innerHTML = '';
+
+        const subtitle = document.getElementById('tap-targets-subtitle');
+        if (subtitle) subtitle.textContent = 'Heuristic DOM Analysis';
+
+        const targets = Array.from(doc.querySelectorAll('a, button, input[type="button"], input[type="submit"], select'));
+
+        if (targets.length === 0) {
+            list.innerHTML = li('warn', 'No Interactive Elements', 'No links or buttons detected to check tap targets.');
+            return;
+        }
+
+        const viewportMatch = doc.querySelector('meta[name="viewport"]');
+        const hasViewport = viewportMatch && viewportMatch.getAttribute('content') && viewportMatch.getAttribute('content').includes('width=device-width');
+
+        // Check heuristic: if they have inline styling for padding, or if mobile viewport is present.
+        if (hasViewport) {
+            list.innerHTML = li('ok', 'Viewport Configured', 'Mobile viewport meta tag is present. Interactive elements should scale naturally, but manual verification of tap target sizes (min 48x48px) is recommended.');
+            list.innerHTML += li('warn', 'Manual Verification Required', `Detected ${targets.length} interactive element(s). Ensure they are properly spaced.`);
+        } else {
+            list.innerHTML = li('err', 'Missing Mobile Viewport', 'Without a properly configured mobile viewport, tap targets will likely be too small and difficult to tap.');
+        }
+    }
+
 
     // ═══════════════════════════════════════
     //  Site-wide Scan: H1 + Meta Titles (≤50 pages)
@@ -1143,6 +1161,12 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const txt = await fetchViaProxy(`${origin}/robots.txt`);
             if (!txt) throw new Error("Empty");
+            
+            const lowerTxt = txt.trim().toLowerCase();
+            if (lowerTxt.startsWith('<!doctype html') || lowerTxt.startsWith('<html') || lowerTxt.includes('<body')) {
+                throw new Error("Invalid robots.txt (HTML returned)");
+            }
+
             const lines = txt.split('\n').map(l => l.trim().toLowerCase());
             let html = '', allowedAI = 0, summaryIssues = 0;
 
