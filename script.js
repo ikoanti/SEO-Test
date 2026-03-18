@@ -1179,7 +1179,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         found = true;
                         for (let j = i + 1; j < lines.length; j++) {
                             if (lines[j].startsWith('user-agent:')) break;
-                            if (lines[j].startsWith('disallow: /') && lines[j].length <= 13) blocked = true; // Broad disallow
+                            if (lines[j].startsWith('disallow:')) {
+                                const path = lines[j].substring(9).trim();
+                                if (path === '/' || path === '/*') blocked = true; // Broad disallow
+                            }
                         }
                         break;
                     }
@@ -1191,7 +1194,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (lines[i].startsWith('user-agent: *')) {
                             for (let j = i + 1; j < lines.length; j++) {
                                 if (lines[j].startsWith('user-agent:')) break;
-                                if (lines[j].startsWith('disallow: /') && lines[j].length <= 13) blocked = true; // Broad disallow on *
+                                if (lines[j].startsWith('disallow:')) {
+                                    const path = lines[j].substring(9).trim();
+                                    if (path === '/' || path === '/*') blocked = true; // Broad disallow on *
+                                }
                             }
                             break;
                         }
@@ -1212,7 +1218,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         found = true;
                         for (let j = i + 1; j < lines.length; j++) {
                             if (lines[j].startsWith('user-agent:')) break;
-                            if (lines[j].startsWith('disallow: /')) blocked = true;
+                            if (lines[j].startsWith('disallow:')) {
+                                const path = lines[j].substring(9).trim();
+                                if (path === '/' || path === '/*') blocked = true;
+                            }
                         }
                         break;
                     }
