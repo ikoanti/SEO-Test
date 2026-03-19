@@ -868,7 +868,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (hasJsLazy) {
                 list.innerHTML = li('ok', 'JS Lazy Loading Active', 'Images appear to use a JS-based lazy loading solution (e.g., data-src or class="lazy").');
             } else {
-                list.innerHTML = li('warn', 'Missing Native Lazy Loading', `None of the ${imgs.length} image(s) use the loading="lazy" attribute.`);
+                const sampleCode = imgs[0].outerHTML.substring(0, 150) + (imgs[0].outerHTML.length > 150 ? '...' : '');
+                list.innerHTML = li('warn', 'Missing Native Lazy Loading', `None of the ${imgs.length} image(s) use the loading="lazy" attribute.`, sampleCode);
             }
         }
     }
@@ -896,7 +897,8 @@ document.addEventListener('DOMContentLoaded', () => {
             list.innerHTML = li('ok', 'Viewport Configured', 'Mobile viewport meta tag is present. Interactive elements should scale naturally, but manual verification of tap target sizes (min 48x48px) is recommended.');
             list.innerHTML += li('warn', 'Manual Verification Required', `Detected ${targets.length} interactive element(s). Ensure they are properly spaced.`);
         } else {
-            list.innerHTML = li('err', 'Missing Mobile Viewport', 'Without a properly configured mobile viewport, tap targets will likely be too small and difficult to tap.');
+            const sampleCode = targets[0] ? targets[0].outerHTML.substring(0, 150) : '';
+            list.innerHTML = li('err', 'Missing Mobile Viewport', 'Without a properly configured mobile viewport, tap targets will likely be too small and difficult to tap.', sampleCode);
         }
     }
 
@@ -933,14 +935,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     const doc = new DOMParser().parseFromString(html, 'text/html');
 
                     // 1. H1
-                    const h1s = Array.from(doc.querySelectorAll('h1'))
-                        .map(el => el.textContent.trim()).filter(Boolean);
+                    const h1Elems = Array.from(doc.querySelectorAll('h1'));
+                    const h1s = h1Elems.map(el => el.textContent.trim()).filter(Boolean);
                     if (h1s.length === 0) {
                         h1R.missing++;
                         h1R.issues.push({ url: pageUrl, icon: 'err', label: 'Missing H1' });
                     } else if (h1s.length > 1) {
                         h1R.multiple++;
-                        h1R.issues.push({ url: pageUrl, icon: 'warn', label: `Multiple H1 (${h1s.length})` });
+                        const sampleCode = h1Elems[0].outerHTML.substring(0, 80) + '\n' + h1Elems[1].outerHTML.substring(0, 80);
+                        h1R.issues.push({ url: pageUrl, icon: 'warn', label: `Multiple H1 (${h1s.length})`, codeSnippet: sampleCode });
                     } else {
                         h1R.ok++;
                     }
@@ -985,12 +988,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     // 5. Image Alt Tags
                     const imgs = Array.from(doc.querySelectorAll('img'));
                     if (imgs.length > 0) {
-                        const missing = imgs.filter(img => img.getAttribute('alt') === null || img.getAttribute('alt') === '').length;
-                        if (missing > 0) {
-                            altR.missing += missing;
-                            altR.issues.push({ url: pageUrl, icon: 'err', label: `${missing} Missing/Empty Alt Tags` });
+                        const missingImgs = imgs.filter(img => img.getAttribute('alt') === null || img.getAttribute('alt') === '');
+                        if (missingImgs.length > 0) {
+                            altR.missing += missingImgs.length;
+                            const sampleCode = missingImgs[0].outerHTML.substring(0, 150) + (missingImgs[0].outerHTML.length > 150 ? '...' : '');
+                            altR.issues.push({ url: pageUrl, icon: 'err', label: `${missingImgs.length} Missing/Empty Alt Tags`, codeSnippet: sampleCode });
                         }
-                        altR.ok += (imgs.length - missing);
+                        altR.ok += (imgs.length - missingImgs.length);
                     }
 
                     // 6. Canonical URL
@@ -1083,7 +1087,8 @@ document.addEventListener('DOMContentLoaded', () => {
             list.innerHTML = data.issues.length === 0
                 ? li('ok', okMsg, '')
                 : data.issues.map(r => li(r.icon, r.label,
-                    (r.detail ? `"${r.detail.slice(0, 50)}…" — ` : '') + linkTag(r.url)
+                    (r.detail ? `"${r.detail.slice(0, 50)}…" — ` : '') + linkTag(r.url),
+                    r.codeSnippet
                 )).join('');
         }
     }
@@ -1286,14 +1291,21 @@ document.addEventListener('DOMContentLoaded', () => {
     //  Web icons & UI Helpers
     // ═══════════════════════════════════════
 
-    function li(icon, title, detail) {
+    function li(icon, title, detail, codeSnippet = '') {
         if (window.auditSummary) {
             if (icon === 'ok') window.auditSummary.passed++;
             else if (icon === 'warn') window.auditSummary.warnings++;
             else if (icon === 'err') window.auditSummary.failed++;
         }
         const icons = { ok: '<span class="icon-ok">✅</span>', warn: '<span class="icon-warn">⚠️</span>', err: '<span class="icon-err">❌</span>' };
-        return `<li><div class="check-status">${icons[icon] || ''} ${title}</div>${detail ? `<div class="check-detail">${detail}</div>` : ''}</li>`;
+        
+        let codeHtml = '';
+        if (codeSnippet) {
+            const escaped = codeSnippet.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            codeHtml = `<div class="code-snippet-container"><pre><code>${escaped}</code></pre></div>`;
+        }
+
+        return `<li><div class="check-status">${icons[icon] || ''} ${title}</div>${detail ? `<div class="check-detail">${detail}</div>` : ''}${codeHtml}</li>`;
     }
 
     function statPills(good, warn, bad) {
