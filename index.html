@@ -1,773 +1,297 @@
-:root {
-    --bg-color: #131426;
-    --card-bg: #131a21;
-    --text-main: #f8f8f8;
-    --text-muted: #94a3b8;
-    --accent: #ffb71b;
-    --accent-hover: #e09f14;
-    --success: #10b981;
-    --warning: #f59e0b;
-    --danger: #ef4444;
-    --border: #334155;
-    --card-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
-}
-
-* {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-}
-
-body {
-    font-family: 'Montserrat', sans-serif;
-    background-color: var(--bg-color);
-    color: var(--text-main);
-    line-height: 1.6;
-    min-height: 100vh;
-    display: flex;
-    justify-content: center;
-    padding: 2rem;
-    background: var(--bg-color);
-}
-
-.logo-container {
-    position: absolute;
-    top: 1.5rem;
-    left: 1.5rem;
-    z-index: 100;
-}
-
-.logo-container img {
-    height: 32px;
-    width: auto;
-    display: block;
-}
-
-.app-container {
-    width: 100%;
-    max-width: 1200px;
-}
-
-header {
-    text-align: center;
-    margin-bottom: 3rem;
-    animation: fadeInDown 0.8s ease;
-}
-
-header h1 {
-    font-size: 3rem;
-    font-weight: 800;
-    color: white;
-    margin-bottom: 0.5rem;
-}
-
-header p {
-    color: white;
-    font-size: 1.1rem;
-}
-
-.search-box {
-    display: flex;
-    gap: 1rem;
-    max-width: 600px;
-    margin: 0 auto 3rem;
-    position: relative;
-    z-index: 10;
-    animation: fadeInUp 0.8s ease 0.2s both;
-}
-
-.search-box input {
-    flex: 1;
-    padding: 1rem 1.5rem;
-    border-radius: 9999px;
-    border: 1px solid var(--border);
-    background: rgba(30, 41, 59, 0.7);
-    color: var(--text-main);
-    font-size: 1rem;
-    outline: none;
-    transition: all 0.3s;
-    backdrop-filter: blur(10px);
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.search-box input:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
-}
-
-.search-box button {
-    padding: 1rem 2rem;
-    border-radius: 9999px;
-    border: none;
-    background: linear-gradient(135deg, #3b82f6, #6366f1);
-    color: white;
-    font-weight: 600;
-    font-size: 1rem;
-    cursor: pointer;
-    transition: all 0.3s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 140px;
-    box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);
-}
-
-.search-box button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.6);
-}
-
-.search-box button:active {
-    transform: translateY(1px);
-}
-
-.search-box button:disabled {
-    opacity: 0.7;
-    cursor: not-allowed;
-    transform: none;
-}
-
-.spinner {
-    width: 20px;
-    height: 20px;
-    border: 3px solid rgba(255, 255, 255, 0.3);
-    border-radius: 50%;
-    border-top-color: white;
-    animation: spin 1s ease-in-out infinite;
-}
-
-.hidden {
-    display: none !important;
-}
-
-.error-msg {
-    max-width: 600px;
-    margin: -1.5rem auto 2rem;
-    padding: 1rem;
-    background: rgba(239, 68, 68, 0.1);
-    border: 1px solid rgba(239, 68, 68, 0.3);
-    border-radius: 0.5rem;
-    color: #fca5a5;
-    text-align: center;
-    animation: fadeIn 0.3s ease;
-}
-
-.results-grid {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 1.5rem;
-    animation: fadeInUp 0.8s ease 0.4s both;
-}
-
-.card {
-    background: var(--card-bg);
-    border: 1px solid var(--border);
-    border-radius: 1rem;
-    padding: 1.5rem;
-    box-shadow: var(--card-shadow);
-    transition: transform 0.3s, box-shadow 0.3s;
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    max-width: 800px;
-}
-
-.card:hover {
-    transform: translateY(-5px);
-    border-color: rgba(255, 255, 255, 0.1);
-    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.6);
-}
-
-.card h3 {
-    font-size: 1.25rem;
-    font-weight: 600;
-    margin-bottom: 1rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.card .subtitle {
-    font-size: 0.85rem;
-    color: var(--text-muted);
-    margin-bottom: 1rem;
-    margin-top: -0.5rem;
-}
-
-/* Specific Card Styles */
-.metric-container {
-    display: flex;
-    align-items: center;
-    gap: 1.5rem;
-    margin-top: 0.5rem;
-}
-
-.metric-circle {
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.5rem;
-    font-weight: 700;
-    border: 4px solid var(--border);
-    background: rgba(0, 0, 0, 0.2);
-}
-
-.metric-circle.good {
-    border-color: #10b981;
-    color: #10b981;
-}
-
-.metric-circle.needs-improvement {
-    border-color: #f59e0b;
-    color: #f59e0b;
-}
-
-.metric-circle.poor {
-    border-color: #ef4444;
-    color: #ef4444;
-}
-
-/* Ahrefs Card Specifics */
-.card-ahrefs .card-header {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin-bottom: 1.25rem;
-}
-
-.card-ahrefs .card-header i {
-    color: #ff8a00;
-    /* Ahrefs orange */
-    font-size: 1.25rem;
-}
-
-.ahrefs-metrics {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-}
-
-.ahrefs-metrics .metric-item {
-    background: rgba(255, 255, 255, 0.03);
-    padding: 1rem;
-    border-radius: 0.75rem;
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    transition: transform 0.2s ease, border-color 0.2s ease;
-}
-
-.ahrefs-metrics .metric-item:hover {
-    transform: translateY(-2px);
-    border-color: rgba(255, 138, 0, 0.3);
-}
-
-.ahrefs-metrics .metric-label {
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--text-muted);
-}
-
-.ahrefs-metrics .metric-value {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: #fff;
-}
-
-.check-list {
-    list-style: none;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-}
-
-.check-list li {
-    background: rgba(0, 0, 0, 0.2);
-    padding: 0.75rem 1rem;
-    border-radius: 0.5rem;
-    font-size: 0.95rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-}
-
-.check-status {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-weight: 500;
-}
-
-.check-detail {
-    font-size: 0.85rem;
-    color: var(--text-muted);
-    word-break: break-all;
-}
-
-.icon-ok {
-    color: #10b981;
-}
-
-.icon-warn {
-    color: #f59e0b;
-}
-
-.icon-err {
-    color: #ef4444;
-}
-
-/* ── Code Snippet for Faulty Code ── */
-.code-snippet-container {
-    margin-top: 0.75rem;
-    background: #0f172a;
-    border: 1px solid var(--border);
-    border-radius: 0.5rem;
-    padding: 0.75rem 1rem;
-    overflow-x: auto;
-    font-size: 0.85rem;
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
-}
-
-.code-snippet-container pre {
-    margin: 0;
-    font-family: 'Fira Code', 'Courier New', Courier, monospace;
-    color: #e2e8f0;
-    white-space: pre-wrap;
-    word-break: break-all;
-}
-
-.code-snippet-container code {
-    color: #ffd700;
-}
-
-.links-summary {
-    display: flex;
-    gap: 1rem;
-    margin-bottom: 1rem;
-}
-
-.links-summary .stat {
-    background: rgba(0, 0, 0, 0.2);
-    padding: 0.5rem 1rem;
-    border-radius: 0.5rem;
-    font-size: 0.9rem;
-}
-
-.links-summary .stat span {
-    font-weight: 700;
-    font-size: 1.1rem;
-}
-
-.stat span.error {
-    color: #ef4444;
-}
-
-.mini-list {
-    max-height: 200px;
-    overflow-y: auto;
-}
-
-.mini-list::-webkit-scrollbar {
-    width: 6px;
-}
-
-.mini-list::-webkit-scrollbar-thumb {
-    background: var(--border);
-    border-radius: 3px;
-}
-
-/* Animations */
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-    }
-
-    to {
-        opacity: 1;
-    }
-}
-
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@keyframes fadeInDown {
-    from {
-        opacity: 0;
-        transform: translateY(-20px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@keyframes spin {
-    from {
-        transform: rotate(0deg);
-    }
-
-    to {
-        transform: rotate(360deg);
-    }
-}
-
-/* ── Status message ── */
-.status-msg {
-    max-width: 600px;
-    margin: -1.5rem auto 2rem;
-    padding: 0.6rem 1rem;
-    border-radius: 0.5rem;
-    background: rgba(59, 130, 246, 0.08);
-    border: 1px solid rgba(59, 130, 246, 0.2);
-    color: var(--text-muted);
-    font-size: 0.85rem;
-    text-align: center;
-    animation: fadeIn 0.3s ease;
-}
-
-/* ── Dual PageSpeed circles ── */
-.speed-container {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-around;
-    padding: 0.75rem 0;
-    gap: 1rem;
-}
-
-.speed-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.5rem;
-    flex: 1;
-}
-
-.speed-label {
-    font-size: 0.85rem;
-    color: var(--text-muted);
-    font-weight: 500;
-}
-
-.speed-divider {
-    width: 1px;
-    align-self: stretch;
-    min-height: 100px;
-    background: var(--border);
-    flex-shrink: 0;
-}
-
-.speed-details {
-    margin-top: 0.5rem;
-    width: 100%;
-    max-width: 250px;
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-    font-size: 0.85rem;
-    color: var(--text-muted);
-}
-
-.speed-metric {
-    display: flex;
-    justify-content: space-between;
-    padding: 0.4rem 0.6rem;
-    background: rgba(255, 255, 255, 0.03);
-    border-radius: 0.4rem;
-    border: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.speed-metric span:first-child {
-    font-weight: 500;
-}
-
-.speed-metric span:last-child {
-    color: var(--text-main);
-    font-weight: 600;
-}
-
-/* ── Scan stat pills (H1 / Meta Titles results) ── */
-.scan-stats {
-    display: flex;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-    margin-bottom: 0.75rem;
-}
-
-.scan-stat {
-    padding: 0.25rem 0.65rem;
-    border-radius: 999px;
-    font-size: 0.8rem;
-    font-weight: 600;
-}
-
-.scan-stat.good {
-    background: rgba(16, 185, 129, 0.12);
-    color: #10b981;
-}
-
-.scan-stat.warn {
-    background: rgba(245, 158, 11, 0.12);
-    color: #f59e0b;
-}
-
-.scan-stat.bad {
-    background: rgba(239, 68, 68, 0.12);
-    color: #ef4444;
-}
-
-/* ── Clickable link inside check items ── */
-.check-link {
-    color: #60a5fa;
-    text-decoration: none;
-    word-break: break-all;
-}
-
-.check-link:hover {
-    text-decoration: underline;
-}
-
-/* ── Screenshot Card ── */
-.card-full {
-    grid-column: 1 / -1;
-    background: linear-gradient(135deg, #ffffff 0%, #f8faff 100%);
-    border: 1px solid var(--primary-light);
-}
-
-.ai-badge {
-    background: linear-gradient(90deg, var(--primary) 0%, #4facfe 100%);
-    color: white;
-    padding: 4px 10px;
-    border-radius: 20px;
-    font-size: 0.75rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 8px;
-    display: inline-block;
-}
-
-.ai-summary-content {
-    font-size: 0.95rem;
-    line-height: 1.6;
-    color: var(--text-main);
-}
-
-.ai-summary-content h4 {
-    margin: 15px 0 8px;
-    color: var(--primary-dark);
-}
-
-.ai-summary-content ul {
-    padding-left: 20px;
-    margin-bottom: 10px;
-}
-
-.skeleton-text {
-    height: 12px;
-    background: linear-gradient(90deg, #f0f0f0 25%, #f8f8f8 50%, #f0f0f0 75%);
-    background-size: 200% 100%;
-    animation: skeleton-loading 1.5s infinite;
-    border-radius: 4px;
-    margin-bottom: 10px;
-}
-
-@keyframes skeleton-loading {
-    0% {
-        background-position: 200% 0;
-    }
-
-    100% {
-        background-position: -200% 0;
-    }
-}
-
-.screenshot-container {
-    width: 100%;
-    aspect-ratio: 1280 / 800;
-    background: rgba(0, 0, 0, 0.3);
-    border-radius: 0.5rem;
-    overflow: hidden;
-    position: relative;
-    border: 1px solid var(--border);
-}
-
-.screenshot-container img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-    animation: fadeIn 0.5s ease-out;
-}
-
-.screenshot-placeholder {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 1rem;
-    color: var(--text-muted);
-    font-size: 0.9rem;
-}
-
-.pulse-loader {
-    width: 40px;
-    height: 40px;
-    background-color: var(--accent);
-    border-radius: 50%;
-    animation: pulse 1.5s ease-in-out infinite;
-    opacity: 0.6;
-}
-
-@keyframes pulse {
-    0% {
-        transform: scale(0.8);
-        opacity: 0.3;
-    }
-
-    50% {
-        transform: scale(1.1);
-        opacity: 0.6;
-    }
-
-    100% {
-        transform: scale(0.8);
-        opacity: 0.3;
-    }
-}
-
-/* ── Audit Summary Card ── */
-.card-summary {
-    grid-column: 1 / -1;
-    background: linear-gradient(145deg, rgba(30, 41, 59, 1) 0%, rgba(15, 23, 42, 1) 100%);
-    border: 1px solid var(--border);
-}
-
-.card-summary h3 {
-    border-bottom: none;
-    margin-bottom: 0.5rem;
-}
-
-.summary-score-bar-wrap {
-    width: 100%;
-    height: 12px;
-    background: rgba(0, 0, 0, 0.4);
-    border-radius: 6px;
-    overflow: hidden;
-    margin-bottom: 1.5rem;
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
-}
-
-.summary-score-bar {
-    height: 100%;
-    width: 100%;
-    background: transparent;
-    transition: background 0.5s ease;
-}
-
-.summary-counts {
-    display: flex;
-    justify-content: space-around;
-    align-items: center;
-    gap: 1rem;
-    flex-wrap: wrap;
-}
-
-.summary-count {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    background: rgba(0, 0, 0, 0.2);
-    padding: 1rem 2rem;
-    border-radius: 0.75rem;
-    min-width: 140px;
-    border: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.summary-count-num {
-    font-size: 2.5rem;
-    font-weight: 800;
-    line-height: 1;
-    margin-bottom: 0.5rem;
-}
-
-.summary-count-label {
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: var(--text-muted);
-}
-
-.summary-count.good .summary-count-num {
-    color: var(--success);
-}
-
-.summary-count.warn .summary-count-num {
-    color: var(--warning);
-}
-
-.summary-count.bad .summary-count-num {
-    color: var(--danger);
-}
-
-/* ── Scroll to Top Button ── */
-.scroll-top-btn {
-    position: fixed;
-    bottom: 2rem;
-    right: 2rem;
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #3b82f6, #6366f1);
-    color: white;
-    font-size: 1.8rem;
-    border: none;
-    cursor: pointer;
-    box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    
-    /* Hidden state by default */
-    opacity: 0;
-    visibility: hidden;
-    transform: translateY(20px) scale(0.9);
-    pointer-events: none;
-}
-
-.scroll-top-btn.show {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(0) scale(1);
-    pointer-events: auto;
-}
-
-.scroll-top-btn:hover {
-    transform: translateY(-5px) scale(1.05);
-    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.6);
-}
-
-.scroll-top-btn:active {
-    transform: translateY(0) scale(0.95);
-}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SEO Mini Audit Tool</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="logo-container">
+        <img src="logo.png" alt="GoldenWeb Logo">
+    </div>
+    <div class="app-container">
+        <header>
+            <h1>GoldenWeb SEO Mini Audit Tool</h1>
+            <p>By Iraki Antidze</p>
+        </header>
+
+        <main>
+            <div class="search-box">
+                <input type="url" id="url-input" placeholder="https://example.com" required>
+                <button id="audit-btn">
+                    <span class="btn-text">Audit Now</span>
+                    <div class="spinner hidden"></div>
+                </button>
+            </div>
+
+            <div id="error-message" class="error-msg hidden"></div>
+            <div id="status-msg" class="status-msg hidden"></div>
+
+            <!-- Audit Summary Bar -->
+            <div id="summary-bar" class="summary-bar hidden">
+                <div class="summary-item">
+                    <span class="summary-count" id="summary-passed">0</span>
+                    <span class="summary-label">✅ Passed</span>
+                </div>
+                <div class="summary-item">
+                    <span class="summary-count warn" id="summary-warnings">0</span>
+                    <span class="summary-label">⚠️ Warnings</span>
+                </div>
+                <div class="summary-item">
+                    <span class="summary-count fail" id="summary-failed">0</span>
+                    <span class="summary-label">❌ Failed</span>
+                </div>
+                <div class="summary-score-bar-wrap">
+                    <div id="summary-score-bar" class="summary-score-bar"></div>
+                </div>
+            </div>
+
+            <div id="results-container" class="results-grid hidden">
+
+
+                <!-- 0. Website Screenshot -->
+                <div class="card" id="card-screenshot">
+                    <h3>Website Screenshot</h3>
+                    <div class="screenshot-container">
+                        <img id="screenshot-img" src="" alt="Website Screenshot" class="hidden">
+                        <div id="screenshot-placeholder" class="screenshot-placeholder">
+                            <div class="pulse-loader"></div>
+                            <span>Capturing screenshot...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Open Page Rank -->
+                <div class="card card-ahrefs" id="card-opr">
+                    <div class="card-header">
+                        <i class="fas fa-chart-line"></i>
+                        <h3>Open Page Rank</h3>
+                    </div>
+                    <div class="ahrefs-metrics" id="opr-metrics">
+                        <div class="metric-item" style="flex:1;">
+                            <span class="metric-label">Page Rank</span>
+                            <span class="metric-value" id="opr-page-rank">-</span>
+                        </div>
+                        <div class="metric-item" style="flex:1;">
+                            <span class="metric-label">Global Rank</span>
+                            <span class="metric-value" id="opr-global-rank">-</span>
+                        </div>
+                    </div>
+                    <ul class="check-list" id="opr-list"></ul>
+                </div>
+
+
+
+                <!-- 1. PageSpeed (Mobile + Desktop) -->
+                <div class="card" id="card-speed">
+                    <h3>PageSpeed Insights</h3>
+                    <div class="speed-container">
+                        <div class="speed-item">
+                            <div class="metric-circle" id="speed-mobile">--</div>
+                            <span class="speed-label">Mobile Score</span>
+                            <div class="speed-details" id="speed-details-mobile"></div>
+                        </div>
+                        <div class="speed-divider"></div>
+                        <div class="speed-item">
+                            <div class="metric-circle" id="speed-desktop">--</div>
+                            <span class="speed-label">Desktop Score</span>
+                            <div class="speed-details" id="speed-details-desktop"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. H1 Elements (50 pages) -->
+                <div class="card" id="card-h1">
+                    <h3>H1 Elements</h3>
+                    <p class="subtitle" id="h1-subtitle">Scanning exactly 50 pages…</p>
+                    <div class="scan-stats" id="h1-stats"></div>
+                    <ul class="check-list mini-list" id="h1-list"></ul>
+                </div>
+
+                <!-- 3. Meta Titles (50 pages) -->
+                <div class="card" id="card-titles">
+                    <h3>Meta Titles</h3>
+                    <p class="subtitle" id="titles-subtitle">Scanning exactly 50 pages…</p>
+                    <div class="scan-stats" id="titles-stats"></div>
+                    <ul class="check-list mini-list" id="titles-list"></ul>
+                </div>
+
+                <!-- 4. Internal Links -->
+                <div class="card" id="card-links">
+                    <h3>Internal Links</h3>
+                    <div class="links-summary">
+                        <div class="stat"><span id="total-links">0</span> Total</div>
+                        <div class="stat"><span id="broken-links" class="error">0</span> Broken</div>
+                    </div>
+                    <ul class="check-list mini-list" id="broken-links-list"></ul>
+                </div>
+
+                <!-- 5. Image Alt Tags -->
+                <div class="card" id="card-alt">
+                    <h3>Image Alt Tags</h3>
+                    <p class="subtitle" id="alt-subtitle">Scanning exactly 50 pages…</p>
+                    <div class="scan-stats" id="alt-stats"></div>
+                    <ul class="check-list mini-list" id="alt-list"></ul>
+                </div>
+
+
+                <!-- 6. Canonical URL -->
+                <div class="card" id="card-canonical">
+                    <h3>Canonical URL</h3>
+                    <p class="subtitle" id="canonical-subtitle">Scanning exactly 50 pages…</p>
+                    <div class="scan-stats" id="canonical-stats"></div>
+                    <ul class="check-list mini-list" id="canonical-list"></ul>
+                </div>
+
+
+                <!-- 7. Sitemap.xml -->
+                <div class="card" id="card-sitemap">
+                    <h3>Sitemap.xml</h3>
+                    <ul class="check-list" id="sitemap-list"></ul>
+                </div>
+
+                <!-- 8. AI Bot Whitelist & Robots.txt -->
+                <div class="card" id="card-ai">
+                    <h3>Robots.txt Analysis</h3>
+                    <p class="subtitle" id="ai-subtitle">Analyzing robots.txt patterns</p>
+                    <ul class="check-list" id="ai-list"></ul>
+                </div>
+
+                <!-- 9. LLMs.txt Inspector -->
+                <div class="card" id="card-llms">
+                    <h3>LLMs.txt Inspector</h3>
+                    <ul class="check-list" id="llms-list"></ul>
+                </div>
+
+                <!-- 10. Structured Data -->
+                <div class="card" id="card-schema">
+                    <h3>Structured Data</h3>
+                    <ul class="check-list" id="schema-list"></ul>
+                </div>
+
+                <!-- 11. Security (HTTPS) -->
+                <div class="card" id="card-security">
+                    <h3>Security (HTTPS)</h3>
+                    <p class="subtitle" id="security-subtitle">Scanning exactly 50 pages…</p>
+                    <div class="scan-stats" id="security-stats"></div>
+                    <ul class="check-list mini-list" id="security-list"></ul>
+                </div>
+
+                <!-- 11.5 Mixed Content -->
+                <div class="card" id="card-mixed-content">
+                    <h3>Mixed Content</h3>
+                    <p class="subtitle" id="mixed-content-subtitle">Scanning exactly 50 pages…</p>
+                    <div class="scan-stats" id="mixed-content-stats"></div>
+                    <ul class="check-list mini-list" id="mixed-content-list"></ul>
+                </div>
+
+                <!-- 12. Content Quality (Word Count) -->
+                <div class="card" id="card-content">
+                    <h3>Content Quality</h3>
+                    <p class="subtitle" id="content-subtitle">Scanning exactly 50 pages…</p>
+                    <div class="scan-stats" id="content-stats"></div>
+                    <ul class="check-list mini-list" id="content-list"></ul>
+                </div>
+
+                <!-- 13. Web Icons -->
+                <div class="card" id="card-icons">
+                    <h3>Web Icons</h3>
+                    <ul class="check-list" id="icons-list"></ul>
+                </div>
+
+                <!-- 14. SSL Check -->
+                <div class="card" id="card-ssl">
+                    <h3>SSL Certificate Check</h3>
+                    <ul class="check-list" id="ssl-list"></ul>
+                </div>
+
+                <!-- 15. Mobile Usability -->
+                <div class="card" id="card-mobile-usability">
+                    <h3>Mobile Usability</h3>
+                    <ul class="check-list" id="mobile-usability-list"></ul>
+                </div>
+
+                <!-- 16. Flash Usage -->
+                <div class="card" id="card-flash">
+                    <h3>Flash Usage</h3>
+                    <ul class="check-list" id="flash-list"></ul>
+                </div>
+
+                <!-- 18. Character Encoding -->
+                <div class="card" id="card-charset">
+                    <h3>Character Encoding</h3>
+                    <ul class="check-list" id="charset-list"></ul>
+                </div>
+
+                <!-- 19. Lorem Ipsum -->
+                <div class="card" id="card-lorem">
+                    <h3>Lorem Ipsum Test</h3>
+                    <ul class="check-list" id="lorem-list"></ul>
+                </div>
+
+                <!-- 20. OpenGraph Tags -->
+                <div class="card" id="card-opengraph">
+                    <h3>OpenGraph Tags</h3>
+                    <ul class="check-list" id="opengraph-list"></ul>
+                </div>
+
+                <!-- 21. Shopify URL Structure -->
+                <div class="card" id="card-shopify-urls">
+                    <h3>Shopify URL Structure</h3>
+                    <ul class="check-list" id="shopify-list"></ul>
+                </div>
+
+                <!-- 22. International Domains (Hreflang) -->
+                <div class="card" id="card-intl-domains">
+                    <h3>International Domains & Hreflang</h3>
+                    <ul class="check-list" id="intl-list"></ul>
+                </div>
+
+                <!-- 23. Trailing Slash Consistency -->
+                <div class="card" id="card-trailing-slash">
+                    <h3>Trailing Slash Consistency</h3>
+                    <ul class="check-list" id="trailing-slash-list"></ul>
+                </div>
+
+                <!-- 24. WWW vs Non-WWW -->
+                <div class="card" id="card-www-resolve">
+                    <h3>WWW vs Non-WWW Resolution</h3>
+                    <ul class="check-list" id="www-resolve-list"></ul>
+                </div>
+
+                <!-- 25. Trust Signals -->
+                <div class="card" id="card-trust">
+                    <h3>Contact & Trust Signals</h3>
+                    <ul class="check-list" id="trust-list"></ul>
+                </div>
+
+                <!-- 26. Mobile Tap Targets -->
+                <div class="card" id="card-tap-targets">
+                    <h3>Mobile Tap Targets</h3>
+                    <p class="subtitle" id="tap-targets-subtitle">Analyzing DOM heuristics</p>
+                    <ul class="check-list" id="tap-targets-list"></ul>
+                </div>
+
+                <!-- 27. Lazy Loading Images -->
+                <div class="card" id="card-lazy-load">
+                    <h3>Lazy Loading Images</h3>
+                    <ul class="check-list" id="lazy-load-list"></ul>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Scroll to Top Button -->
+    <button id="scroll-top-btn" class="scroll-top-btn" aria-label="Scroll to top" title="Scroll to top">
+        &#8679;
+    </button>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
