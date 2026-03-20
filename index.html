@@ -282,6 +282,24 @@
                     <ul class="check-list" id="lazy-load-list"></ul>
                 </div>
 
+                <!-- 28. AI Report Generator -->
+                <div class="card card-report" id="card-report">
+                    <h3>📄 AI Report Generator</h3>
+                    <p class="subtitle">Generate a professional Mini Technical SEO Audit document using Claude AI</p>
+                    <button id="generate-report-btn" class="report-generate-btn">
+                        <span class="report-btn-text">Generate Mini SEO Audit Report</span>
+                        <div class="report-spinner hidden"></div>
+                    </button>
+                    <div id="report-output-wrapper" class="report-output-wrapper hidden">
+                        <div class="report-actions">
+                            <button id="copy-report-btn" class="report-action-btn" title="Copy to Clipboard">📋 Copy</button>
+                            <button id="download-report-btn" class="report-action-btn" title="Download as .txt">💾 Download</button>
+                        </div>
+                        <pre id="report-output" class="report-output"></pre>
+                    </div>
+                    <div id="report-error" class="report-error hidden"></div>
+                </div>
+
             </div>
         </main>
     </div>
@@ -291,6 +309,7 @@
         &#8679;
     </button>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="script.js"></script>
 </body>
 
