@@ -298,6 +298,26 @@ header p {
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
+    position: relative;
+}
+
+.download-snippet-btn {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    background: transparent;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    opacity: 0.3;
+    transition: opacity 0.2s, transform 0.2s;
+    filter: grayscale(1);
+}
+
+.download-snippet-btn:hover {
+    opacity: 1;
+    transform: scale(1.1);
+    filter: none;
 }
 
 .check-status {
@@ -770,4 +790,109 @@ header p {
 
 .scroll-top-btn:active {
     transform: translateY(0) scale(0.95);
+}
+
+/* ── AI Report Generator Card ── */
+.card-report {
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    background: linear-gradient(145deg, #131a21 0%, #1a1040 100%);
+}
+
+.report-generate-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 1rem 1.5rem;
+    border: none;
+    border-radius: 0.75rem;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+}
+
+.report-generate-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.6);
+}
+
+.report-generate-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.report-spinner {
+    width: 18px;
+    height: 18px;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: white;
+    animation: spin 1s ease-in-out infinite;
+}
+
+.report-output-wrapper {
+    margin-top: 1.25rem;
+}
+
+.report-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.report-action-btn {
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-main);
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.report-action-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.report-output {
+    background: #0d1117;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    color: #e2e8f0;
+    font-family: 'Inter', 'Segoe UI', sans-serif;
+    font-size: 0.9rem;
+    line-height: 1.8;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.report-output::-webkit-scrollbar {
+    width: 6px;
+}
+
+.report-output::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 3px;
+}
+
+.report-error {
+    margin-top: 1rem;
+    padding: 0.75rem 1rem;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: 0.5rem;
+    color: #fca5a5;
+    font-size: 0.9rem;
 }
