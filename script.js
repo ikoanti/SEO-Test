@@ -7,6 +7,37 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnText = btn.querySelector('.btn-text');
     const spinner = btn.querySelector('.spinner');
 
+    // ── Download Snippet Image Logic ──
+    document.addEventListener('click', async (e) => {
+        const downloadBtn = e.target.closest('.download-snippet-btn');
+        if (!downloadBtn) return;
+        
+        const listItem = downloadBtn.closest('li');
+        if (!listItem || typeof html2canvas === 'undefined') {
+            console.error('Missing html2canvas or list item');
+            return;
+        }
+
+        // Hide button during capture so it doesn't show in the screenshot
+        downloadBtn.style.display = 'none';
+        
+        try {
+            const canvas = await html2canvas(listItem, {
+                backgroundColor: '#131a21', // Match the card background color
+                scale: 2 // High resolution export
+            });
+            
+            const link = document.createElement('a');
+            link.download = 'seo-issue-snippet.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        } catch (err) {
+            console.error('Failed to save snippet as image:', err);
+        } finally {
+            downloadBtn.style.display = '';
+        }
+    });
+
     // ── Scroll to Top Button Logic ──
     const scrollTopBtn = document.getElementById('scroll-top-btn');
     if (scrollTopBtn) {
@@ -1315,12 +1346,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const icons = { ok: '<span class="icon-ok">✅</span>', warn: '<span class="icon-warn">⚠️</span>', err: '<span class="icon-err">❌</span>' };
         
         let codeHtml = '';
+        let dlBtn = '';
         if (codeSnippet) {
             const escaped = codeSnippet.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
             codeHtml = `<div class="code-snippet-container"><pre><code>${escaped}</code></pre></div>`;
+            dlBtn = `<button class="download-snippet-btn" title="Save this issue as Image">📸</button>`;
         }
 
-        return `<li><div class="check-status">${icons[icon] || ''} ${title}</div>${detail ? `<div class="check-detail">${detail}</div>` : ''}${codeHtml}</li>`;
+        return `<li><div class="check-status">${icons[icon] || ''} ${title}</div>${detail ? `<div class="check-detail">${detail}</div>` : ''}${codeHtml}${dlBtn}</li>`;
     }
 
     function statPills(good, warn, bad) {
@@ -1337,4 +1370,192 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+    // ═══════════════════════════════════════
+    //  AI Report Generator (Claude)
+    // ═══════════════════════════════════════
+
+    function collectAuditData() {
+        const data = {};
+
+        // Summary counts
+        data.summary = {
+            passed: window.auditSummary?.passed || 0,
+            warnings: window.auditSummary?.warnings || 0,
+            failed: window.auditSummary?.failed || 0
+        };
+
+        // PageSpeed
+        const mobileScore = document.getElementById('speed-mobile')?.textContent;
+        const desktopScore = document.getElementById('speed-desktop')?.textContent;
+        data.pageSpeed = {
+            mobile: { score: mobileScore || 'N/A' },
+            desktop: { score: desktopScore || 'N/A' }
+        };
+        // Grab FCP, LCP, CLS, TBT from detail elements
+        ['mobile', 'desktop'].forEach(type => {
+            const detailEl = document.getElementById(`speed-details-${type}`);
+            if (detailEl) {
+                const metrics = {};
+                detailEl.querySelectorAll('.speed-metric').forEach(m => {
+                    const spans = m.querySelectorAll('span');
+                    if (spans.length >= 2) {
+                        metrics[spans[0].textContent.replace(':', '').trim()] = spans[1].textContent.trim();
+                    }
+                });
+                data.pageSpeed[type].metrics = metrics;
+            }
+        });
+
+        // Open Page Rank
+        data.openPageRank = {
+            pageRank: document.getElementById('opr-page-rank')?.textContent || 'N/A',
+            globalRank: document.getElementById('opr-global-rank')?.textContent || 'N/A'
+        };
+
+        // Collect card results by scraping text from each check list
+        const cards = [
+            { key: 'h1Tags', listId: 'h1-list', statsId: 'h1-stats' },
+            { key: 'metaTitles', listId: 'titles-list', statsId: 'titles-stats' },
+            { key: 'imageAltTags', listId: 'alt-list', statsId: 'alt-stats' },
+            { key: 'canonicalUrls', listId: 'canonical-list', statsId: 'canonical-stats' },
+            { key: 'internalLinks', listId: 'broken-links-list' },
+            { key: 'sitemap', listId: 'sitemap-list' },
+            { key: 'robotsTxt', listId: 'ai-list' },
+            { key: 'llmsTxt', listId: 'llms-list' },
+            { key: 'structuredData', listId: 'schema-list' },
+            { key: 'security', listId: 'security-list', statsId: 'security-stats' },
+            { key: 'mixedContent', listId: 'mixed-content-list', statsId: 'mixed-content-stats' },
+            { key: 'contentQuality', listId: 'content-list', statsId: 'content-stats' },
+            { key: 'webIcons', listId: 'icons-list' },
+            { key: 'ssl', listId: 'ssl-list' },
+            { key: 'mobileUsability', listId: 'mobile-usability-list' },
+            { key: 'flash', listId: 'flash-list' },
+            { key: 'charset', listId: 'charset-list' },
+            { key: 'loremIpsum', listId: 'lorem-list' },
+            { key: 'openGraph', listId: 'opengraph-list' },
+            { key: 'shopifyUrls', listId: 'shopify-list' },
+            { key: 'internationalDomains', listId: 'intl-list' },
+            { key: 'trailingSlash', listId: 'trailing-slash-list' },
+            { key: 'wwwResolve', listId: 'www-resolve-list' },
+            { key: 'trustSignals', listId: 'trust-list' },
+            { key: 'tapTargets', listId: 'tap-targets-list' },
+            { key: 'lazyLoadImages', listId: 'lazy-load-list' }
+        ];
+
+        cards.forEach(card => {
+            const listEl = document.getElementById(card.listId);
+            const items = [];
+            if (listEl) {
+                listEl.querySelectorAll('li').forEach(li => {
+                    const status = li.querySelector('.check-status')?.textContent?.trim() || '';
+                    const detail = li.querySelector('.check-detail')?.textContent?.trim() || '';
+                    if (status || detail) {
+                        items.push({ status, detail });
+                    }
+                });
+            }
+
+            // Include stats if present
+            let stats = '';
+            if (card.statsId) {
+                const statsEl = document.getElementById(card.statsId);
+                if (statsEl) stats = statsEl.textContent.trim();
+            }
+
+            data[card.key] = { items, stats };
+        });
+
+        // Internal links summary numbers
+        data.internalLinks.totalLinks = document.getElementById('total-links')?.textContent || '0';
+        data.internalLinks.brokenLinks = document.getElementById('broken-links')?.textContent || '0';
+
+        return data;
+    }
+
+    // Wire up the Generate Report button
+    const reportBtn = document.getElementById('generate-report-btn');
+    if (reportBtn) {
+        reportBtn.addEventListener('click', async () => {
+            const urlStr = document.getElementById('url-input')?.value?.trim();
+            if (!urlStr) return;
+
+            let domain;
+            try {
+                domain = new URL(urlStr.startsWith('http') ? urlStr : `https://${urlStr}`).hostname;
+            } catch (e) {
+                domain = urlStr;
+            }
+
+            const btnTextEl = reportBtn.querySelector('.report-btn-text');
+            const spinnerEl = reportBtn.querySelector('.report-spinner');
+            const outputWrapper = document.getElementById('report-output-wrapper');
+            const outputEl = document.getElementById('report-output');
+            const errorEl = document.getElementById('report-error');
+
+            // Loading state
+            reportBtn.disabled = true;
+            if (btnTextEl) btnTextEl.textContent = 'Generating report…';
+            if (spinnerEl) spinnerEl.classList.remove('hidden');
+            if (outputWrapper) outputWrapper.classList.add('hidden');
+            if (errorEl) { errorEl.classList.add('hidden'); errorEl.textContent = ''; }
+
+            try {
+                const auditData = collectAuditData();
+                const res = await fetch('/api/generate-report', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ domain, auditData })
+                });
+
+                const result = await res.json();
+                if (!res.ok) throw new Error(result.error || 'Unknown error');
+
+                if (outputEl) outputEl.textContent = result.report;
+                if (outputWrapper) outputWrapper.classList.remove('hidden');
+            } catch (err) {
+                if (errorEl) {
+                    errorEl.textContent = '❌ ' + err.message;
+                    errorEl.classList.remove('hidden');
+                }
+            } finally {
+                reportBtn.disabled = false;
+                if (btnTextEl) btnTextEl.textContent = 'Generate Mini SEO Audit Report';
+                if (spinnerEl) spinnerEl.classList.add('hidden');
+            }
+        });
+    }
+
+    // Copy to Clipboard
+    const copyBtn = document.getElementById('copy-report-btn');
+    if (copyBtn) {
+        copyBtn.addEventListener('click', () => {
+            const text = document.getElementById('report-output')?.textContent || '';
+            navigator.clipboard.writeText(text).then(() => {
+                copyBtn.textContent = '✅ Copied!';
+                setTimeout(() => { copyBtn.textContent = '📋 Copy'; }, 2000);
+            });
+        });
+    }
+
+    // Download as .txt
+    const downloadBtn = document.getElementById('download-report-btn');
+    if (downloadBtn) {
+        downloadBtn.addEventListener('click', () => {
+            const text = document.getElementById('report-output')?.textContent || '';
+            const domain = document.getElementById('url-input')?.value?.trim() || 'audit';
+            let filename;
+            try {
+                filename = new URL(domain.startsWith('http') ? domain : `https://${domain}`).hostname;
+            } catch (e) {
+                filename = 'audit';
+            }
+            const blob = new Blob([text], { type: 'text/plain' });
+            const link = document.createElement('a');
+            link.download = `Mini-SEO-Audit-${filename}.txt`;
+            link.href = URL.createObjectURL(blob);
+            link.click();
+            URL.revokeObjectURL(link.href);
+        });
+    }
 });
