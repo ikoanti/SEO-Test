@@ -871,10 +871,8 @@ header p {
     color: #e2e8f0;
     font-family: 'Inter', 'Segoe UI', sans-serif;
     font-size: 0.9rem;
-    line-height: 1.8;
-    white-space: pre-wrap;
-    word-wrap: break-word;
-    max-height: 600px;
+    line-height: 1.6;
+    max-height: 700px;
     overflow-y: auto;
 }
 
