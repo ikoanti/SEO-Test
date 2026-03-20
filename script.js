@@ -1511,7 +1511,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const result = await res.json();
                 if (!res.ok) throw new Error(result.error || 'Unknown error');
 
-                if (outputEl) outputEl.textContent = result.report;
+                if (outputEl) outputEl.innerHTML = result.report;
                 if (outputWrapper) outputWrapper.classList.remove('hidden');
             } catch (err) {
                 if (errorEl) {
@@ -1530,7 +1530,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const copyBtn = document.getElementById('copy-report-btn');
     if (copyBtn) {
         copyBtn.addEventListener('click', () => {
-            const text = document.getElementById('report-output')?.textContent || '';
+            const el = document.getElementById('report-output');
+            const text = el?.innerText || '';
             navigator.clipboard.writeText(text).then(() => {
                 copyBtn.textContent = '✅ Copied!';
                 setTimeout(() => { copyBtn.textContent = '📋 Copy'; }, 2000);
@@ -1539,10 +1540,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Download as .txt
-    const downloadBtn = document.getElementById('download-report-btn');
     if (downloadBtn) {
         downloadBtn.addEventListener('click', () => {
-            const text = document.getElementById('report-output')?.textContent || '';
+            const html = document.getElementById('report-output')?.innerHTML || '';
             const domain = document.getElementById('url-input')?.value?.trim() || 'audit';
             let filename;
             try {
@@ -1550,9 +1550,10 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (e) {
                 filename = 'audit';
             }
-            const blob = new Blob([text], { type: 'text/plain' });
+            const fullHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Mini SEO Audit - ${filename}</title></head><body style="background:#0d1117;margin:0;padding:2rem;font-family:'Segoe UI',sans-serif;">${html}</body></html>`;
+            const blob = new Blob([fullHtml], { type: 'text/html' });
             const link = document.createElement('a');
-            link.download = `Mini-SEO-Audit-${filename}.txt`;
+            link.download = `Mini-SEO-Audit-${filename}.html`;
             link.href = URL.createObjectURL(blob);
             link.click();
             URL.revokeObjectURL(link.href);
