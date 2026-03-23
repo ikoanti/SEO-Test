@@ -1470,6 +1470,18 @@ document.addEventListener('DOMContentLoaded', () => {
         data.internalLinks.totalLinks = document.getElementById('total-links')?.textContent || '0';
         data.internalLinks.brokenLinks = document.getElementById('broken-links')?.textContent || '0';
 
+        // AI Visibility Analysis
+        data.aiVisibility = {
+            score: document.getElementById('aiv-score')?.textContent || '-',
+            monthlyAudience: document.getElementById('aiv-audience')?.textContent || '-',
+            mentions: document.getElementById('aiv-mentions')?.textContent || '-',
+            citedPages: document.getElementById('aiv-cited-pages')?.textContent || '-',
+            performingTopics: document.getElementById('aiv-performing-topics')?.textContent || '-',
+            topicOpportunities: document.getElementById('aiv-topic-opportunities')?.textContent || '-',
+            citedSources: document.getElementById('aiv-cited-sources')?.textContent || '-',
+            sourceOpportunities: document.getElementById('aiv-source-opportunities')?.textContent || '-'
+        };
+
         return data;
     }
 
