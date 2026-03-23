@@ -282,6 +282,60 @@
                     <ul class="check-list" id="lazy-load-list"></ul>
                 </div>
 
+                <!-- 27.5 AI Visibility -->
+                <div class="card card-aiv" id="card-ai-visibility">
+                    <div class="card-header">
+                        <i class="fas fa-robot"></i>
+                        <h3>AI Visibility Analysis</h3>
+                    </div>
+                    <p class="subtitle">Upload an AI Visibility PDF report to extract key metrics</p>
+                    
+                    <div class="file-upload-container">
+                        <input type="file" id="ai-visibility-file" accept=".pdf" class="file-input">
+                        <button id="analyze-pdf-btn" class="report-generate-btn" disabled>
+                            <span class="report-btn-text" id="analyze-btn-text">Analyze PDF</span>
+                            <div class="report-spinner hidden" id="analyze-spinner"></div>
+                        </button>
+                    </div>
+                    <div id="ai-visibility-error" class="report-error hidden"></div>
+
+                    <div id="ai-visibility-results" class="ahrefs-metrics hidden" style="margin-top: 15px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+                        <div class="metric-item">
+                            <span class="metric-label">AI Visibility</span>
+                            <span class="metric-value highlight-yellow" id="aiv-score">-</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Monthly Audience</span>
+                            <span class="metric-value highlight-green" id="aiv-audience">-</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Mentions</span>
+                            <span class="metric-value highlight-green" id="aiv-mentions">-</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Cited Pages</span>
+                            <span class="metric-value highlight-green" id="aiv-cited-pages">-</span>
+                        </div>
+                        <div class="metric-item" style="grid-column: span 2; border-top: 1px solid #30363d; padding-top: 10px; margin-top: 5px;"></div>
+                        <div class="metric-item">
+                            <span class="metric-label">Perf. Topics</span>
+                            <span class="metric-value highlight-yellow" id="aiv-performing-topics">-</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Topic Opps</span>
+                            <span class="metric-value highlight-yellow" id="aiv-topic-opportunities">-</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Cited Sources</span>
+                            <span class="metric-value highlight-yellow" id="aiv-cited-sources">-</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Source Opps</span>
+                            <span class="metric-value highlight-yellow" id="aiv-source-opportunities">-</span>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- 28. AI Report Generator -->
                 <div class="card card-report" id="card-report">
                     <h3>📄 AI Report Generator</h3>
