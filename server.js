@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
 
 // Open Page Rank API Configuration
 const OPEN_PAGE_RANK_API_KEY = process.env.OPEN_PAGE_RANK_API_KEY;
@@ -168,6 +168,65 @@ IMPORTANT RULES:
     } catch (error) {
         console.error('Claude API Error:', error.message);
         res.status(500).json({ error: 'Failed to generate report: ' + error.message });
+    }
+});
+
+// ── AI Visibility PDF Analysis Endpoint ──
+// Accepts { pdfBase64: "base64_string" } and returns extracted metrics.
+app.post('/api/parse-pdf', async (req, res) => {
+    const { pdfBase64 } = req.body;
+
+    if (!anthropic) {
+        return res.status(500).json({ error: 'ANTHROPIC_API_KEY is not configured on the server.' });
+    }
+    if (!pdfBase64) {
+        return res.status(400).json({ error: 'pdfBase64 is required.' });
+    }
+
+    const prompt = `You are an AI that extracts specific metrics from an SEO PDF report. 
+Please look at the provided document and extract the following exact numbers/values:
+1. AI Visibility (number scale 0-100)
+2. Monthly Audience (string e.g. "2.87M")
+3. Mentions (number)
+4. Cited Pages (number)
+5. Your Performing Topics (number)
+6. Topic Opportunities (string e.g. "2.52K")
+7. Cited Sources (number)
+8. Source Opportunities (string e.g. "13.68K")
+
+Return the result STRICTLY as a JSON object with these exact keys: 
+"aiVisibility", "monthlyAudience", "mentions", "citedPages", "performingTopics", "topicOpportunities", "citedSources", "sourceOpportunities".
+
+Do NOT include any markdown formatting, backticks, or explanation. ONLY output the raw JSON object.`;
+
+    try {
+        const message = await anthropic.messages.create({
+            model: 'claude-3-5-sonnet-20241022',
+            max_tokens: 1024,
+            messages: [{
+                role: 'user',
+                content: [
+                    {
+                        type: 'document',
+                        source: {
+                            type: 'base64',
+                            media_type: 'application/pdf',
+                            data: pdfBase64
+                        }
+                    },
+                    {
+                        type: 'text',
+                        text: prompt
+                    }
+                ]
+            }]
+        });
+
+        const responseText = message.content[0].text.trim();
+        res.json(JSON.parse(responseText));
+    } catch (error) {
+        console.error('Claude API PDF Parse Error:', error.message);
+        res.status(500).json({ error: 'Failed to analyze PDF: ' + error.message });
     }
 });
 
