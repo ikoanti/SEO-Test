@@ -201,7 +201,7 @@ Do NOT include any markdown formatting, backticks, or explanation. ONLY output t
 
     try {
         const message = await anthropic.messages.create({
-            model: 'claude-3-5-sonnet-20241022',
+            model: 'claude-sonnet-4-20250514',
             max_tokens: 1024,
             messages: [{
                 role: 'user',
