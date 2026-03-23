@@ -133,11 +133,11 @@ SECTION 2 - OVERVIEW:
 "${domain} wants to rank higher for target keywords and generate more organic traffic. We analyzed 10 different factors in this mini technical SEO Audit, out of the 285 total factors that are included in the FULL version of the technical SEO Audit. The goal of this brief document is to provide an evaluation of challenges, which if resolved can be quick-win opportunities that can yield better rankings and higher organic traffic."
 
 SECTION 3 - AUDIT SNAPSHOT:
-Visual metrics dashboard showing PageSpeed scores, pass/warn/fail counts, and progress bar
+Visual metrics dashboard showing PageSpeed scores, pass/warn/fail counts, and progress bar. Also explicitly include an "AI Visibility" sub-section that lists the AI Visibility Score, Monthly Audience, Mentions, and Topic Opportunities if they are present in the data.
 
 SECTION 4 - CHALLENGES:
 "In our brief evaluation of the current technical optimization status of ${domain} we identified problems and errors with the site architecture. These exact problems are among the top reasons why you're not ranking for more of your target keywords."
-Then list Problem 1, Problem 2, etc. as styled cards. Be specific with numbers from the audit data. Aim for 3-6 problems.
+Then list Problem 1, Problem 2, etc. as styled cards. Be specific with numbers from the audit data. Aim for 3-6 problems. 
 End with: "All of the above problems have a direct negative impact on your organic rankings, visibility, and traffic and present a massive opportunity cost over the long term."
 
 SECTION 5 - QUICK WINS:
