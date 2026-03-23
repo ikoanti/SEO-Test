@@ -147,7 +147,7 @@ SECTION 6 - SUMMARY:
 "${domain} is an established website with valuable assets, links and content and many uncaptured opportunities, but also problems… In order to rank for more keywords, as well as rank higher for existing ones and outrank your competitors, we'd highly suggest taking care of the issues mentioned above. We'd also highly suggest considering our full technical SEO audit, where we take an in-depth look at 285 different technical factors, instead of just 10 covered in this mini technical SEO audit. When doing the full technical audit, it's very easy to find quick wins and optimizations that need to be done in order to dramatically increase existing organic traffic. An example of this would be one of the recent case studies that we just published, where weekly organic traffic jumped from 200,000 to 315,000 in 45 days, by simply changing a few settings and bits of code. (Results typically kick in 30-45 days after Google indexes the applied changes). We highly believe that we can find the same problems/opportunities if not even more if we were to audit ${domain}. In case of any questions, feel free to reach out to us at any time."
 
 AUDIT DATA (JSON):
-${JSON.stringify(auditData, null, 2)}
+${JSON.stringify(auditData)}
 
 IMPORTANT RULES:
 1. Only mention problems that are ACTUALLY present in the audit data. Do not invent problems.
@@ -160,7 +160,7 @@ IMPORTANT RULES:
     try {
         const message = await anthropic.messages.create({
             model: 'claude-sonnet-4-20250514',
-            max_tokens: 4096,
+            max_tokens: 2048,
             messages: [{ role: 'user', content: prompt }]
         });
 
