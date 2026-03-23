@@ -1560,4 +1560,80 @@ document.addEventListener('DOMContentLoaded', () => {
             URL.revokeObjectURL(link.href);
         });
     }
+
+    // ═══════════════════════════════════════
+    //  AI Visibility PDF Analysis
+    // ═══════════════════════════════════════
+    const aivFileInput = document.getElementById('ai-visibility-file');
+    const aivAnalyzeBtn = document.getElementById('analyze-pdf-btn');
+    const aivAnalyzeBtnText = document.getElementById('analyze-btn-text');
+    const aivAnalyzeSpinner = document.getElementById('analyze-spinner');
+    const aivErrorWrapper = document.getElementById('ai-visibility-error');
+    const aivResults = document.getElementById('ai-visibility-results');
+
+    if (aivFileInput && aivAnalyzeBtn) {
+        aivAnalyzeBtn.addEventListener('click', async () => {
+            if (!aivFileInput.files || aivFileInput.files.length === 0) {
+                if (aivErrorWrapper) {
+                    aivErrorWrapper.textContent = '❌ Please select a PDF file first.';
+                    aivErrorWrapper.classList.remove('hidden');
+                }
+                return;
+            }
+            
+            const file = aivFileInput.files[0];
+
+            // Loading state
+            aivAnalyzeBtn.disabled = true;
+            if (aivAnalyzeBtnText) aivAnalyzeBtnText.textContent = 'Analyzing...';
+            if (aivAnalyzeSpinner) aivAnalyzeSpinner.classList.remove('hidden');
+            if (aivErrorWrapper) { aivErrorWrapper.classList.add('hidden'); aivErrorWrapper.textContent = ''; }
+            if (aivResults) aivResults.classList.add('hidden');
+
+            try {
+                // Read PDF as Base64
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                
+                const base64Data = await new Promise((resolve, reject) => {
+                    reader.onload = () => resolve(reader.result.split(',')[1]);
+                    reader.onerror = error => reject(error);
+                });
+
+                // Send to backend
+                const res = await fetch('/api/parse-pdf', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pdfBase64: base64Data })
+                });
+
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Unknown server error');
+
+                // Populate UI
+                document.getElementById('aiv-score').textContent = data.aiVisibility !== undefined ? `${data.aiVisibility} / 100` : '-';
+                document.getElementById('aiv-audience').textContent = data.monthlyAudience || '-';
+                document.getElementById('aiv-mentions').textContent = data.mentions !== undefined ? data.mentions : '-';
+                document.getElementById('aiv-cited-pages').textContent = data.citedPages !== undefined ? data.citedPages : '-';
+                document.getElementById('aiv-performing-topics').textContent = data.performingTopics !== undefined ? data.performingTopics : '-';
+                document.getElementById('aiv-topic-opportunities').textContent = data.topicOpportunities || '-';
+                document.getElementById('aiv-cited-sources').textContent = data.citedSources !== undefined ? data.citedSources : '-';
+                document.getElementById('aiv-source-opportunities').textContent = data.sourceOpportunities || '-';
+
+                if (aivResults) aivResults.classList.remove('hidden');
+
+            } catch (err) {
+                console.error('PDF Parse Error:', err);
+                if (aivErrorWrapper) {
+                    aivErrorWrapper.textContent = '❌ ' + (err.message || 'Error parsing PDF.');
+                    aivErrorWrapper.classList.remove('hidden');
+                }
+            } finally {
+                aivAnalyzeBtn.disabled = false;
+                if (aivAnalyzeBtnText) aivAnalyzeBtnText.textContent = 'Analyze PDF';
+                if (aivAnalyzeSpinner) aivAnalyzeSpinner.classList.add('hidden');
+            }
+        });
+    }
+
 });
