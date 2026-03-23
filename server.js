@@ -137,7 +137,7 @@ Visual metrics dashboard showing PageSpeed scores, pass/warn/fail counts, and pr
 
 SECTION 4 - CHALLENGES:
 "In our brief evaluation of the current technical optimization status of ${domain} we identified problems and errors with the site architecture. These exact problems are among the top reasons why you're not ranking for more of your target keywords."
-Then list Problem 1, Problem 2, etc. as styled cards. Be specific with numbers from the audit data. Aim for 3-6 problems. 
+Then list Problem 1, Problem 2, etc. as styled cards. Be specific with numbers from the audit data. Aim for 3-6 problems. CRITICAL: Make sure these problems cover ALL technical SEO aspects (like PageSpeed, Alt Tags, Meta Titles, Robots.txt, Structured Data) and not just AI Visibility issues.
 End with: "All of the above problems have a direct negative impact on your organic rankings, visibility, and traffic and present a massive opportunity cost over the long term."
 
 SECTION 5 - QUICK WINS:
