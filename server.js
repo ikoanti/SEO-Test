@@ -140,8 +140,8 @@ Also, explicitly comment on the PageSpeed index and scores, strongly highlightin
 
 SECTION 4 - CRITICAL CHALLENGES:
 "Our analysis uncovered severe technical liabilities on ${domain}. These specific errors are actively penalizing your search visibility, squandering your crawl budget, and destroying your AI search presence."
-Then list Problem 1, Problem 2, etc. as styled cards. Focus heavily on numbers, percentages, and figures from the audit data. Include 4-7 severe problems.
-CRITICAL INSTRUCTION FOR CHALLENGES: You MUST include a balanced mix of BOTH standard technical SEO audit issues (like PageSpeed, speed index, Alt Tags, Meta Titles, Robots.txt, missing icons) AND AI Visibility report issues based on the uploaded data. Do not hold back; the tone must be critical and urgent.
+You MUST list and comprehensively explain EVERY SINGLE issue found in the audit data. This includes ALL 'failed' checks and ALL 'warning' checks. Do not omit any problem or warning. Each issue MUST be presented in its own styled card, clearly numbered. Focus heavily on numbers, percentages, and figures from the audit data, and thoroughly explain the exact negative impact of each issue.
+CRITICAL INSTRUCTION FOR CHALLENGES: You MUST include ALL standard technical SEO audit issues (like PageSpeed, speed index, Alt Tags, Meta Titles, Robots.txt, missing icons) AND ALL AI Visibility report issues based on the uploaded data that are in a failed or warning state. Do not hold back; the tone must be critical and urgent.
 End with: "Every single day these problems remain unresolved is a day you are bleeding organic traffic and failing to capture your target audience."
 
 SECTION 5 - QUICK WINS:
@@ -154,7 +154,7 @@ AUDIT DATA (JSON):
 ${JSON.stringify(auditData)}
 
 IMPORTANT RULES:
-1. Only mention problems that are ACTUALLY present in the audit data. Do not invent problems, but extract every negative detail you can find.
+1. You MUST extract and intelligently explain EVERY SINGLE failed check and warning present in the audit data. Do not omit any issues. Do not invent problems that are not in the data.
 2. Be extremely specific — use exact numbers, ratios, and percentages (e.g., "3 out of 50 pages have missing H1 tags", "PageSpeed mobile score is a disastrous 34").
 3. Use HTML/CSS to draw charts/illustrations where possible to make the report visually data-rich.
 4. Keep the tone highly critical, urgent, and professional.
