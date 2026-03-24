@@ -391,10 +391,7 @@ header p {
     color: #ef4444;
 }
 
-.mini-list {
-    max-height: 200px;
-    overflow-y: auto;
-}
+
 
 .mini-list::-webkit-scrollbar {
     width: 6px;
@@ -403,6 +400,21 @@ header p {
 .mini-list::-webkit-scrollbar-thumb {
     background: var(--border);
     border-radius: 3px;
+}
+
+.issue-group-list {
+    margin-top: 0.5rem;
+    padding-left: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    padding-top: 0.5rem;
+}
+.issue-group-list a.check-link {
+    font-size: 0.8rem;
+    opacity: 0.85;
 }
 
 /* Animations */
