@@ -271,7 +271,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         ['h1-list', 'h1-stats', 'titles-list', 'titles-stats',
             'alt-list', 'alt-stats', 'canonical-list', 'canonical-stats', 'sitemap-list',
-            'ai-list', 'robots-list', 'llms-list', 'schema-list', 'broken-links-list', 'mixed-content-list', 'mixed-content-stats',
+            'ai-list', 'llms-list', 'schema-list', 'broken-links-list', 'mixed-content-list', 'mixed-content-stats',
             'security-list', 'security-stats', 'content-list', 'content-stats', 'icons-list',
             'ssl-list', 'mobile-usability-list', 'flash-list', 'iframes-list',
             'charset-list', 'lorem-list', 'opengraph-list', 'shopify-list', 'intl-list',
@@ -286,9 +286,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
         const aiSub = document.getElementById('ai-subtitle');
-        if (aiSub) aiSub.textContent = 'Analyzing AI crawler rules in robots.txt';
-        const robSub = document.getElementById('robots-subtitle');
-        if (robSub) robSub.textContent = 'Checking crawler directives and sitemap';
+        if (aiSub) aiSub.textContent = 'Analyzing robots.txt patterns';
         const totalLinks = document.getElementById('total-links');
         if (totalLinks) totalLinks.textContent = '0';
         const brokenLinks = document.getElementById('broken-links');
@@ -1231,12 +1229,9 @@ document.addEventListener('DOMContentLoaded', () => {
             "CCBot", "Bytespider"];
         const importantBots = ["Googlebot", "Bingbot", "Yandex", "DuckDuckBot", "Baidu"];
 
-        const robList = document.getElementById('robots-list');
-        const aiList = document.getElementById('ai-list');
-        if (!robList || !aiList) return null;
-        robList.innerHTML = '';
-        aiList.innerHTML = '';
-
+        const list = document.getElementById('ai-list');
+        if (!list) return null;
+        list.innerHTML = '';
         try {
             const txt = await fetchViaProxy(`${origin}/robots.txt`);
             if (!txt) throw new Error("Empty");
@@ -1247,19 +1242,19 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const lines = txt.split('\n').map(l => l.trim().toLowerCase());
-            let robHtml = '', aiHtml = '', allowedAI = 0, robIssues = 0, aiIssues = 0;
+            let html = '', allowedAI = 0, summaryIssues = 0;
 
             // Check for Sitemap link
             const sitemapMatch = txt.match(/^sitemap:\s*(.+)$/im);
             const robotsSitemap = sitemapMatch ? sitemapMatch[1].trim() : null;
             if (robotsSitemap) {
-                robHtml += li('ok', 'Sitemap Reference Found', `Found: ${linkTag(robotsSitemap)}`);
+                html += li('ok', 'Sitemap Reference Found', `Found: ${linkTag(robotsSitemap)}`);
             } else {
-                robHtml += li('warn', 'Missing Sitemap Reference', 'Google usually relies on Search Console, but it is best practice to include a Sitemap: directive in robots.txt.');
-                robIssues++;
+                html += li('warn', 'Missing Sitemap Reference', 'Google usually relies on Search Console, but it is best practice to include a Sitemap: directive in robots.txt.');
+                summaryIssues++;
             }
 
-            robHtml += `<li><div style="font-size:0.8rem; margin:10px 0 5px; opacity:0.7">Search Engine Directives</div></li>`;
+            html += `<li><div style="font-size:0.8rem; margin:10px 0 5px; opacity:0.7">Search Engine Directives</div></li>`;
             // Check important search engine bots
             importantBots.forEach(bot => {
                 const bLow = bot.toLowerCase();
@@ -1294,11 +1289,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
 
-                if (blocked) { robHtml += li('err', `${bot} is Blocked`, 'A crucial search engine bot is blocked from crawling.'); robIssues++; }
-                else { robHtml += li('ok', bot, 'Allowed to crawl.'); }
+                if (blocked) { html += li('err', `${bot} is Blocked`, 'A crucial search engine bot is blocked from crawling.'); summaryIssues++; }
+                else { html += li('ok', bot, 'Allowed to crawl.'); }
             });
 
             // Check AI Bots
+            html += `<li><div style="font-size:0.8rem; margin:10px 0 5px; opacity:0.7">AI Crawler Rules</div></li>`;
             aiBots.forEach(bot => {
                 const bLow = bot.toLowerCase();
                 let found = false, blocked = false;
@@ -1315,9 +1311,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         break;
                     }
                 }
-                if (found && !blocked) { aiHtml += li('warn', bot, 'Explicitly whitelisted.'); allowedAI++; }
-                else if (found) { aiHtml += li('ok', bot, 'Explicitly blocked.'); } // Blocking AI is usually preferred by publishers now
-                else { aiHtml += li('warn', bot, 'Not whitelisted. This is a missed opportunity for AI visibility.'); aiIssues++; }
+                if (found && !blocked) { html += li('warn', bot, 'Explicitly whitelisted.'); allowedAI++; }
+                else if (found) { html += li('ok', bot, 'Explicitly blocked.'); } // Blocking AI is usually preferred by publishers now
+                else { html += li('warn', bot, 'Not whitelisted. This is a missed opportunity for AI visibility.'); summaryIssues++; }
             });
 
             // Check Crawl-Delay
@@ -1325,24 +1321,21 @@ document.addEventListener('DOMContentLoaded', () => {
             for (let i = 0; i < lines.length; i++) {
                 if (lines[i].startsWith('crawl-delay:')) {
                     crawlDelayFound = true;
-                    robHtml += li('warn', 'Crawl-Delay Directive Used', `Found: ${lines[i]}. Googlebot ignores this, but others use it. Extremely slow delays hurt indexing.`);
-                    robIssues++;
+                    html += li('warn', 'Crawl-Delay Directive Used', `Found: ${lines[i]}. Googlebot ignores this, but others use it. Extremely slow delays hurt indexing.`);
+                    summaryIssues++;
                     break;
                 }
             }
             if (!crawlDelayFound) {
-                robHtml += li('ok', 'No Crawl-Delay', 'Crawlers allowed to crawl normally.');
+                html += li('ok', 'No Crawl-Delay', 'Crawlers allowed to crawl normally.');
             }
 
-            robList.innerHTML = robHtml;
-            aiList.innerHTML = aiHtml;
-            document.getElementById('ai-subtitle').textContent = aiIssues > 0 ? `${aiIssues} missing AI whitelists found` : 'AI crawler rules look good.';
-            document.getElementById('robots-subtitle').textContent = robIssues > 0 ? `${robIssues} warning(s) found in robots.txt` : 'robots.txt configuration looks good.';
+            list.innerHTML = html;
+            document.getElementById('ai-subtitle').textContent = summaryIssues > 0 ? `${summaryIssues} issue(s) found in robots.txt` : 'robots.txt configuration looks good.';
 
             return robotsSitemap;
         } catch (e) {
-            robList.innerHTML = li('err', 'robots.txt not found or unavailable.', '');
-            aiList.innerHTML = li('err', 'AI configuration unavailable.', 'robots.txt not found.');
+            list.innerHTML = li('err', 'robots.txt not found or unavailable.', '');
             return null;
         }
     }
@@ -1457,8 +1450,7 @@ document.addEventListener('DOMContentLoaded', () => {
             { key: 'canonicalUrls', listId: 'canonical-list', statsId: 'canonical-stats' },
             { key: 'internalLinks', listId: 'broken-links-list' },
             { key: 'sitemap', listId: 'sitemap-list' },
-            { key: 'robotsTxt', listId: 'robots-list' },
-            { key: 'aiBotWhitelists', listId: 'ai-list' },
+            { key: 'robotsTxt', listId: 'ai-list' },
             { key: 'llmsTxt', listId: 'llms-list' },
             { key: 'structuredData', listId: 'schema-list' },
             { key: 'security', listId: 'security-list', statsId: 'security-stats' },
