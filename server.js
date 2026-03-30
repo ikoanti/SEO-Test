@@ -4,6 +4,7 @@ const cors = require('cors');
 const path = require('path');
 require('dotenv').config();
 const Anthropic = require('@anthropic-ai/sdk');
+const { runAudit } = require('./audit');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -95,6 +96,28 @@ app.get('/api/check-redirect', async (req, res) => {
         });
     } catch (error) {
         res.status(500).json({ error: error.message, status: 0 });
+    }
+});
+
+// ── Server-Side Audit Endpoint ──
+app.post('/api/audit', async (req, res) => {
+    const { url } = req.body || {};
+    const startedAt = Date.now();
+
+    console.log('[api:/api/audit] request started for ' + (url || '<missing-url>'));
+
+    if (!url) {
+        console.warn('[api:/api/audit] request rejected: missing url');
+        return res.status(400).json({ error: 'url is required.' });
+    }
+
+    try {
+        const audit = await runAudit(url);
+        console.log('[api:/api/audit] request finished in ' + (Date.now() - startedAt) + 'ms');
+        res.json(audit);
+    } catch (error) {
+        console.error('[api:/api/audit] request failed after ' + (Date.now() - startedAt) + 'ms:', error.message);
+        res.status(500).json({ error: 'Failed to run audit: ' + error.message });
     }
 });
 
