@@ -156,9 +156,11 @@ TEMPLATE STRUCTURE (follow EXACTLY):
 "We conducted a strict evaluation of the technical and AI optimization status of ${domain}. We analyzed a fraction of the 285 total factors included in our FULL audit, and frankly, the results show significant room for improvement. The goal of this document is to expose the exact structural, technical, and speed bottlenecks that are currently sabotaging your rankings, AI visibility, and user experience."
 
 ═══ SECTION 3 — AUDIT SNAPSHOT & AI VISIBILITY ═══
-Visual metrics dashboard with PageSpeed scores, Speed Index commentary, pass/warn/fail counts, and progress bars.
+Visual metrics dashboard with pass/warn/fail counts and progress bars.
+Create a dedicated "Speed Index & Performance" sub-section: Include CSS-based visual gauges, data cards, or bar charts for PageSpeed Mobile/Desktop scores, and explicitly highlight Speed Index metrics (FCP, LCP, CLS, TBT) using styled visual boxes or progress rings. Comment critically on these scores and their negative impact on user retention and rankings.
+Include a "Domain Authority" sub-section featuring Open Page Rank data: Create a beautiful visual representation (e.g., a styled badge, rank bar, or data card) for the Page Rank and Global Rank, commenting on site authority.
 Include a critical "AI Visibility" sub-section with commentary on: AI Visibility Score, Monthly Audience, Mentions, Topic Opportunities — highlight how the current AI visibility is leaving massive opportunities on the table. Create CSS-based illustrations (bar charts or gauge charts) for these scores.
-Also comment critically on PageSpeed scores and Speed Index, highlighting negative impact on user retention and rankings.
+
 
 ═══ SECTION 4 — CHALLENGES (Problems) ═══
 Heading: "🔴 Challenges"
