@@ -1616,7 +1616,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (e) {
                 filename = 'audit';
             }
-            const fullHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Mini SEO Audit - ${filename}</title></head><body style="background:#0d1117;margin:0;padding:2rem;font-family:'Segoe UI',sans-serif;">${html}</body></html>`;
+            const fullHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Mini SEO Audit - ${filename}</title></head><body style="background:#ffffff;color:#333333;margin:0;padding:2rem;font-family:'Segoe UI',sans-serif;">${html}</body></html>`;
             const blob = new Blob([fullHtml], { type: 'text/html' });
             const link = document.createElement('a');
             link.download = `Mini-SEO-Audit-${filename}.html`;
