@@ -1626,6 +1626,37 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Download as .doc
+    const downloadDocBtn = document.getElementById('download-doc-btn');
+    if (downloadDocBtn) {
+        downloadDocBtn.addEventListener('click', () => {
+            const html = document.getElementById('report-output')?.innerHTML || '';
+            const domain = document.getElementById('url-input')?.value?.trim() || 'audit';
+            let filename;
+            try {
+                filename = new URL(domain.startsWith('http') ? domain : `https://${domain}`).hostname;
+            } catch (e) {
+                filename = 'audit';
+            }
+            
+            const header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Mini SEO Audit</title><style>body { font-family: Arial, sans-serif; }</style></head><body>";
+            const footer = "</body></html>";
+            const fullHtml = header + html + footer;
+            
+            const blob = new Blob(['\ufeff', fullHtml], {
+                type: 'application/msword'
+            });
+            
+            const link = document.createElement('a');
+            link.download = `Mini-SEO-Audit-${filename}.doc`;
+            link.href = URL.createObjectURL(blob);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
+        });
+    }
+
     // ═══════════════════════════════════════
     //  AI Visibility PDF Analysis
     // ═══════════════════════════════════════
