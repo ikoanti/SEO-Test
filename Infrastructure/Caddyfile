@@ -1,4 +1,4 @@
-{$DOMAIN:localhost} {
+seo.irakli.life {
     encode gzip zstd
 
     header {

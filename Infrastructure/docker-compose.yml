@@ -29,7 +29,7 @@ services:
     restart: unless-stopped
 
   caddy:
-    image: caddy:2
+    image: caddy:2.11.2
     container_name: seo-mini-tool-caddy
     depends_on:
       app:
