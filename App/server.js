@@ -2,17 +2,77 @@ const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
 const path = require('path');
+const crypto = require('crypto');
 require('dotenv').config();
 const Anthropic = require('@anthropic-ai/sdk');
 const { runAudit } = require('./audit');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const BASIC_AUTH_USER = process.env.APP_BASIC_AUTH_USER || '';
+const BASIC_AUTH_PASS = process.env.APP_BASIC_AUTH_PASS || '';
+const BASIC_AUTH_ENABLED = Boolean(BASIC_AUTH_USER && BASIC_AUTH_PASS);
 
 
 // Middleware
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
+
+function safeEqual(value, expected) {
+    const valueBuffer = Buffer.from(String(value), 'utf8');
+    const expectedBuffer = Buffer.from(String(expected), 'utf8');
+
+    if (valueBuffer.length !== expectedBuffer.length) {
+        return false;
+    }
+
+    return crypto.timingSafeEqual(valueBuffer, expectedBuffer);
+}
+
+function parseBasicAuth(header) {
+    if (!header || !header.startsWith('Basic ')) {
+        return null;
+    }
+
+    try {
+        const decoded = Buffer.from(header.slice(6), 'base64').toString('utf8');
+        const separatorIndex = decoded.indexOf(':');
+        if (separatorIndex === -1) {
+            return null;
+        }
+
+        return {
+            username: decoded.slice(0, separatorIndex),
+            password: decoded.slice(separatorIndex + 1)
+        };
+    } catch {
+        return null;
+    }
+}
+
+function requireBasicAuth(req, res, next) {
+    if (!BASIC_AUTH_ENABLED || req.path === '/health') {
+        return next();
+    }
+
+    const credentials = parseBasicAuth(req.headers.authorization);
+    const isAuthorized = credentials
+        && safeEqual(credentials.username, BASIC_AUTH_USER)
+        && safeEqual(credentials.password, BASIC_AUTH_PASS);
+
+    if (isAuthorized) {
+        return next();
+    }
+
+    res.set('WWW-Authenticate', 'Basic realm="SEO Mini Tool"');
+    return res.status(401).send('Authentication required');
+}
+
+app.use(requireBasicAuth);
+
+app.get('/health', (_req, res) => {
+    res.json({ ok: true });
+});
 
 // Open Page Rank API Configuration
 const OPEN_PAGE_RANK_API_KEY = process.env.OPEN_PAGE_RANK_API_KEY;
@@ -23,6 +83,9 @@ if (!OPEN_PAGE_RANK_API_KEY) {
 }
 if (!ANTHROPIC_API_KEY) {
     console.warn('ANTHROPIC_API_KEY is missing');
+}
+if (!BASIC_AUTH_ENABLED) {
+    console.warn('APP_BASIC_AUTH_USER / APP_BASIC_AUTH_PASS are missing; authentication is disabled');
 }
 
 const anthropic = ANTHROPIC_API_KEY ? new Anthropic({ apiKey: ANTHROPIC_API_KEY }) : null;

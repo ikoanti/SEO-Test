@@ -1,6 +1,0 @@
----
-deployment:
-  tasks:
-    - export DEPLOYPATH=/home/lugbfecj/seo.irakli.life/
-    - /bin/cp -R * $DEPLOYPATH
-    - touch $DEPLOYPATH/tmp/restart.txt
