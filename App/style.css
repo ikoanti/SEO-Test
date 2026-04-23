@@ -412,6 +412,7 @@ header p {
     border-top: 1px solid rgba(255, 255, 255, 0.05);
     padding-top: 0.5rem;
 }
+
 .issue-group-list a.check-link {
     font-size: 0.8rem;
     opacity: 0.85;
@@ -780,7 +781,7 @@ header p {
     justify-content: center;
     z-index: 1000;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    
+
     /* Hidden state by default */
     opacity: 0;
     visibility: hidden;
@@ -947,4 +948,115 @@ header p {
     background: rgba(16, 185, 129, 0.1);
     padding: 0.2rem 0.5rem;
     border-radius: 0.25rem;
+}
+
+/* ── Media Queries for Mobile Responsiveness ── */
+@media (max-width: 768px) {
+    body {
+        padding: 1rem;
+    }
+
+    .logo-container {
+        position: relative;
+        top: 0;
+        left: 0;
+        display: flex;
+        justify-content: center;
+        margin-bottom: 1.5rem;
+    }
+
+    header {
+        margin-bottom: 2rem;
+    }
+
+    header h1 {
+        font-size: 2rem;
+    }
+
+    .search-box {
+        flex-direction: column;
+        gap: 0.75rem;
+        margin-bottom: 2rem;
+    }
+
+    .search-box input {
+        width: 100%;
+        padding: 0.8rem 1.25rem;
+    }
+
+    .search-box button {
+        width: 100%;
+        padding: 0.8rem 1.25rem;
+    }
+
+    .ahrefs-metrics,
+    #ai-visibility-results {
+        grid-template-columns: 1fr !important;
+    }
+
+    .speed-container {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .speed-divider {
+        width: 100%;
+        min-height: 1px;
+        height: 1px;
+        margin: 1.5rem 0;
+    }
+
+    .summary-bar {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .summary-counts {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .summary-count,
+    .summary-item {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        flex: 1;
+        justify-content: center;
+        align-items: center;
+        display: flex;
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .summary-count-num {
+        font-size: 2rem;
+    }
+
+    .card {
+        padding: 1.25rem;
+    }
+
+    .screenshot-container {
+        aspect-ratio: auto;
+        min-height: 200px;
+    }
+
+    .report-actions {
+        flex-direction: column;
+    }
+
+    .report-action-btn {
+        width: 100%;
+        text-align: center;
+        padding: 0.8rem 1rem;
+    }
+
+    .file-upload-container {
+        flex-direction: column;
+    }
+
+    .file-input {
+        margin-bottom: 0.5rem;
+    }
 }
