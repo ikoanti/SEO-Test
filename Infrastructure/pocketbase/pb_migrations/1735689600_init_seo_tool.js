@@ -1,4 +1,5 @@
 migrate((app) => {
+    const authenticatedRule = '@request.auth.id != ""'
     const superuserEmail = $os.getenv('POCKETBASE_SUPERUSER_EMAIL')
     const superuserPassword = $os.getenv('POCKETBASE_SUPERUSER_PASSWORD')
 
@@ -49,11 +50,11 @@ migrate((app) => {
         app.save(new Collection({
             type: 'base',
             name: 'runs',
-            listRule: 'created_by = @request.auth.id',
-            viewRule: 'created_by = @request.auth.id',
-            createRule: '@request.auth.id != ""',
-            updateRule: 'created_by = @request.auth.id',
-            deleteRule: 'created_by = @request.auth.id',
+            listRule: authenticatedRule,
+            viewRule: authenticatedRule,
+            createRule: authenticatedRule,
+            updateRule: authenticatedRule,
+            deleteRule: authenticatedRule,
             fields: [
                 { name: 'name', type: 'text', required: true, max: 160 },
                 { name: 'url', type: 'url', required: true, presentable: true },
@@ -78,11 +79,11 @@ migrate((app) => {
         app.save(new Collection({
             type: 'base',
             name: 'audits',
-            listRule: 'created_by = @request.auth.id',
-            viewRule: 'created_by = @request.auth.id',
-            createRule: '@request.auth.id != ""',
-            updateRule: 'created_by = @request.auth.id',
-            deleteRule: 'created_by = @request.auth.id',
+            listRule: authenticatedRule,
+            viewRule: authenticatedRule,
+            createRule: authenticatedRule,
+            updateRule: authenticatedRule,
+            deleteRule: authenticatedRule,
             fields: [
                 { name: 'run', type: 'relation', required: true, maxSelect: 1, collectionId: app.findCollectionByNameOrId('runs').id, cascadeDelete: true },
                 { name: 'name', type: 'text', required: true, max: 160 },
@@ -97,6 +98,60 @@ migrate((app) => {
             indexes: [
                 'CREATE UNIQUE INDEX idx_audits_run ON audits (run)',
                 'CREATE INDEX idx_audits_created_by ON audits (created_by)'
+            ]
+        }))
+    }
+
+    try {
+        app.findCollectionByNameOrId('audit_items')
+    } catch {
+        app.save(new Collection({
+            type: 'base',
+            name: 'audit_items',
+            listRule: authenticatedRule,
+            viewRule: authenticatedRule,
+            createRule: authenticatedRule,
+            updateRule: authenticatedRule,
+            deleteRule: authenticatedRule,
+            fields: [
+                { name: 'audit', type: 'relation', required: true, maxSelect: 1, collectionId: app.findCollectionByNameOrId('audits').id, cascadeDelete: true },
+                { name: 'key', type: 'text', required: true, max: 120 },
+                { name: 'label', type: 'text', required: true, max: 160 },
+                { name: 'status', type: 'text', required: true, max: 40 },
+                { name: 'summary', type: 'editor', required: false },
+                { name: 'stats_json', type: 'editor', required: false },
+                { name: 'sort_order', type: 'number', required: true, onlyInt: true, min: 0 }
+            ],
+            indexes: [
+                'CREATE INDEX idx_audit_items_audit ON audit_items (audit)',
+                'CREATE UNIQUE INDEX idx_audit_items_audit_key ON audit_items (audit, key)'
+            ]
+        }))
+    }
+
+    try {
+        app.findCollectionByNameOrId('audit_findings')
+    } catch {
+        app.save(new Collection({
+            type: 'base',
+            name: 'audit_findings',
+            listRule: authenticatedRule,
+            viewRule: authenticatedRule,
+            createRule: authenticatedRule,
+            updateRule: authenticatedRule,
+            deleteRule: authenticatedRule,
+            fields: [
+                { name: 'audit', type: 'relation', required: true, maxSelect: 1, collectionId: app.findCollectionByNameOrId('audits').id, cascadeDelete: true },
+                { name: 'audit_item', type: 'relation', required: true, maxSelect: 1, collectionId: app.findCollectionByNameOrId('audit_items').id, cascadeDelete: true },
+                { name: 'status', type: 'text', required: true, max: 40 },
+                { name: 'title', type: 'text', required: true, max: 255 },
+                { name: 'detail', type: 'editor', required: false },
+                { name: 'page_url', type: 'url', required: false },
+                { name: 'meta_json', type: 'editor', required: false }
+            ],
+            indexes: [
+                'CREATE INDEX idx_audit_findings_audit ON audit_findings (audit)',
+                'CREATE INDEX idx_audit_findings_item ON audit_findings (audit_item)'
             ]
         }))
     }
@@ -148,6 +203,14 @@ migrate((app) => {
         }
     }
 }, (app) => {
+    try {
+        app.delete(app.findCollectionByNameOrId('audit_findings'))
+    } catch {}
+
+    try {
+        app.delete(app.findCollectionByNameOrId('audit_items'))
+    } catch {}
+
     try {
         app.delete(app.findCollectionByNameOrId('audit_reports'))
     } catch {}

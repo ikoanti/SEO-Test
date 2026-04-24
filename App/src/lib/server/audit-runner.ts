@@ -1,5 +1,12 @@
 import { runAudit } from '$lib/server/audit';
-import { createAuditRecord, getRun, updateRunRecord } from '$lib/server/pocketbase';
+import { buildNormalizedAuditItems } from '$lib/server/audit-normalize';
+import {
+	createAuditFindingRecord,
+	createAuditItemRecord,
+	createAuditRecord,
+	getRun,
+	updateRunRecord
+} from '$lib/server/pocketbase';
 
 type QueuePayload = {
 	runId: string;
@@ -85,7 +92,39 @@ async function processAuditRun({ runId, url, name, createdBy, token }: QueuePayl
 				completed_at: completedAt
 			},
 			token
-		);
+		).then(async (auditRecord) => {
+			const normalizedItems = buildNormalizedAuditItems(audit);
+
+			for (const item of normalizedItems) {
+				const auditItemRecord = await createAuditItemRecord(
+					{
+						audit: auditRecord.id,
+						key: item.key,
+						label: item.label,
+						status: item.status,
+						summary: item.summary,
+						stats_json: item.stats_json,
+						sort_order: item.sort_order
+					},
+					token
+				);
+
+				for (const finding of item.findings) {
+					await createAuditFindingRecord(
+						{
+							audit: auditRecord.id,
+							audit_item: auditItemRecord.id,
+							status: finding.status,
+							title: finding.title,
+							detail: finding.detail,
+							page_url: finding.page_url,
+							meta_json: finding.meta_json
+						},
+						token
+					);
+				}
+			}
+		});
 
 		await updateRunRecord(
 			runId,

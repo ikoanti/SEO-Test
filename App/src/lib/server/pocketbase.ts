@@ -4,14 +4,18 @@ import { env } from '$env/dynamic/private';
 const AUTH_COOKIE = 'pb_auth';
 const PB_URL = env.POCKETBASE_URL || 'http://127.0.0.1:8090';
 const AUTH_COLLECTION = env.POCKETBASE_AUTH_COLLECTION || 'users';
+const SUPERUSER_COLLECTION = '_superusers';
 const RUNS_COLLECTION = env.POCKETBASE_RUNS_COLLECTION || 'runs';
 const AUDITS_COLLECTION = env.POCKETBASE_AUDITS_COLLECTION || 'audits';
+const AUDIT_ITEMS_COLLECTION = env.POCKETBASE_AUDIT_ITEMS_COLLECTION || 'audit_items';
+const AUDIT_FINDINGS_COLLECTION = env.POCKETBASE_AUDIT_FINDINGS_COLLECTION || 'audit_findings';
 
 export type AppUser = {
 	id: string;
 	email?: string;
 	name?: string;
 	collectionName?: string;
+	isSuperuser?: boolean;
 	[key: string]: unknown;
 };
 
@@ -36,28 +40,64 @@ export function getAuthCookieName() {
 export function getCollectionNames() {
 	return {
 		auth: AUTH_COLLECTION,
+		superusers: SUPERUSER_COLLECTION,
 		runs: RUNS_COLLECTION,
-		audits: AUDITS_COLLECTION
+		audits: AUDITS_COLLECTION,
+		auditItems: AUDIT_ITEMS_COLLECTION,
+		auditFindings: AUDIT_FINDINGS_COLLECTION
+	};
+}
+
+function normalizeAuthRecord(
+	record: Record<string, unknown>,
+	collectionName: string,
+	token: string
+): { token: string; user: AppUser } {
+	return {
+		token,
+		user: {
+			...(record as AppUser),
+			name:
+				typeof record.name === 'string' && record.name.trim()
+					? record.name
+					: typeof record.email === 'string'
+						? record.email
+						: 'PocketBase User',
+			collectionName,
+			isSuperuser: collectionName === SUPERUSER_COLLECTION
+		}
 	};
 }
 
 export async function loginWithPassword(email: string, password: string) {
 	const pb = createClient();
-	const auth = await pb.collection(AUTH_COLLECTION).authWithPassword(email, password);
-	return {
-		token: auth.token,
-		user: auth.record as AppUser
-	};
+	try {
+		const auth = await pb.collection(AUTH_COLLECTION).authWithPassword(email, password);
+		return normalizeAuthRecord(auth.record as Record<string, unknown>, AUTH_COLLECTION, auth.token);
+	} catch {
+		const auth = await pb.collection(SUPERUSER_COLLECTION).authWithPassword(email, password);
+		return normalizeAuthRecord(
+			auth.record as Record<string, unknown>,
+			SUPERUSER_COLLECTION,
+			auth.token
+		);
+	}
 }
 
 export async function authenticateToken(token: string) {
 	const pb = createClient();
 	pb.authStore.save(token);
-	const auth = await pb.collection(AUTH_COLLECTION).authRefresh();
-	return {
-		token: auth.token,
-		user: auth.record as AppUser
-	};
+	try {
+		const auth = await pb.collection(AUTH_COLLECTION).authRefresh();
+		return normalizeAuthRecord(auth.record as Record<string, unknown>, AUTH_COLLECTION, auth.token);
+	} catch {
+		const auth = await pb.collection(SUPERUSER_COLLECTION).authRefresh();
+		return normalizeAuthRecord(
+			auth.record as Record<string, unknown>,
+			SUPERUSER_COLLECTION,
+			auth.token
+		);
+	}
 }
 
 export async function listRuns(runId: string, token?: string) {
@@ -168,4 +208,68 @@ export async function updateAuditRecord(
 ) {
 	const pb = createAuthedClient(token);
 	return pb.collection(AUDITS_COLLECTION).update(auditId, input);
+}
+
+export async function createAuditItemRecord(
+	input: {
+		audit: string;
+		key: string;
+		label: string;
+		status: string;
+		summary: string;
+		stats_json?: string;
+		sort_order: number;
+	},
+	token?: string
+) {
+	const pb = createAuthedClient(token);
+	return pb.collection(AUDIT_ITEMS_COLLECTION).create({
+		audit: input.audit,
+		key: input.key,
+		label: input.label,
+		status: input.status,
+		summary: input.summary,
+		stats_json: input.stats_json || '',
+		sort_order: input.sort_order
+	});
+}
+
+export async function createAuditFindingRecord(
+	input: {
+		audit: string;
+		audit_item: string;
+		status: string;
+		title: string;
+		detail: string;
+		page_url?: string;
+		meta_json?: string;
+	},
+	token?: string
+) {
+	const pb = createAuthedClient(token);
+	return pb.collection(AUDIT_FINDINGS_COLLECTION).create({
+		audit: input.audit,
+		audit_item: input.audit_item,
+		status: input.status,
+		title: input.title,
+		detail: input.detail,
+		page_url: input.page_url || '',
+		meta_json: input.meta_json || ''
+	});
+}
+
+export async function listAuditItems(auditId: string, token?: string) {
+	const pb = createAuthedClient(token);
+	return pb.collection(AUDIT_ITEMS_COLLECTION).getFullList({
+		filter: `audit = "${auditId}"`,
+		sort: 'sort_order,created'
+	});
+}
+
+export async function listAuditFindings(auditId: string, token?: string) {
+	const pb = createAuthedClient(token);
+	return pb.collection(AUDIT_FINDINGS_COLLECTION).getFullList({
+		filter: `audit = "${auditId}"`,
+		sort: 'created'
+	});
 }

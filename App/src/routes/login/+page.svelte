@@ -4,8 +4,8 @@
 
 <div class="auth-card">
 	<p class="eyebrow">Authentication</p>
-	<h1>Login</h1>
-	<p class="muted">Use your PocketBase auth collection credentials to access the audits area.</p>
+	<h1>GoldenWeb SEO Mini Audit Tool</h1>
+	<p class="muted">Use your PocketBase or superuser credentials to access the audits area.</p>
 
 	<form method="POST" class="stack">
 		<input type="hidden" name="redirectTo" value={form?.redirectTo ?? data.redirectTo} />

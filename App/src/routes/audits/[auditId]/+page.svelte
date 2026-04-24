@@ -2,40 +2,55 @@
 	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { onMount } from 'svelte';
-	import type { ActionData, PageData } from './$types';
+	import type { ActionData } from './$types';
 
-	let { data, form }: { data: PageData; form?: ActionData } = $props();
+	type AuditFindingView = {
+		id: string;
+		status?: string;
+		title?: string;
+		detail?: string;
+		page_url?: string;
+		meta?: unknown;
+	};
+
+	type AuditItemView = {
+		id: string;
+		label: string;
+		status?: string;
+		summary?: string;
+		stats?: unknown;
+		findings: AuditFindingView[];
+	};
+
+	type AuditPageViewData = {
+		runRecord: {
+			status?: string;
+			url?: string;
+			name?: string;
+			error_message?: string;
+			run_log?: string;
+		};
+		auditRecord: {
+			name?: string;
+			url?: string;
+		} | null;
+		audit: Record<string, unknown> | null;
+		summary: {
+			domain?: string;
+			summary?: { passed?: number; warnings?: number; failed?: number };
+		} | null;
+		reportHtml: string;
+		aiVisibility: Record<string, unknown> | null;
+		normalizedItems: AuditItemView[];
+	};
+
+	let { data, form }: { data: AuditPageViewData; form?: ActionData } = $props();
 	let copyState = $state('📋 Copy');
 
 	const pendingStatuses = new Set(['queued', 'running']);
 	const runStatus = () => data.runRecord.status || 'queued';
 	const isPending = () => pendingStatuses.has(runStatus());
 	const isFailed = () => runStatus() === 'failed';
-
-	const sections = [
-		['h1Tags', 'H1 Tags'],
-		['metaTitles', 'Meta Titles'],
-		['imageAltTags', 'Image Alt Tags'],
-		['canonicalUrls', 'Canonical URLs'],
-		['internalLinks', 'Internal Links'],
-		['sitemap', 'Sitemap'],
-		['robotsTxt', 'Robots.txt'],
-		['structuredData', 'Structured Data'],
-		['security', 'Security'],
-		['mixedContent', 'Mixed Content'],
-		['contentQuality', 'Content Quality'],
-		['webIcons', 'Web Icons'],
-		['ssl', 'SSL'],
-		['mobileUsability', 'Mobile Usability'],
-		['flash', 'Flash'],
-		['charset', 'Charset'],
-		['loremIpsum', 'Lorem Ipsum'],
-		['openGraph', 'Open Graph'],
-		['shopifyUrls', 'Shopify URLs'],
-		['internationalDomains', 'International Domains'],
-		['trustSignals', 'Trust Signals'],
-		['lazyLoadImages', 'Lazy Load Images']
-	];
 
 	onMount(() => {
 		if (!pendingStatuses.has(data.runRecord.status || '')) {
@@ -155,21 +170,28 @@
 	</section>
 
 	<section class="two grid">
-		{#each sections as [key, label] (key)}
-			{@const section = data.audit[key]}
+		{#each data.normalizedItems || [] as item (item.id)}
 			<div class="card">
-				<h2>{label}</h2>
-				{#if section?.items?.length}
+				<h2>{item.label}</h2>
+				<p class="muted">Status: {item.status}</p>
+				<p class="muted">{item.summary}</p>
+				{#if item.stats}
+					<pre>{JSON.stringify(item.stats, null, 2)}</pre>
+				{/if}
+				{#if item.findings?.length}
 					<ul class="list detail-list">
-						{#each section.items as item, index (`${key}-${item.title || item.detail || item.status || index}`)}
+						{#each item.findings as finding, index (`${item.id}-${finding.title || finding.detail || index}`)}
 							<li>
-								<strong>{item.title || item.status}</strong>
-								<span>{item.detail}</span>
+								<strong>{finding.title || finding.status}</strong>
+								<span>{finding.detail}</span>
+								{#if finding.page_url}
+									<span class="muted">{finding.page_url}</span>
+								{/if}
 							</li>
 						{/each}
 					</ul>
 				{:else}
-					<p class="muted">No items.</p>
+					<p class="muted">No findings.</p>
 				{/if}
 			</div>
 		{/each}

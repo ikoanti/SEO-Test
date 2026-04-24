@@ -1,7 +1,14 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { ensureAuditRunProcessing } from '$lib/server/audit-runner';
 import { generateReportHtml, parsePdfMetrics } from '$lib/server/legacy-api';
-import { getAudit, getAuditByRunId, getRun, updateAuditRecord } from '$lib/server/pocketbase';
+import {
+	getAudit,
+	getAuditByRunId,
+	getRun,
+	listAuditFindings,
+	listAuditItems,
+	updateAuditRecord
+} from '$lib/server/pocketbase';
 
 export const load = async ({ params, locals }) => {
 	try {
@@ -14,6 +21,17 @@ export const load = async ({ params, locals }) => {
 			const aiVisibility = auditRecord.ai_visibility_json
 				? JSON.parse(auditRecord.ai_visibility_json)
 				: null;
+			const [auditItems, auditFindings] = await Promise.all([
+				listAuditItems(auditRecord.id, locals.pbToken),
+				listAuditFindings(auditRecord.id, locals.pbToken)
+			]);
+			const findingsByItemId = new Map<string, typeof auditFindings>();
+			for (const finding of auditFindings) {
+				const auditItemId = String(finding.audit_item || '');
+				const current = findingsByItemId.get(auditItemId) || [];
+				current.push(finding);
+				findingsByItemId.set(auditItemId, current);
+			}
 
 			return {
 				runRecord,
@@ -22,6 +40,14 @@ export const load = async ({ params, locals }) => {
 				summary,
 				reportHtml: auditRecord?.report_html || '',
 				aiVisibility,
+				normalizedItems: auditItems.map((item) => ({
+					...item,
+					stats: item.stats_json ? JSON.parse(item.stats_json) : null,
+					findings: (findingsByItemId.get(item.id) || []).map((finding) => ({
+						...finding,
+						meta: finding.meta_json ? JSON.parse(finding.meta_json) : null
+					}))
+				})),
 				isPendingRun: false
 			};
 		} catch {
