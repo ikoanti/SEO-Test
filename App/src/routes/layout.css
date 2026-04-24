@@ -12,7 +12,7 @@ body {
 	color: #e5eefb;
 }
 
- a {
+a {
 	color: inherit;
 	text-decoration: none;
 }
@@ -104,6 +104,11 @@ button {
 	cursor: pointer;
 }
 
+button[type='button'] {
+	border: 1px solid #334155;
+	background: rgba(15, 23, 42, 0.9);
+}
+
 .grid.two {
 	grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -151,6 +156,25 @@ pre {
 	border-radius: 12px;
 	background: rgba(15, 23, 42, 0.7);
 	overflow: auto;
+}
+
+.report-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+	margin: 16px 0;
+}
+
+.report-output {
+	padding: 20px;
+	border-radius: 16px;
+	background: #ffffff;
+	color: #0f172a;
+	overflow: auto;
+}
+
+.ai-grid {
+	margin-bottom: 16px;
 }
 
 @media (max-width: 900px) {

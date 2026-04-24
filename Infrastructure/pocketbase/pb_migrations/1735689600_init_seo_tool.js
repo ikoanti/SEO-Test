@@ -14,29 +14,89 @@ migrate((app) => {
         }
     }
 
+    const authCollectionName = $os.getenv('POCKETBASE_AUTH_COLLECTION') || 'users'
+    let authCollection
+
     try {
-        app.findCollectionByNameOrId('audit_runs')
+        authCollection = app.findCollectionByNameOrId(authCollectionName)
+    } catch {
+        authCollection = new Collection({
+            type: 'auth',
+            name: authCollectionName,
+            listRule: 'id = @request.auth.id',
+            viewRule: 'id = @request.auth.id',
+            createRule: null,
+            updateRule: 'id = @request.auth.id',
+            deleteRule: null,
+            authRule: '',
+            passwordAuth: {
+                enabled: true,
+                identityFields: ['email']
+            },
+            fields: [
+                { name: 'name', type: 'text', required: true, max: 120 }
+            ],
+            indexes: [
+                `CREATE UNIQUE INDEX idx_${authCollectionName}_email ON ${authCollectionName} (email)`
+            ]
+        })
+        app.save(authCollection)
+    }
+
+    try {
+        app.findCollectionByNameOrId('runs')
     } catch {
         app.save(new Collection({
             type: 'base',
-            name: 'audit_runs',
-            listRule: null,
-            viewRule: null,
-            createRule: null,
-            updateRule: null,
-            deleteRule: null,
+            name: 'runs',
+            listRule: 'created_by = @request.auth.id',
+            viewRule: 'created_by = @request.auth.id',
+            createRule: '@request.auth.id != ""',
+            updateRule: 'created_by = @request.auth.id',
+            deleteRule: 'created_by = @request.auth.id',
             fields: [
-                { name: 'target_url', type: 'url', required: true, presentable: true },
-                { name: 'domain', type: 'text', required: true, max: 255 },
-                { name: 'audited_at', type: 'date', required: true },
-                { name: 'passed_count', type: 'number', required: false, onlyInt: true, min: 0 },
-                { name: 'warning_count', type: 'number', required: false, onlyInt: true, min: 0 },
-                { name: 'failed_count', type: 'number', required: false, onlyInt: true, min: 0 },
+                { name: 'name', type: 'text', required: true, max: 160 },
+                { name: 'url', type: 'url', required: true, presentable: true },
+                { name: 'created_by', type: 'relation', required: true, maxSelect: 1, collectionId: authCollection.id, cascadeDelete: true },
+                { name: 'status', type: 'text', required: true, max: 40 },
+                { name: 'queued_at', type: 'date', required: true },
+                { name: 'started_at', type: 'date', required: false },
+                { name: 'completed_at', type: 'date', required: false },
+                { name: 'error_message', type: 'editor', required: false },
+                { name: 'run_log', type: 'editor', required: false },
+            ],
+            indexes: [
+                'CREATE INDEX idx_runs_created_by ON runs (created_by)',
+                'CREATE INDEX idx_runs_status ON runs (status)'
+            ]
+        }))
+    }
+
+    try {
+        app.findCollectionByNameOrId('audits')
+    } catch {
+        app.save(new Collection({
+            type: 'base',
+            name: 'audits',
+            listRule: 'created_by = @request.auth.id',
+            viewRule: 'created_by = @request.auth.id',
+            createRule: '@request.auth.id != ""',
+            updateRule: 'created_by = @request.auth.id',
+            deleteRule: 'created_by = @request.auth.id',
+            fields: [
+                { name: 'run', type: 'relation', required: true, maxSelect: 1, collectionId: app.findCollectionByNameOrId('runs').id, cascadeDelete: true },
+                { name: 'name', type: 'text', required: true, max: 160 },
+                { name: 'url', type: 'url', required: true, presentable: true },
+                { name: 'created_by', type: 'relation', required: true, maxSelect: 1, collectionId: authCollection.id, cascadeDelete: true },
+                { name: 'completed_at', type: 'date', required: true },
+                { name: 'summary_json', type: 'editor', required: true },
+                { name: 'report_html', type: 'editor', required: false },
+                { name: 'ai_visibility_json', type: 'editor', required: false },
                 { name: 'audit_json', type: 'editor', required: true }
             ],
             indexes: [
-                'CREATE INDEX idx_audit_runs_domain ON audit_runs (domain)',
-                'CREATE INDEX idx_audit_runs_audited_at ON audit_runs (audited_at)'
+                'CREATE UNIQUE INDEX idx_audits_run ON audits (run)',
+                'CREATE INDEX idx_audits_created_by ON audits (created_by)'
             ]
         }))
     }
@@ -69,33 +129,6 @@ migrate((app) => {
         }))
     }
 
-    const authCollectionName = $os.getenv('POCKETBASE_AUTH_COLLECTION') || 'app_users'
-
-    try {
-        app.findCollectionByNameOrId(authCollectionName)
-    } catch {
-        app.save(new Collection({
-            type: 'auth',
-            name: authCollectionName,
-            listRule: 'id = @request.auth.id',
-            viewRule: 'id = @request.auth.id',
-            createRule: null,
-            updateRule: 'id = @request.auth.id',
-            deleteRule: null,
-            authRule: '',
-            passwordAuth: {
-                enabled: true,
-                identityFields: ['email']
-            },
-            fields: [
-                { name: 'name', type: 'text', required: true, max: 120 }
-            ],
-            indexes: [
-                `CREATE UNIQUE INDEX idx_${authCollectionName}_email ON ${authCollectionName} (email)`
-            ]
-        }))
-    }
-
     const appAuthEmail = $os.getenv('APP_AUTH_EMAIL')
     const appAuthPassword = $os.getenv('APP_AUTH_PASSWORD')
     const appAuthName = $os.getenv('APP_AUTH_NAME') || 'App User'
@@ -120,10 +153,14 @@ migrate((app) => {
     } catch {}
 
     try {
-        app.delete(app.findCollectionByNameOrId('audit_runs'))
+        app.delete(app.findCollectionByNameOrId('audits'))
     } catch {}
 
-    const authCollectionName = $os.getenv('POCKETBASE_AUTH_COLLECTION') || 'app_users'
+    try {
+        app.delete(app.findCollectionByNameOrId('runs'))
+    } catch {}
+
+    const authCollectionName = $os.getenv('POCKETBASE_AUTH_COLLECTION') || 'users'
     const appAuthEmail = $os.getenv('APP_AUTH_EMAIL')
 
     if (appAuthEmail) {

@@ -1,5 +1,15 @@
 <script lang="ts">
-	let { data, form } = $props();
+	import type { ActionData } from './$types';
+
+	type AuditListItem = {
+		id: string;
+		name?: string;
+		url: string;
+		status?: string;
+		targetHref: string;
+	};
+
+	let { data, form }: { data: { audits: AuditListItem[] }; form?: ActionData } = $props();
 </script>
 
 <section class="page-head">
@@ -10,7 +20,7 @@
 	</div>
 </section>
 
-<div class="grid two">
+<div class="two grid">
 	<section class="card">
 		<h2>Create audit</h2>
 		<form method="POST" action="?/create" class="stack">
@@ -20,7 +30,13 @@
 			</label>
 			<label>
 				<span>Website</span>
-				<input name="url" type="url" value={form?.url ?? ''} placeholder="https://example.com" required />
+				<input
+					name="url"
+					type="url"
+					value={form?.url ?? ''}
+					placeholder="https://example.com"
+					required
+				/>
 			</label>
 			{#if form?.createError}
 				<p class="error">{form.createError}</p>
@@ -35,11 +51,13 @@
 			<p class="muted">No audits yet.</p>
 		{:else}
 			<ul class="list">
-				{#each data.audits as audit}
+				{#each data.audits as audit (audit.id)}
 					<li>
-						<a href={`/audits/${audit.id}`}>
+						<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+						<a href={audit.targetHref}>
 							<strong>{audit.name || audit.url}</strong>
 							<span>{audit.url}</span>
+							<span class="muted">Status: {audit.status || 'queued'}</span>
 						</a>
 					</li>
 				{/each}

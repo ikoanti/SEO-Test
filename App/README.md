@@ -6,7 +6,8 @@ This is now the primary SvelteKit target app.
 
 - `/login` — PocketBase-backed login screen
 - `/audits` — list of audits and create a new audit
-- `/audits/[auditId]` — view one stored audit
+- `/audits/loading/[runId]` — loading page for an in-progress run
+- `/audits/[auditId]` — view one completed audit result
 
 ## Environment
 
@@ -14,7 +15,8 @@ Create `.env` from `.env.example` and configure:
 
 ```sh
 POCKETBASE_URL=http://127.0.0.1:8090
-POCKETBASE_AUTH_COLLECTION=app_users
+POCKETBASE_AUTH_COLLECTION=users
+POCKETBASE_RUNS_COLLECTION=runs
 POCKETBASE_AUDITS_COLLECTION=audits
 ```
 
@@ -22,18 +24,34 @@ POCKETBASE_AUDITS_COLLECTION=audits
 
 The app assumes these PocketBase collections already exist:
 
-- auth collection: `app_users`
+- auth collection: `users`
+- base collection: `runs`
 - base collection: `audits`
 
 Suggested fields:
 
-### `audits`
+### `runs`
 
 - `name` — text
 - `url` — url
-- `created_by` — relation to `app_users`
+- `created_by` — relation to `users`
 - `status` — text
+- `queued_at` — date
+- `started_at` — date
+- `completed_at` — date
+- `error_message` — text/editor
+- `run_log` — editor/text
+
+### `audits`
+
+- `run` — relation to `runs`
+- `name` — text
+- `url` — url
+- `created_by` — relation to `users`
+- `completed_at` — date
 - `summary_json` — json/editor/text
+- `report_html` — editor/text
+- `ai_visibility_json` — editor/text
 - `audit_json` — json/editor/text
 
 ## Development

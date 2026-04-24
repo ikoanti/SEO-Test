@@ -28,40 +28,38 @@ Access the live deployed tool at: **[https://seo.irakli.life](https://seo.irakli
 ## ⚙️ Local Development
 If you're pulling this repository locally to work on the application:
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/ikoanti/SEO-Test.git
-   ```
-
-2. **Navigate & Install Dependencies:**
+1. **Install app dependencies once:**
    ```bash
    cd SEO-Test/App
    npm install
    ```
 
-3. **Configure Environment Variables:**
-   Create a `.env` file inside the `/App/` folder and insert your necessary APIs:
-   ```env
-   ANTHROPIC_API_KEY=your_claude_api_key_here
-   OPEN_PAGE_RANK_API_KEY=your_open_page_rank_key_here
-   PAGESPEED_API_KEY=your_pagespeed_key_here
-   POCKETBASE_URL=http://127.0.0.1:8090
-   POCKETBASE_SUPERUSER_EMAIL=admin@example.com
-   POCKETBASE_SUPERUSER_PASSWORD=change-me-now
-   POCKETBASE_AUTH_COLLECTION=app_users
+2. **Run the local stack from the repo root:**
+   ```bash
+   cd ..
+   just dev
    ```
 
-4. **Run the API server:**
-   ```bash
-   npm run dev
-   ```
-   *(This runs the Express backend on port 3000.)*
+This starts both:
+- PocketBase on `http://127.0.0.1:8090`
+- the Svelte app on the next available local Vite port
+- and resets the local PocketBase data on every run
 
-5. **Run the Svelte frontend:**
-   ```bash
-   npm run dev:client
-   ```
-   *(This runs the Vite frontend on port 5173 and proxies `/api` to the backend.)*
+Local credentials:
+- App login: `demo@local.test` / `DemoUser123!`
+- PocketBase superuser: `admin@local.test` / `LocalAdmin123!`
+
+Useful recipes:
+```bash
+just
+just dev
+just dev-reset
+just dev-keep
+```
+
+Notes:
+- local PocketBase bootstrap tooling lives at the repo root in `scripts/` and `pb_migrations/`
+- app code stays isolated in `App/`
 
 ## 🌐 Docker Deployment
 This app is now designed to run as a single Docker Compose stack with:
@@ -81,8 +79,9 @@ This app is now designed to run as a single Docker Compose stack with:
 ### PocketBase behavior
 - PocketBase runs on `http://localhost:8090`
 - The migration in `Infrastructure/pocketbase/pb_migrations/1735689600_init_seo_tool.js` auto-creates:
-  - `app_users` auth collection
-  - `audit_runs`
+  - `users` auth collection
+  - `runs`
+  - `audits`
   - `audit_reports`
 - The Express app authenticates users against PocketBase and protects the `/api/*` routes with bearer-token validation.
 - The Express app saves audit payloads and generated HTML reports into PocketBase when the PocketBase env vars are configured.

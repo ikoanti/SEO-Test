@@ -1,9 +1,35 @@
 import { fail, redirect } from '@sveltejs/kit';
-import { createAuditRecord, listAudits } from '$lib/server/pocketbase';
-import { runAudit } from '$lib/server/audit';
+import { createRunRecord, getAuditByRunId, listRuns } from '$lib/server/pocketbase';
+import { ensureAuditRunProcessing, queueAuditRun } from '$lib/server/audit-runner';
 
 export const load = async ({ locals }) => {
-	const audits = await listAudits('', locals.pbToken);
+	const runs = await listRuns('', locals.pbToken);
+	runs.forEach((run) => ensureAuditRunProcessing(run, locals.pbToken));
+
+	const audits = await Promise.all(
+		runs.map(async (run) => {
+			if (run.status !== 'completed') {
+				return {
+					...run,
+					targetHref: `/audits/${run.id}`
+				};
+			}
+
+			try {
+				const audit = await getAuditByRunId(run.id, locals.pbToken);
+				return {
+					...run,
+					targetHref: `/audits/${audit.id}`
+				};
+			} catch {
+				return {
+					...run,
+					targetHref: `/audits/${run.id}`
+				};
+			}
+		})
+	);
+
 	return { audits };
 };
 
@@ -22,26 +48,24 @@ export const actions = {
 		}
 
 		try {
-			const audit = await runAudit(url);
-			const summary = {
-				domain: audit.domain,
-				auditedAt: audit.auditedAt,
-				summary: audit.summary,
-				pageSpeed: audit.pageSpeed,
-				openPageRank: audit.openPageRank
-			};
-
-			const record = await createAuditRecord(
+			const record = await createRunRecord(
 				{
 					name,
 					url,
 					created_by: locals.user?.id,
-					audit_json: JSON.stringify(audit),
-					summary_json: JSON.stringify(summary),
-					status: 'completed'
+					status: 'queued',
+					run_log: `[${new Date().toISOString()}] Run queued.`
 				},
 				locals.pbToken
 			);
+
+			queueAuditRun({
+				runId: record.id,
+				url,
+				name,
+				createdBy: locals.user?.id,
+				token: locals.pbToken
+			});
 
 			throw redirect(302, `/audits/${record.id}`);
 		} catch (error) {

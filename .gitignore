@@ -1,4 +1,5 @@
 .env
+.local/
 node_modules/
 App/public/
 .last-docker-prune

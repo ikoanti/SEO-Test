@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import './layout.css';
 	import favicon from '$lib/assets/favicon.svg';
 
@@ -15,7 +16,7 @@
 				<h1>Mini SEO Tool</h1>
 			</div>
 			<nav>
-				<a href="/audits">Audits</a>
+				<a href={resolve('/audits')}>Audits</a>
 			</nav>
 		</header>
 	{/if}
