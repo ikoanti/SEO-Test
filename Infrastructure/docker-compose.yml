@@ -12,8 +12,19 @@ services:
       PAGESPEED_API_KEY: ${PAGESPEED_API_KEY:-}
       APP_BASIC_AUTH_USER: ${APP_BASIC_AUTH_USER:-}
       APP_BASIC_AUTH_PASS: ${APP_BASIC_AUTH_PASS:-}
+      POCKETBASE_URL: ${POCKETBASE_URL:-http://pocketbase:8090}
+      POCKETBASE_SUPERUSER_EMAIL: ${POCKETBASE_SUPERUSER_EMAIL:-}
+      POCKETBASE_SUPERUSER_PASSWORD: ${POCKETBASE_SUPERUSER_PASSWORD:-}
+      POCKETBASE_AUTH_COLLECTION: ${POCKETBASE_AUTH_COLLECTION:-app_users}
+      POCKETBASE_AUDITS_COLLECTION: ${POCKETBASE_AUDITS_COLLECTION:-audit_runs}
+      POCKETBASE_REPORTS_COLLECTION: ${POCKETBASE_REPORTS_COLLECTION:-audit_reports}
+      APP_AUTH_EMAIL: ${APP_AUTH_EMAIL:-}
+      APP_AUTH_PASSWORD: ${APP_AUTH_PASSWORD:-}
+      APP_AUTH_NAME: ${APP_AUTH_NAME:-}
     expose:
       - "3000"
+    depends_on:
+      - pocketbase
     healthcheck:
       test:
         [
@@ -26,6 +37,22 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+    restart: unless-stopped
+
+  pocketbase:
+    build:
+      context: ..
+      dockerfile: Infrastructure/Dockerfile.pocketbase
+      args:
+        PB_VERSION: ${POCKETBASE_VERSION:-0.37.3}
+    container_name: seo-mini-tool-pocketbase
+    environment:
+      POCKETBASE_SUPERUSER_EMAIL: ${POCKETBASE_SUPERUSER_EMAIL:-}
+      POCKETBASE_SUPERUSER_PASSWORD: ${POCKETBASE_SUPERUSER_PASSWORD:-}
+    ports:
+      - "8090:8090"
+    volumes:
+      - pocketbase_data:/pb/pb_data
     restart: unless-stopped
 
   caddy:
@@ -46,3 +73,4 @@ services:
 volumes:
   caddy_data:
   caddy_config:
+  pocketbase_data:

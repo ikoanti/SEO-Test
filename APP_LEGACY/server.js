@@ -6,11 +6,19 @@ const crypto = require('crypto');
 require('dotenv').config();
 const Anthropic = require('@anthropic-ai/sdk');
 const { runAudit } = require('./audit');
+const {
+    authenticateAppToken,
+    getPocketBaseStatus,
+    loginAppUser,
+    saveAuditRun,
+    saveGeneratedReport
+} = require('./pocketbase');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const BASIC_AUTH_USER = process.env.APP_BASIC_AUTH_USER || '';
 const BASIC_AUTH_PASS = process.env.APP_BASIC_AUTH_PASS || '';
+const POCKETBASE_AUTH_LAYER_ENABLED = Boolean(process.env.POCKETBASE_URL);
 const BASIC_AUTH_ENABLED = Boolean(BASIC_AUTH_USER && BASIC_AUTH_PASS);
 
 
@@ -51,7 +59,7 @@ function parseBasicAuth(header) {
 }
 
 function requireBasicAuth(req, res, next) {
-    if (!BASIC_AUTH_ENABLED || req.path === '/health') {
+    if (!BASIC_AUTH_ENABLED || POCKETBASE_AUTH_LAYER_ENABLED || req.path === '/health') {
         return next();
     }
 
@@ -70,8 +78,84 @@ function requireBasicAuth(req, res, next) {
 
 app.use(requireBasicAuth);
 
+async function requireAppAuth(req, res, next) {
+    if (!req.path.startsWith('/api/')) {
+        return next();
+    }
+
+    if (
+        req.path === '/api/auth/login'
+        || req.path === '/api/auth/session'
+        || req.path === '/api/pocketbase/status'
+        || req.path === '/health'
+    ) {
+        return next();
+    }
+
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+
+    if (!token) {
+        return res.status(401).json({ error: 'Authentication required.' });
+    }
+
+    try {
+        const auth = await authenticateAppToken(token);
+        req.appAuth = auth;
+        req.user = auth.record;
+        return next();
+    } catch {
+        return res.status(401).json({ error: 'Invalid or expired session.' });
+    }
+}
+
+app.use(requireAppAuth);
+
 app.get('/health', (_req, res) => {
     res.json({ ok: true });
+});
+
+app.get('/api/pocketbase/status', (_req, res) => {
+    res.json(getPocketBaseStatus());
+});
+
+app.post('/api/auth/login', async (req, res) => {
+    const { email, password } = req.body || {};
+
+    if (!email || !password) {
+        return res.status(400).json({ error: 'email and password are required.' });
+    }
+
+    try {
+        const auth = await loginAppUser(String(email).trim(), String(password));
+        return res.json({
+            token: auth.token,
+            user: auth.record,
+            collection: auth.collection
+        });
+    } catch {
+        return res.status(401).json({ error: 'Invalid email or password.' });
+    }
+});
+
+app.get('/api/auth/session', async (req, res) => {
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+
+    if (!token) {
+        return res.status(401).json({ error: 'Authentication required.' });
+    }
+
+    try {
+        const auth = await authenticateAppToken(token);
+        return res.json({
+            token: auth.token,
+            user: auth.record,
+            collection: auth.collection
+        });
+    } catch {
+        return res.status(401).json({ error: 'Invalid or expired session.' });
+    }
 });
 
 // Open Page Rank API Configuration
@@ -84,8 +168,11 @@ if (!OPEN_PAGE_RANK_API_KEY) {
 if (!ANTHROPIC_API_KEY) {
     console.warn('ANTHROPIC_API_KEY is missing');
 }
-if (!BASIC_AUTH_ENABLED) {
+if (!BASIC_AUTH_ENABLED && !POCKETBASE_AUTH_LAYER_ENABLED) {
     console.warn('APP_BASIC_AUTH_USER / APP_BASIC_AUTH_PASS are missing; authentication is disabled');
+}
+if (BASIC_AUTH_ENABLED && POCKETBASE_AUTH_LAYER_ENABLED) {
+    console.warn('Basic auth is configured but bypassed because PocketBase auth layer is enabled');
 }
 
 const anthropic = ANTHROPIC_API_KEY ? new Anthropic({ apiKey: ANTHROPIC_API_KEY }) : null;
@@ -176,8 +263,21 @@ app.post('/api/audit', async (req, res) => {
 
     try {
         const audit = await runAudit(url);
+        const pocketBaseResult = await saveAuditRun({ targetUrl: url, auditData: audit });
+
+        if (!pocketBaseResult.saved && !pocketBaseResult.skipped) {
+            console.error('[api:/api/audit] PocketBase persistence failed:', pocketBaseResult.error);
+        }
+
         console.log('[api:/api/audit] request finished in ' + (Date.now() - startedAt) + 'ms');
-        res.json(audit);
+        res.json({
+            ...audit,
+            persistence: {
+                pocketbase: {
+                    auditRun: pocketBaseResult
+                }
+            }
+        });
     } catch (error) {
         console.error('[api:/api/audit] request failed after ' + (Date.now() - startedAt) + 'ms:', error.message);
         res.status(500).json({ error: 'Failed to run audit: ' + error.message });
@@ -294,7 +394,26 @@ IMPORTANT RULES:
             messages: [{ role: 'user', content: prompt }]
         });
 
-        res.json({ report: message.content[0].text });
+        const report = message.content[0].text;
+        const pocketBaseResult = await saveGeneratedReport({
+            targetUrl: `https://${domain}`,
+            domain,
+            auditData,
+            reportHtml: report
+        });
+
+        if (!pocketBaseResult.saved && !pocketBaseResult.skipped) {
+            console.error('[api:/api/generate-report] PocketBase persistence failed:', pocketBaseResult.error);
+        }
+
+        res.json({
+            report,
+            persistence: {
+                pocketbase: {
+                    report: pocketBaseResult
+                }
+            }
+        });
     } catch (error) {
         console.error('Claude API Error:', error.message);
         res.status(500).json({ error: 'Failed to generate report: ' + error.message });
@@ -360,12 +479,16 @@ Do NOT include any markdown formatting, backticks, or explanation. ONLY output t
     }
 });
 
+const fs = require('fs');
+const frontendDir = path.join(__dirname, 'public');
+const staticDir = fs.existsSync(frontendDir) ? frontendDir : __dirname;
+
 // Serve frontend static files
-app.use(express.static(path.join(__dirname)));
+app.use(express.static(staticDir));
 
 // Fallback to index.html for SPA behavior if needed (optional)
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    res.sendFile(path.join(staticDir, 'index.html'));
 });
 
 app.listen(PORT, () => {
