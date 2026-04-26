@@ -3,6 +3,7 @@ services:
     build:
       context: ..
       dockerfile: Infrastructure/Dockerfile
+      target: base
     container_name: seo-mini-tool-app
     environment:
       NODE_ENV: production
@@ -26,6 +27,7 @@ services:
       APP_AUTH_EMAIL: ${APP_AUTH_EMAIL:-}
       APP_AUTH_PASSWORD: ${APP_AUTH_PASSWORD:-}
       APP_AUTH_NAME: ${APP_AUTH_NAME:-}
+      AUDIT_CAPTURE_HEADFUL: ${AUDIT_CAPTURE_HEADFUL:-false}
     expose:
       - "3000"
     depends_on:

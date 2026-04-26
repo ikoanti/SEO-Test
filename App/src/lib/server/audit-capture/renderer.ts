@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
 import type { Page } from 'playwright-core';
@@ -9,6 +10,8 @@ const SIDEBAR_WIDTH = 420;
 const CAPTURE_HEIGHT = 900;
 const WINDOW_HEIGHT = 900;
 const WINDOW_WIDTH = 1365;
+const DISPLAY_WIDTH = 1600;
+const DISPLAY_HEIGHT = 1200;
 
 const assetCache = new Map<string, string>();
 
@@ -43,6 +46,44 @@ function resolveChromeExecutable() {
 	throw new Error(
 		'No Chrome/Chromium executable found. Set AUDIT_CHROME_PATH or CHROME_EXECUTABLE_PATH.'
 	);
+}
+
+function shouldUseHeadfulCapture() {
+	return String(process.env.AUDIT_CAPTURE_HEADFUL || '').toLowerCase() === 'true';
+}
+
+function delay(ms: number) {
+	return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function terminateProcess(processRef: ReturnType<typeof spawn> | null) {
+	if (!processRef || processRef.killed) return;
+	processRef.kill('SIGTERM');
+	await Promise.race([new Promise((resolve) => processRef.once('exit', resolve)), delay(3000)]);
+	if (!processRef.killed) {
+		processRef.kill('SIGKILL');
+	}
+}
+
+async function withVirtualDesktop<T>(fn: (display: string) => Promise<T>) {
+	const display = process.env.DISPLAY || ':99';
+	const screen = `${DISPLAY_WIDTH}x${DISPLAY_HEIGHT}x24`;
+	const xvfb = spawn('Xvfb', [display, '-screen', '0', screen], {
+		stdio: 'ignore'
+	});
+	let openbox: ReturnType<typeof spawn> | null = null;
+	try {
+		await delay(1000);
+		openbox = spawn('openbox', [], {
+			stdio: 'ignore',
+			env: { ...process.env, DISPLAY: display }
+		});
+		await delay(1000);
+		return await fn(display);
+	} finally {
+		await terminateProcess(openbox);
+		await terminateProcess(xvfb);
+	}
 }
 
 function buildSidebarSrcdoc(panelData: Record<string, unknown>) {
@@ -156,30 +197,44 @@ export async function captureAuditSidebarScreenshot({
 	sidebarData: Record<string, unknown>;
 	fallbackPageUrls?: string[];
 }) {
-	const browser = await chromium.launch({
-		executablePath: resolveChromeExecutable(),
-		headless: true,
-		args: [
-			'--no-sandbox',
-			'--disable-dev-shm-usage',
-			'--disable-gpu',
-			`--window-size=${WINDOW_WIDTH},${WINDOW_HEIGHT}`
-		]
-	});
-
-	try {
-		const page = await browser.newPage({
-			viewport: { width: WINDOW_WIDTH, height: CAPTURE_HEIGHT }
+	const runCapture = async (display?: string) => {
+		const browser = await chromium.launch({
+			executablePath: resolveChromeExecutable(),
+			headless: !display,
+			args: [
+				'--no-sandbox',
+				'--disable-dev-shm-usage',
+				'--disable-gpu',
+				'--force-device-scale-factor=1',
+				`--window-size=${WINDOW_WIDTH},${WINDOW_HEIGHT}`
+			],
+			env: display ? { ...process.env, DISPLAY: display } : process.env
 		});
-		const urls = [pageUrl, ...fallbackPageUrls.filter((url) => url && url !== pageUrl)];
-		await openFirstAvailableUrl(page, urls);
-		await injectSidebar(page, sidebarData);
-		const image = await page.screenshot({ type: 'png', fullPage: false });
-		return {
-			contentType: 'image/png',
-			imageBase64: image.toString('base64')
-		};
-	} finally {
-		await browser.close();
+
+		try {
+			const page = await browser.newPage({
+				viewport: { width: WINDOW_WIDTH, height: CAPTURE_HEIGHT }
+			});
+			const urls = [pageUrl, ...fallbackPageUrls.filter((url) => url && url !== pageUrl)];
+			await openFirstAvailableUrl(page, urls);
+			await injectSidebar(page, sidebarData);
+			const image = await page.screenshot({ type: 'png', fullPage: false });
+			return {
+				contentType: 'image/png',
+				imageBase64: image.toString('base64')
+			};
+		} finally {
+			await browser.close();
+		}
+	};
+
+	if (shouldUseHeadfulCapture()) {
+		try {
+			return await withVirtualDesktop((display) => runCapture(display));
+		} catch {
+			return runCapture();
+		}
 	}
+
+	return runCapture();
 }
