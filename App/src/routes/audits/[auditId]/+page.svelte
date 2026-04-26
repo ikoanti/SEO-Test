@@ -7,7 +7,7 @@
 	import OpenPageRankCard from '$lib/components/OpenPageRankCard.svelte';
 	import PageSpeedCard from '$lib/components/PageSpeedCard.svelte';
 	import SegmentedPicker from '$lib/components/SegmentedPicker.svelte';
-	import { Copy, Download, FileText, FileUp, Sparkles } from 'lucide-svelte';
+	import { Copy, Download, FileText, FileUp, Loader2, Sparkles } from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import AuditHeader from './AuditHeader.svelte';
 	import type { ActionData } from './$types';
@@ -444,10 +444,10 @@
 			<div class="card audit-card" id="card-report">
 				<h3 class="audit-card-title">📄 AI Report Generator</h3>
 				{#if isReportPending()}
-					<p class="muted report-status-note">
-						Report generation is running in the background and will finish even if you leave this
-						page.
-					</p>
+					<div class="report-pending-indicator" aria-live="polite">
+						<Loader2 size={18} />
+						<span>Generating report</span>
+					</div>
 				{:else if isReportFailed()}
 					<p class="report-error">
 						{pageData.reportRecord?.error_message || 'The last report generation attempt failed.'}
@@ -558,6 +558,18 @@
 		margin: 0 0 1rem;
 	}
 
+	.report-pending-indicator {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.65rem;
+		color: var(--text-muted);
+	}
+
+	.report-pending-indicator :global(svg) {
+		color: var(--goldenweb-primary);
+		animation: report-spin 0.9s linear infinite;
+	}
+
 	.report-output {
 		padding: 20px;
 		overflow: auto;
@@ -569,5 +581,14 @@
 	.ai-visibility-results {
 		margin-top: 1rem;
 		margin-bottom: 0;
+	}
+
+	@keyframes report-spin {
+		from {
+			transform: rotate(0deg);
+		}
+		to {
+			transform: rotate(360deg);
+		}
 	}
 </style>
