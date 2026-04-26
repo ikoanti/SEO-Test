@@ -76,6 +76,8 @@
 		mini?: boolean;
 	};
 
+	type AuditTab = 'findings' | 'ai-visibility' | 'report';
+
 	const legacySections: LegacySection[] = [
 		{ key: 'h1Tags', title: 'H1 Elements', subtitle: 'Scanning exactly 50 pages…', mini: true },
 		{ key: 'metaTitles', title: 'Meta Titles', subtitle: 'Scanning exactly 50 pages…', mini: true },
@@ -143,6 +145,7 @@
 	let liveData = $state<AuditPageViewData | null>(null);
 	const pageData = $derived(liveData ?? data);
 	let copyState = $state('Copy');
+	let activeTab = $state<AuditTab>('findings');
 	let fallbackInterval: number | undefined;
 	let stream: EventSource | undefined;
 
@@ -157,6 +160,11 @@
 	const canGenerateReport = () => runStatus() === 'completed' && !isReportPending();
 	const hasReport = () => Boolean(pageData.reportHtml);
 	const needsLiveUpdates = () => isPending() || isReportPending();
+	const tabs: { key: AuditTab; label: string }[] = [
+		{ key: 'findings', label: 'Findings' },
+		{ key: 'ai-visibility', label: 'AI Visibility' },
+		{ key: 'report', label: 'Report' }
+	];
 	const pageTitle = () =>
 		pageData.auditRecord?.name ||
 		pageData.runRecord?.name ||
@@ -344,178 +352,198 @@
 		barStyle={summaryBarStyle()}
 	/>
 
-	<section class="results-grid audit-results">
-		<OpenPageRankCard
-			pageRank={displayValue(openPageRank().pageRank)}
-			globalRank={displayValue(openPageRank().globalRank)}
-		/>
-
-		<PageSpeedCard pageSpeedData={pageSpeed()} />
-
-		{#each legacySections as section (section.key)}
-			<AuditFindingCard {section} item={itemByKey(section.key)} />
-		{/each}
-
-		<div class="card audit-card" id="card-ai-visibility">
-			<h3 class="audit-card-title">AI Visibility Analysis</h3>
-			<p class="section-subtitle">Upload an AI Visibility PDF report to extract key metrics</p>
-			<form
-				method="POST"
-				action="?/parsePdf"
-				enctype="multipart/form-data"
-				class="audit-upload-row"
+	<div class="audit-tab-picker" role="tablist" aria-label="Audit sections">
+		{#each tabs as tab (tab.key)}
+			<button
+				type="button"
+				role="tab"
+				class:active={activeTab === tab.key}
+				aria-selected={activeTab === tab.key}
+				class="audit-tab-button"
+				onclick={() => {
+					activeTab = tab.key;
+				}}
 			>
-				<input name="pdf" type="file" accept="application/pdf" required />
-				<button type="submit" class="audit-primary-button">
-					<FileUp size={18} />
-					<span>Analyze PDF</span>
-				</button>
-			</form>
-			{#if form?.pdfError}
-				<p class="report-error">{form.pdfError}</p>
-			{/if}
+				{tab.label}
+			</button>
+		{/each}
+	</div>
 
-			{#if pageData.aiVisibility}
-				<div class="metric-grid ai-visibility-results">
-					<div class="metric-card">
-						<span class="metric-label">AI Visibility</span>
-						<span class="metric-value highlight-yellow"
-							>{pageData.aiVisibility.aiVisibility ?? '-'}</span
-						>
-					</div>
-					<div class="metric-card">
-						<span class="metric-label">Monthly Audience</span>
-						<span class="metric-value highlight-green"
-							>{pageData.aiVisibility.monthlyAudience ?? '-'}</span
-						>
-					</div>
-					<div class="metric-card">
-						<span class="metric-label">Mentions</span>
-						<span class="metric-value highlight-green">{pageData.aiVisibility.mentions ?? '-'}</span
-						>
-					</div>
-					<div class="metric-card">
-						<span class="metric-label">Cited Pages</span>
-						<span class="metric-value highlight-green"
-							>{pageData.aiVisibility.citedPages ?? '-'}</span
-						>
-					</div>
-					<div class="metric-card">
-						<span class="metric-label">Perf. Topics</span>
-						<span class="metric-value highlight-yellow"
-							>{pageData.aiVisibility.performingTopics ?? '-'}</span
-						>
-					</div>
-					<div class="metric-card">
-						<span class="metric-label">Topic Opps</span>
-						<span class="metric-value highlight-yellow"
-							>{pageData.aiVisibility.topicOpportunities ?? '-'}</span
-						>
-					</div>
-					<div class="metric-card">
-						<span class="metric-label">Cited Sources</span>
-						<span class="metric-value highlight-yellow"
-							>{pageData.aiVisibility.citedSources ?? '-'}</span
-						>
-					</div>
-					<div class="metric-card">
-						<span class="metric-label">Source Opps</span>
-						<span class="metric-value highlight-yellow"
-							>{pageData.aiVisibility.sourceOpportunities ?? '-'}</span
-						>
-					</div>
-				</div>
-			{/if}
-		</div>
+	<section class="results-grid audit-results">
+		{#if activeTab === 'findings'}
+			<OpenPageRankCard
+				pageRank={displayValue(openPageRank().pageRank)}
+				globalRank={displayValue(openPageRank().globalRank)}
+			/>
 
-		<div class="card audit-card" id="card-report">
-			<h3 class="audit-card-title">📄 AI Report Generator</h3>
-			{#if isReportPending()}
-				<p class="muted report-status-note">
-					Report generation is running in the background and will finish even if you leave this
-					page.
-				</p>
-			{:else if isReportFailed()}
-				<p class="report-error">
-					{pageData.reportRecord?.error_message || 'The last report generation attempt failed.'}
-				</p>
+			<PageSpeedCard pageSpeedData={pageSpeed()} />
+
+			{#each legacySections as section (section.key)}
+				<AuditFindingCard {section} item={itemByKey(section.key)} />
+			{/each}
+		{:else if activeTab === 'ai-visibility'}
+			<div class="card audit-card" id="card-ai-visibility">
+				<h3 class="audit-card-title">AI Visibility Analysis</h3>
+				<p class="section-subtitle">Upload an AI Visibility PDF report to extract key metrics</p>
 				<form
 					method="POST"
-					action="?/generateReport"
-					class="stack"
-					use:enhance={enhanceReportGeneration}
+					action="?/parsePdf"
+					enctype="multipart/form-data"
+					class="audit-upload-row"
 				>
-					{#if form?.reportError}
-						<p class="report-error">{form.reportError}</p>
-					{/if}
+					<input name="pdf" type="file" accept="application/pdf" required />
 					<button type="submit" class="audit-primary-button">
-						<Sparkles size={18} />
-						<span>Retry report generation</span>
+						<FileUp size={18} />
+						<span>Analyze PDF</span>
 					</button>
 				</form>
-			{:else if canGenerateReport()}
-				<form
-					method="POST"
-					action="?/generateReport"
-					class="stack"
-					use:enhance={enhanceReportGeneration}
-				>
-					{#if form?.reportError}
-						<p class="report-error">{form.reportError}</p>
-					{/if}
-					<button type="submit" class="audit-primary-button">
-						<Sparkles size={18} />
-						<span>{hasReport() ? 'Regenerate report' : 'Generate report'}</span>
-					</button>
-				</form>
-			{:else}
-				<p class="muted report-status-note">
-					{#if isPending()}
-						Available after the audit completes.
-					{:else if isFailed()}
-						Unavailable because the audit run failed.
-					{:else}
-						Available after audit completion.
-					{/if}
-				</p>
-			{/if}
+				{#if form?.pdfError}
+					<p class="report-error">{form.pdfError}</p>
+				{/if}
 
-			{#if hasReport()}
-				<div class="audit-inline-actions">
-					<button
-						type="button"
-						class="audit-action-button"
-						title="Copy to Clipboard"
-						onclick={copyReport}
+				{#if pageData.aiVisibility}
+					<div class="metric-grid ai-visibility-results">
+						<div class="metric-card">
+							<span class="metric-label">AI Visibility</span>
+							<span class="metric-value highlight-yellow"
+								>{pageData.aiVisibility.aiVisibility ?? '-'}</span
+							>
+						</div>
+						<div class="metric-card">
+							<span class="metric-label">Monthly Audience</span>
+							<span class="metric-value highlight-green"
+								>{pageData.aiVisibility.monthlyAudience ?? '-'}</span
+							>
+						</div>
+						<div class="metric-card">
+							<span class="metric-label">Mentions</span>
+							<span class="metric-value highlight-green"
+								>{pageData.aiVisibility.mentions ?? '-'}</span
+							>
+						</div>
+						<div class="metric-card">
+							<span class="metric-label">Cited Pages</span>
+							<span class="metric-value highlight-green"
+								>{pageData.aiVisibility.citedPages ?? '-'}</span
+							>
+						</div>
+						<div class="metric-card">
+							<span class="metric-label">Perf. Topics</span>
+							<span class="metric-value highlight-yellow"
+								>{pageData.aiVisibility.performingTopics ?? '-'}</span
+							>
+						</div>
+						<div class="metric-card">
+							<span class="metric-label">Topic Opps</span>
+							<span class="metric-value highlight-yellow"
+								>{pageData.aiVisibility.topicOpportunities ?? '-'}</span
+							>
+						</div>
+						<div class="metric-card">
+							<span class="metric-label">Cited Sources</span>
+							<span class="metric-value highlight-yellow"
+								>{pageData.aiVisibility.citedSources ?? '-'}</span
+							>
+						</div>
+						<div class="metric-card">
+							<span class="metric-label">Source Opps</span>
+							<span class="metric-value highlight-yellow"
+								>{pageData.aiVisibility.sourceOpportunities ?? '-'}</span
+							>
+						</div>
+					</div>
+				{/if}
+			</div>
+		{:else if activeTab === 'report'}
+			<div class="card audit-card" id="card-report">
+				<h3 class="audit-card-title">📄 AI Report Generator</h3>
+				{#if isReportPending()}
+					<p class="muted report-status-note">
+						Report generation is running in the background and will finish even if you leave this
+						page.
+					</p>
+				{:else if isReportFailed()}
+					<p class="report-error">
+						{pageData.reportRecord?.error_message || 'The last report generation attempt failed.'}
+					</p>
+					<form
+						method="POST"
+						action="?/generateReport"
+						class="stack"
+						use:enhance={enhanceReportGeneration}
 					>
-						<Copy size={16} />
-						<span>{copyState}</span>
-					</button>
-					<button
-						type="button"
-						class="audit-action-button"
-						title="Download as HTML"
-						onclick={downloadReportHtml}
+						{#if form?.reportError}
+							<p class="report-error">{form.reportError}</p>
+						{/if}
+						<button type="submit" class="audit-primary-button">
+							<Sparkles size={18} />
+							<span>Retry report generation</span>
+						</button>
+					</form>
+				{:else if canGenerateReport()}
+					<form
+						method="POST"
+						action="?/generateReport"
+						class="stack"
+						use:enhance={enhanceReportGeneration}
 					>
-						<Download size={16} />
-						<span>Download HTML</span>
-					</button>
-					<button
-						type="button"
-						class="audit-action-button"
-						title="Download as Word Doc"
-						onclick={downloadReportDoc}
-					>
-						<FileText size={16} />
-						<span>Download Doc</span>
-					</button>
-				</div>
-				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-				<div class="report-output">{@html pageData.reportHtml}</div>
-			{:else if !isReportPending()}
-				<p class="muted">No generated report yet.</p>
-			{/if}
-		</div>
+						{#if form?.reportError}
+							<p class="report-error">{form.reportError}</p>
+						{/if}
+						<button type="submit" class="audit-primary-button">
+							<Sparkles size={18} />
+							<span>{hasReport() ? 'Regenerate report' : 'Generate report'}</span>
+						</button>
+					</form>
+				{:else}
+					<p class="muted report-status-note">
+						{#if isPending()}
+							Available after the audit completes.
+						{:else if isFailed()}
+							Unavailable because the audit run failed.
+						{:else}
+							Available after audit completion.
+						{/if}
+					</p>
+				{/if}
+
+				{#if hasReport()}
+					<div class="audit-inline-actions">
+						<button
+							type="button"
+							class="audit-action-button"
+							title="Copy to Clipboard"
+							onclick={copyReport}
+						>
+							<Copy size={16} />
+							<span>{copyState}</span>
+						</button>
+						<button
+							type="button"
+							class="audit-action-button"
+							title="Download as HTML"
+							onclick={downloadReportHtml}
+						>
+							<Download size={16} />
+							<span>Download HTML</span>
+						</button>
+						<button
+							type="button"
+							class="audit-action-button"
+							title="Download as Word Doc"
+							onclick={downloadReportDoc}
+						>
+							<FileText size={16} />
+							<span>Download Doc</span>
+						</button>
+					</div>
+					<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+					<div class="report-output">{@html pageData.reportHtml}</div>
+				{:else if !isReportPending()}
+					<p class="muted">No generated report yet.</p>
+				{/if}
+			</div>
+		{/if}
 	</section>
 {/if}
 
@@ -533,6 +561,41 @@
 		align-items: center;
 		gap: 1.5rem;
 		animation: fadeInUp 0.8s ease 0.1s both;
+	}
+
+	.audit-tab-picker {
+		display: flex;
+		justify-content: center;
+		gap: 0.5rem;
+		width: min(100%, 42rem);
+		margin: 1.5rem auto 0;
+		padding: 0.4rem;
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		border-radius: 999px;
+		background: rgba(255, 255, 255, 0.03);
+	}
+
+	.audit-tab-button {
+		flex: 1;
+		min-width: 0;
+		padding: 0.75rem 1rem;
+		border: 1px solid transparent;
+		border-radius: 999px;
+		background: transparent;
+		color: var(--text-muted);
+		font: inherit;
+		font-weight: 600;
+		cursor: pointer;
+		transition:
+			background 0.2s ease,
+			border-color 0.2s ease,
+			color 0.2s ease;
+	}
+
+	.audit-tab-button.active {
+		border-color: rgba(255, 255, 255, 0.14);
+		background: rgba(255, 255, 255, 0.06);
+		color: var(--text-color);
 	}
 
 	.highlight-yellow {
