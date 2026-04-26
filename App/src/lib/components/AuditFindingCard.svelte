@@ -53,6 +53,99 @@
 		};
 	}
 
+	type RenderRow = {
+		key: string;
+		status: AuditFindingStatus;
+		title: string;
+		detail?: string;
+		href?: string;
+		codeSnippet?: string;
+		sectionHeader?: boolean;
+		indented?: boolean;
+	};
+
+	function isUrlLike(value?: string) {
+		if (!value) return false;
+		try {
+			new URL(value);
+			return true;
+		} catch {
+			return false;
+		}
+	}
+
+	function displayHref(finding: AuditFindingView) {
+		if (finding.page_url) return finding.page_url;
+		if (isUrlLike(finding.title)) return finding.title;
+		return undefined;
+	}
+
+	function displayTitle(finding: AuditFindingView) {
+		const duplicateValue = finding.meta?.duplicateValue;
+		if (typeof duplicateValue === 'string' && duplicateValue.trim()) {
+			return duplicateValue;
+		}
+
+		if (finding.title && !isUrlLike(finding.title)) {
+			return finding.title;
+		}
+
+		return finding.detail || finding.status || 'Finding';
+	}
+
+	function groupedRows(prefix: string, findings: AuditFindingView[]) {
+		const rows: RenderRow[] = [];
+		const groups: Record<string, AuditFindingView[]> = {};
+		const order: string[] = [];
+
+		for (const finding of findings) {
+			const groupKey = finding.detail?.trim() || `finding:${finding.id}`;
+			if (!groups[groupKey]) {
+				groups[groupKey] = [];
+				order.push(groupKey);
+			}
+			groups[groupKey].push(finding);
+		}
+
+		for (const groupKey of order) {
+			const group = groups[groupKey] || [];
+			if (group.length > 1 && group[0]?.detail) {
+				rows.push({
+					key: `${prefix}-group-${groupKey}`,
+					status: group[0].status || 'info',
+					title: group[0].detail,
+					sectionHeader: true
+				});
+
+				for (const finding of group) {
+					rows.push({
+						key: `${prefix}-${finding.id}`,
+						status: finding.status || 'info',
+						title: displayTitle(finding),
+						href: displayHref(finding),
+						codeSnippet:
+							typeof finding.meta?.codeSnippet === 'string' ? finding.meta.codeSnippet : undefined,
+						indented: true
+					});
+				}
+			} else {
+				const finding = group[0];
+				if (!finding) continue;
+				rows.push({
+					key: `${prefix}-${finding.id}`,
+					status: finding.status || 'info',
+					title: finding.title || finding.status || 'Finding',
+					detail: finding.detail,
+					href: displayHref(finding),
+					codeSnippet:
+						typeof finding.meta?.codeSnippet === 'string' ? finding.meta.codeSnippet : undefined
+				});
+			}
+		}
+
+		return rows;
+	}
+
 	const pills = $derived(statPills(item));
 	const visiblePillStatuses = $derived.by(() => {
 		const statuses: AuditFindingStatusFilter[] = [];
@@ -91,6 +184,7 @@
 	const hiddenFailCount = $derived.by(() =>
 		Math.max(findingsByStatus.fail.length - visibleFailFindings.length, 0)
 	);
+	const failRows = $derived(groupedRows('fail', visibleFailFindings));
 	const visibleWarnFindings = $derived.by(() => {
 		if (selectedStatus === 'warn' || showAllWarnFindings) {
 			return findingsByStatus.warn;
@@ -102,6 +196,7 @@
 	const hiddenWarnCount = $derived.by(() =>
 		Math.max(findingsByStatus.warn.length - visibleWarnFindings.length, 0)
 	);
+	const warnRows = $derived(groupedRows('warn', visibleWarnFindings));
 	const visibleInfoFindings = $derived.by(() => {
 		if (showAllInfoFindings) {
 			return findingsByStatus.info;
@@ -113,6 +208,7 @@
 	const hiddenInfoCount = $derived.by(() =>
 		Math.max(findingsByStatus.info.length - visibleInfoFindings.length, 0)
 	);
+	const infoRows = $derived(groupedRows('info', visibleInfoFindings));
 	const visiblePassFindings = $derived.by(() => {
 		if (selectedStatus === 'pass' || showPassedFindings) {
 			return findingsByStatus.pass;
@@ -124,6 +220,7 @@
 	const hiddenPassCount = $derived.by(() =>
 		Math.max(findingsByStatus.pass.length - visiblePassFindings.length, 0)
 	);
+	const passRows = $derived(groupedRows('pass', visiblePassFindings));
 	const hasVisibleFindings = $derived.by(
 		() =>
 			findingsByStatus.fail.length > 0 ||
@@ -155,15 +252,15 @@
 	{/if}
 	<ul class={`check-list ${section.mini ? 'mini-list' : ''}`}>
 		{#if hasVisibleFindings}
-			{#each visibleFailFindings as finding, index (`${item?.id || section.key}-fail-${index}`)}
+			{#each failRows as row (row.key)}
 				<AuditFindingRow
-					status={finding.status || 'info'}
-					title={finding.title || finding.status || 'Finding'}
-					detail={finding.detail}
-					href={finding.page_url}
-					codeSnippet={typeof finding.meta?.codeSnippet === 'string'
-						? finding.meta.codeSnippet
-						: undefined}
+					status={row.status}
+					title={row.title}
+					detail={row.detail}
+					href={row.href}
+					codeSnippet={row.codeSnippet}
+					sectionHeader={row.sectionHeader}
+					indented={row.indented}
 				/>
 			{/each}
 			{#if isFailSectionExpandable}
@@ -179,15 +276,15 @@
 					</button>
 				</li>
 			{/if}
-			{#each visibleWarnFindings as finding, index (`${item?.id || section.key}-warn-${index}`)}
+			{#each warnRows as row (row.key)}
 				<AuditFindingRow
-					status={finding.status || 'info'}
-					title={finding.title || finding.status || 'Finding'}
-					detail={finding.detail}
-					href={finding.page_url}
-					codeSnippet={typeof finding.meta?.codeSnippet === 'string'
-						? finding.meta.codeSnippet
-						: undefined}
+					status={row.status}
+					title={row.title}
+					detail={row.detail}
+					href={row.href}
+					codeSnippet={row.codeSnippet}
+					sectionHeader={row.sectionHeader}
+					indented={row.indented}
 				/>
 			{/each}
 			{#if isWarnSectionExpandable}
@@ -203,15 +300,15 @@
 					</button>
 				</li>
 			{/if}
-			{#each visibleInfoFindings as finding, index (`${item?.id || section.key}-info-${index}`)}
+			{#each infoRows as row (row.key)}
 				<AuditFindingRow
-					status={finding.status || 'info'}
-					title={finding.title || finding.status || 'Finding'}
-					detail={finding.detail}
-					href={finding.page_url}
-					codeSnippet={typeof finding.meta?.codeSnippet === 'string'
-						? finding.meta.codeSnippet
-						: undefined}
+					status={row.status}
+					title={row.title}
+					detail={row.detail}
+					href={row.href}
+					codeSnippet={row.codeSnippet}
+					sectionHeader={row.sectionHeader}
+					indented={row.indented}
 				/>
 			{/each}
 			{#if isInfoSectionExpandable}
@@ -227,15 +324,15 @@
 					</button>
 				</li>
 			{/if}
-			{#each visiblePassFindings as finding, index (`${item?.id || section.key}-pass-${index}`)}
+			{#each passRows as row (row.key)}
 				<AuditFindingRow
-					status={finding.status || 'info'}
-					title={finding.title || finding.status || 'Finding'}
-					detail={finding.detail}
-					href={finding.page_url}
-					codeSnippet={typeof finding.meta?.codeSnippet === 'string'
-						? finding.meta.codeSnippet
-						: undefined}
+					status={row.status}
+					title={row.title}
+					detail={row.detail}
+					href={row.href}
+					codeSnippet={row.codeSnippet}
+					sectionHeader={row.sectionHeader}
+					indented={row.indented}
 				/>
 			{/each}
 			{#if isPassSectionExpandable}

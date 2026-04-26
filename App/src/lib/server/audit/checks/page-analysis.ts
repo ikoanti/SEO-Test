@@ -137,17 +137,29 @@ export async function analyzeMetaAndHeadings(
 
 	for (const [title, pagesForTitle] of titleMap.entries()) {
 		if (pagesForTitle.length > 1) {
-			addItem(summary, metaTitles, 'warn', 'Duplicate meta title detected', {
-				title: `${title} (${pagesForTitle.length} pages)`
-			});
+			for (const page of pagesForTitle) {
+				addItem(summary, metaTitles, 'warn', 'Duplicate meta title detected', {
+					title: page,
+					meta: {
+						duplicateValue: title,
+						duplicateCount: pagesForTitle.length
+					}
+				});
+			}
 		}
 	}
 
 	for (const [description, pagesForDescription] of descriptionMap.entries()) {
 		if (pagesForDescription.length > 1) {
-			addItem(summary, metaTitles, 'warn', 'Duplicate meta description detected', {
-				title: `${description.slice(0, 80)}${description.length > 80 ? '…' : ''} (${pagesForDescription.length} pages)`
-			});
+			for (const page of pagesForDescription) {
+				addItem(summary, metaTitles, 'warn', 'Duplicate meta description detected', {
+					title: page,
+					meta: {
+						duplicateValue: description,
+						duplicateCount: pagesForDescription.length
+					}
+				});
+			}
 		}
 	}
 
