@@ -140,7 +140,7 @@ export async function generateReportHtml(domain: string, auditData: unknown) {
 		messages: [{ role: 'user', content: buildReportPrompt(domain, auditData) }]
 	});
 
-	return message.content[0].type === 'text' ? message.content[0].text : '';
+	return message.content[0].type === 'text' ? stripCodeFence(message.content[0].text) : '';
 }
 
 function extractJsonObject(text: string) {
@@ -157,6 +157,15 @@ function extractJsonObject(text: string) {
 	}
 
 	return cleaned.slice(start, end + 1);
+}
+
+function stripCodeFence(text: string) {
+	return text
+		.trim()
+		.replace(/^```html\s*/i, '')
+		.replace(/^```\s*/i, '')
+		.replace(/```$/i, '')
+		.trim();
 }
 
 export async function parsePdfMetrics(pdfBase64: string) {
