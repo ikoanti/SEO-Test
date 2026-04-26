@@ -503,11 +503,18 @@ export async function createAuditScreenshotRecord(
 
 export async function listAuditScreenshots(auditId: string, token?: string) {
 	const pb = createAuthedClient(token);
-	const screenshots = await pb.collection(AUDIT_SCREENSHOTS_COLLECTION).getFullList({
-		filter: `audit = "${escapeFilterValue(auditId)}"`,
-		sort: 'created',
-		expand: 'audit_finding_type,run'
-	});
+	let screenshots;
+	try {
+		screenshots = await pb.collection(AUDIT_SCREENSHOTS_COLLECTION).getFullList({
+			filter: `audit = "${escapeFilterValue(auditId)}"`,
+			sort: 'created',
+			expand: 'audit_finding_type,run'
+		});
+	} catch (error) {
+		const response = (error as { response?: { status?: number } }).response;
+		if (response?.status === 400 || response?.status === 404) return [];
+		throw error;
+	}
 
 	return screenshots.map((screenshot) => ({
 		...(screenshot as Record<string, unknown>),
@@ -520,9 +527,16 @@ export async function listAuditScreenshots(auditId: string, token?: string) {
 
 export async function deleteAuditScreenshotsByRunId(runId: string, token?: string) {
 	const pb = createAuthedClient(token);
-	const screenshots = await pb.collection(AUDIT_SCREENSHOTS_COLLECTION).getFullList({
-		filter: `run = "${escapeFilterValue(runId)}"`
-	});
+	let screenshots;
+	try {
+		screenshots = await pb.collection(AUDIT_SCREENSHOTS_COLLECTION).getFullList({
+			filter: `run = "${escapeFilterValue(runId)}"`
+		});
+	} catch (error) {
+		const response = (error as { response?: { status?: number } }).response;
+		if (response?.status === 400 || response?.status === 404) return;
+		throw error;
+	}
 
 	await Promise.all(
 		screenshots.map((screenshot) =>
