@@ -140,15 +140,11 @@
 	];
 
 	let { data, form }: { data: AuditPageViewData; form?: ActionData } = $props();
-	const enhanceAndRefresh = () => {
-		return async ({ update }: { update: () => Promise<void> }) => {
-			await update();
-			await invalidateAll();
-		};
-	};
 	let liveData = $state<AuditPageViewData | null>(null);
 	const pageData = $derived(liveData ?? data);
 	let copyState = $state('Copy');
+	let fallbackInterval: number | undefined;
+	let stream: EventSource | undefined;
 
 	const pendingStatuses = new Set(['queued', 'running']);
 	const reportPendingStatuses = new Set(['queued', 'running']);
@@ -160,6 +156,7 @@
 	const isReportFailed = () => reportStatus() === 'failed';
 	const canGenerateReport = () => runStatus() === 'completed' && !isReportPending();
 	const hasReport = () => Boolean(pageData.reportHtml);
+	const needsLiveUpdates = () => isPending() || isReportPending();
 	const pageTitle = () =>
 		pageData.auditRecord?.name ||
 		pageData.runRecord?.name ||
@@ -210,6 +207,85 @@
 		}
 	}
 
+	function stopLiveUpdates() {
+		stream?.close();
+		stream = undefined;
+		if (fallbackInterval) {
+			window.clearInterval(fallbackInterval);
+			fallbackInterval = undefined;
+		}
+	}
+
+	function startFallbackPolling() {
+		if (fallbackInterval || !needsLiveUpdates()) return;
+		fallbackInterval = window.setInterval(() => {
+			void invalidateAll();
+		}, 1000);
+	}
+
+	function ensureLiveUpdates() {
+		if (!needsLiveUpdates()) {
+			stopLiveUpdates();
+			return;
+		}
+
+		if (stream) return;
+
+		stream = new EventSource(`/api/audits/${pageData.auditId}/stream`);
+		stream.onmessage = (event) => {
+			const next = JSON.parse(event.data) as AuditPageViewData;
+			liveData = next;
+			if (
+				!pendingStatuses.has(next.runRecord.status || '') &&
+				!reportPendingStatuses.has(next.reportRecord?.status || '')
+			) {
+				stopLiveUpdates();
+			}
+		};
+		stream.onerror = () => {
+			if (stream?.readyState === EventSource.CLOSED) {
+				stream = undefined;
+				startFallbackPolling();
+			}
+		};
+	}
+
+	const enhanceReportGeneration = () => {
+		return async ({
+			result,
+			update
+		}: {
+			result: { type: string };
+			update: (options?: { reset?: boolean; invalidateAll?: boolean }) => Promise<void>;
+		}) => {
+			if (result.type === 'failure') {
+				await update();
+				return;
+			}
+
+			await update({ reset: false, invalidateAll: false });
+			liveData = {
+				...pageData,
+				auditRecord: pageData.auditRecord
+					? {
+							...pageData.auditRecord,
+							report_status: 'queued'
+						}
+					: null,
+				reportRecord: {
+					...pageData.reportRecord,
+					status: 'queued',
+					error_message: '',
+					started_at: undefined,
+					completed_at: undefined
+				},
+				reportHtml: '',
+				isPendingReport: true
+			};
+			ensureLiveUpdates();
+		};
+	};
+
 	function downloadReportHtml() {
 		if (!pageData.reportHtml) return;
 
@@ -243,53 +319,10 @@
 	}
 
 	onMount(() => {
-		let fallbackInterval: number | undefined;
-		let stream: EventSource | undefined;
-
-		const startFallbackPolling = () => {
-			if (
-				fallbackInterval ||
-				(!pendingStatuses.has(pageData.runRecord.status || '') &&
-					!reportPendingStatuses.has(pageData.reportRecord?.status || ''))
-			)
-				return;
-			fallbackInterval = window.setInterval(() => {
-				void invalidateAll();
-			}, 1000);
-		};
-
-		if (
-			pendingStatuses.has(pageData.runRecord.status || '') ||
-			reportPendingStatuses.has(pageData.reportRecord?.status || '')
-		) {
-			stream = new EventSource(`/api/audits/${pageData.auditId}/stream`);
-			stream.onmessage = (event) => {
-				const next = JSON.parse(event.data) as AuditPageViewData;
-				liveData = next;
-				if (
-					!pendingStatuses.has(next.runRecord.status || '') &&
-					!reportPendingStatuses.has(next.reportRecord?.status || '')
-				) {
-					stream?.close();
-					stream = undefined;
-					if (fallbackInterval) {
-						window.clearInterval(fallbackInterval);
-						fallbackInterval = undefined;
-					}
-				}
-			};
-			stream.onerror = () => {
-				if (stream?.readyState === EventSource.CLOSED) {
-					startFallbackPolling();
-				}
-			};
-		}
+		ensureLiveUpdates();
 
 		return () => {
-			stream?.close();
-			if (fallbackInterval) {
-				window.clearInterval(fallbackInterval);
-			}
+			stopLiveUpdates();
 		};
 	});
 </script>
@@ -406,7 +439,12 @@
 				<p class="report-error">
 					{pageData.reportRecord?.error_message || 'The last report generation attempt failed.'}
 				</p>
-				<form method="POST" action="?/generateReport" class="stack" use:enhance={enhanceAndRefresh}>
+				<form
+					method="POST"
+					action="?/generateReport"
+					class="stack"
+					use:enhance={enhanceReportGeneration}
+				>
 					{#if form?.reportError}
 						<p class="report-error">{form.reportError}</p>
 					{/if}
@@ -416,7 +454,12 @@
 					</button>
 				</form>
 			{:else if canGenerateReport()}
-				<form method="POST" action="?/generateReport" class="stack" use:enhance={enhanceAndRefresh}>
+				<form
+					method="POST"
+					action="?/generateReport"
+					class="stack"
+					use:enhance={enhanceReportGeneration}
+				>
 					{#if form?.reportError}
 						<p class="report-error">{form.reportError}</p>
 					{/if}
