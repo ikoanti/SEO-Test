@@ -3,7 +3,16 @@
 	import { resolve } from '$app/paths';
 	import type { AuditFindingStatus } from '$lib/audit-status';
 	import AuditFindingCard from '$lib/components/AuditFindingCard.svelte';
-	import { ArrowLeft, Copy, Download, FileText, FileUp, Sparkles } from 'lucide-svelte';
+	import {
+		ArrowLeft,
+		Copy,
+		Download,
+		FileText,
+		FileUp,
+		Monitor,
+		Smartphone,
+		Sparkles
+	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import type { ActionData } from './$types';
 
@@ -350,7 +359,14 @@
 						<div class={`metric-circle ${scoreClass(strategyData.score)}`}>
 							{displayValue(strategyData.score, '--')}
 						</div>
-						<span class="speed-label">{strategy === 'mobile' ? 'Mobile' : 'Desktop'} Score</span>
+						<span class="speed-label">
+							{#if strategy === 'mobile'}
+								<Smartphone size={14} strokeWidth={2.25} />
+							{:else}
+								<Monitor size={14} strokeWidth={2.25} />
+							{/if}
+							<span>{strategy === 'mobile' ? 'Mobile' : 'Desktop'} Score</span>
+						</span>
 						<div class="speed-details">
 							{#each metricsForPageSpeed(strategy) as metric (metric[0])}
 								<div class="speed-metric">
@@ -687,6 +703,9 @@
 	}
 
 	.speed-label {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35rem;
 		color: var(--text-muted);
 		font-size: 0.85rem;
 		font-weight: 500;
