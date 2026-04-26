@@ -136,6 +136,7 @@
 					title={`${findingsByStatus.fail.length} ${findingsByStatus.fail.length === 1 ? 'fail' : 'fails'}`}
 					clickable={isFailSectionExpandable}
 					expanded={showAllFailFindings}
+					sectionHeader={true}
 					onactivate={isFailSectionExpandable
 						? () => {
 								showAllFailFindings = !showAllFailFindings;
@@ -149,6 +150,7 @@
 					title={finding.title || finding.status || 'Finding'}
 					detail={finding.detail}
 					href={finding.page_url}
+					indented={true}
 					codeSnippet={typeof finding.meta?.codeSnippet === 'string'
 						? finding.meta.codeSnippet
 						: undefined}
@@ -160,6 +162,7 @@
 					title={`${findingsByStatus.warn.length} ${findingsByStatus.warn.length === 1 ? 'issue' : 'issues'}`}
 					clickable={isWarnSectionExpandable}
 					expanded={showAllWarnFindings}
+					sectionHeader={true}
 					onactivate={isWarnSectionExpandable
 						? () => {
 								showAllWarnFindings = !showAllWarnFindings;
@@ -173,6 +176,7 @@
 					title={finding.title || finding.status || 'Finding'}
 					detail={finding.detail}
 					href={finding.page_url}
+					indented={true}
 					codeSnippet={typeof finding.meta?.codeSnippet === 'string'
 						? finding.meta.codeSnippet
 						: undefined}
@@ -184,6 +188,7 @@
 					title={`${findingsByStatus.info.length} ${findingsByStatus.info.length === 1 ? 'item' : 'items'}`}
 					clickable={isInfoSectionExpandable}
 					expanded={showAllInfoFindings}
+					sectionHeader={true}
 					onactivate={isInfoSectionExpandable
 						? () => {
 								showAllInfoFindings = !showAllInfoFindings;
@@ -197,6 +202,7 @@
 					title={finding.title || finding.status || 'Finding'}
 					detail={finding.detail}
 					href={finding.page_url}
+					indented={true}
 					codeSnippet={typeof finding.meta?.codeSnippet === 'string'
 						? finding.meta.codeSnippet
 						: undefined}
@@ -208,6 +214,7 @@
 					title={`${findingsByStatus.pass.length} passed`}
 					clickable={true}
 					expanded={showPassedFindings}
+					sectionHeader={true}
 					onactivate={() => {
 						showPassedFindings = !showPassedFindings;
 					}}
@@ -219,6 +226,7 @@
 					title={finding.title || finding.status || 'Finding'}
 					detail={finding.detail}
 					href={finding.page_url}
+					indented={showPassSectionHeader}
 					codeSnippet={typeof finding.meta?.codeSnippet === 'string'
 						? finding.meta.codeSnippet
 						: undefined}
@@ -237,6 +245,7 @@
 				title={`${findingsByStatus.pass.length} passed`}
 				clickable={true}
 				expanded={showPassedFindings}
+				sectionHeader={true}
 				onactivate={() => {
 					showPassedFindings = !showPassedFindings;
 				}}

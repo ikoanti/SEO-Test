@@ -17,6 +17,8 @@
 		codeSnippet,
 		clickable = false,
 		expanded = false,
+		sectionHeader = false,
+		indented = false,
 		onactivate
 	}: {
 		status?: AuditFindingStatus;
@@ -26,6 +28,8 @@
 		codeSnippet?: string;
 		clickable?: boolean;
 		expanded?: boolean;
+		sectionHeader?: boolean;
+		indented?: boolean;
 		onactivate?: (() => void) | undefined;
 	} = $props();
 
@@ -64,7 +68,9 @@
 	});
 </script>
 
-<li class={`finding-row finding-row-${status}`}>
+<li
+	class={`finding-row finding-row-${status} ${sectionHeader ? 'finding-row-section-header' : ''} ${indented ? 'finding-row-indented' : ''}`}
+>
 	{#if clickable}
 		<button type="button" class="check-trigger" onclick={onactivate}>
 			<span class="check-status">
@@ -133,6 +139,16 @@
 		border-radius: 0.5rem;
 		background: rgba(0, 0, 0, 0.2);
 		font-size: 0.95rem;
+	}
+
+	.finding-row-section-header {
+		padding: 0.25rem 0;
+		border: 0;
+		background: transparent;
+	}
+
+	.finding-row-indented {
+		margin-left: 1.25rem;
 	}
 
 	.finding-row-pass {
