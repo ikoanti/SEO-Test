@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Audit Sidebar Shell</title>
+		<link rel="stylesheet" href="./styles/shell.css" />
+	</head>
+	<body>
+		<audit-sidebar></audit-sidebar>
+
+		<script src="./models/audit-models.js"></script>
+		<script src="./utils/html.js"></script>
+		<script src="./data/audit-sidebar-demo.js"></script>
+		<script src="./components/panels/ai-bot-visibility-panel.js"></script>
+		<script src="./components/panels/broken-links-panel.js"></script>
+		<script src="./components/panels/headings-panel.js"></script>
+		<script src="./components/panels/image-alts-panel.js"></script>
+		<script src="./components/panels/placeholder-panel.js"></script>
+		<script src="./components/audit-sidebar.js"></script>
+		<script>
+			const sidebar = document.querySelector('audit-sidebar');
+			sidebar.data = window.auditSidebarData || window.auditSidebarDemo;
+		</script>
+	</body>
+</html>

@@ -16,6 +16,8 @@
 		href,
 		urlList,
 		codeSnippet,
+		imageSrc,
+		imageAlt,
 		clickable = false,
 		expanded = false,
 		sectionHeader = false,
@@ -28,6 +30,8 @@
 		href?: string;
 		urlList?: string[];
 		codeSnippet?: string;
+		imageSrc?: string;
+		imageAlt?: string;
 		clickable?: boolean;
 		expanded?: boolean;
 		sectionHeader?: boolean;
@@ -135,6 +139,11 @@
 				</li>
 			{/each}
 		</ul>
+	{/if}
+	{#if imageSrc}
+		<div class="image-proof">
+			<img src={imageSrc} alt={imageAlt || title} loading="lazy" />
+		</div>
 	{/if}
 	{#if codeSnippet}
 		<div class="code-snippet-container">
@@ -289,6 +298,20 @@
 
 	.check-link:hover {
 		text-decoration: underline;
+	}
+
+	.image-proof {
+		margin-top: 0.75rem;
+		overflow: hidden;
+		border: 1px solid var(--border);
+		border-radius: 0.75rem;
+		background: rgba(15, 23, 42, 0.72);
+	}
+
+	.image-proof img {
+		display: block;
+		width: 100%;
+		height: auto;
 	}
 
 	.code-snippet-container {

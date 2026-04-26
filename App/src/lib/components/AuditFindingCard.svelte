@@ -61,6 +61,8 @@
 		href?: string;
 		urlList?: string[];
 		codeSnippet?: string;
+		imageSrc?: string;
+		imageAlt?: string;
 		sectionHeader?: boolean;
 		indented?: boolean;
 	};
@@ -92,6 +94,20 @@
 		if (typeof direct === 'string' && direct.trim()) return direct;
 		if (typeof nested === 'string' && nested.trim()) return nested;
 		return '';
+	}
+
+	function screenshotFor(finding: AuditFindingView) {
+		const screenshot =
+			finding.meta &&
+			typeof finding.meta === 'object' &&
+			finding.meta.screenshot &&
+			typeof finding.meta.screenshot === 'object'
+				? (finding.meta.screenshot as Record<string, unknown>)
+				: null;
+		const contentType = typeof screenshot?.contentType === 'string' ? screenshot.contentType : '';
+		const imageBase64 = typeof screenshot?.imageBase64 === 'string' ? screenshot.imageBase64 : '';
+		if (!contentType || !imageBase64) return undefined;
+		return `data:${contentType};base64,${imageBase64}`;
 	}
 
 	function groupedRows(prefix: string, findings: AuditFindingView[]) {
@@ -136,7 +152,9 @@
 					key: `${prefix}-group-${groupKey}`,
 					status: firstFinding.status || 'info',
 					title: firstFinding.detail,
-					urlList: urls
+					urlList: urls,
+					imageSrc: screenshotFor(firstFinding),
+					imageAlt: firstFinding.detail
 				});
 			} else {
 				const finding = group[0];
@@ -148,7 +166,9 @@
 					detail: finding.detail,
 					href: displayHref(finding),
 					codeSnippet:
-						typeof finding.meta?.codeSnippet === 'string' ? finding.meta.codeSnippet : undefined
+						typeof finding.meta?.codeSnippet === 'string' ? finding.meta.codeSnippet : undefined,
+					imageSrc: screenshotFor(finding),
+					imageAlt: finding.detail || finding.title
 				});
 			}
 		}
@@ -270,6 +290,8 @@
 					href={row.href}
 					urlList={row.urlList}
 					codeSnippet={row.codeSnippet}
+					imageSrc={row.imageSrc}
+					imageAlt={row.imageAlt}
 					sectionHeader={row.sectionHeader}
 					indented={row.indented}
 				/>
@@ -295,6 +317,8 @@
 					href={row.href}
 					urlList={row.urlList}
 					codeSnippet={row.codeSnippet}
+					imageSrc={row.imageSrc}
+					imageAlt={row.imageAlt}
 					sectionHeader={row.sectionHeader}
 					indented={row.indented}
 				/>
@@ -320,6 +344,8 @@
 					href={row.href}
 					urlList={row.urlList}
 					codeSnippet={row.codeSnippet}
+					imageSrc={row.imageSrc}
+					imageAlt={row.imageAlt}
 					sectionHeader={row.sectionHeader}
 					indented={row.indented}
 				/>
@@ -345,6 +371,8 @@
 					href={row.href}
 					urlList={row.urlList}
 					codeSnippet={row.codeSnippet}
+					imageSrc={row.imageSrc}
+					imageAlt={row.imageAlt}
 					sectionHeader={row.sectionHeader}
 					indented={row.indented}
 				/>

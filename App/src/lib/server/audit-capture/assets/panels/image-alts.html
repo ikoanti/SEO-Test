@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Unoptimized Alt Tags</title>
+		<style>
+			:root {
+				--text: #202124;
+				--muted: #5f6368;
+				--border: #e0e3e7;
+				--danger: #d93025;
+				--danger-soft: #fce8e6;
+			}
+
+			* {
+				box-sizing: border-box;
+			}
+
+			html,
+			body {
+				margin: 0;
+				background: #fff;
+				font-family: Arial, Helvetica, sans-serif;
+				color: var(--text);
+			}
+
+			.body {
+				padding: 18px;
+			}
+
+			.section {
+				padding-top: 18px;
+			}
+
+			.section:first-child {
+				padding-top: 0;
+			}
+
+			.title {
+				margin: 0;
+				font-size: 28px;
+				line-height: 1.08;
+				font-weight: 700;
+				color: var(--danger);
+			}
+
+			.copy {
+				margin: 10px 0 0;
+				font-size: 13px;
+				line-height: 1.55;
+				color: var(--muted);
+			}
+
+			.summary {
+				margin-top: 18px;
+				padding: 18px 12px 14px;
+				text-align: center;
+			}
+
+			.summary-label {
+				margin: 0;
+				font-size: 12px;
+				font-weight: 700;
+				letter-spacing: 0.06em;
+				text-transform: uppercase;
+				color: var(--muted);
+			}
+
+			.summary-count {
+				margin: 8px 0 0;
+				font-size: 64px;
+				line-height: 1;
+				font-weight: 700;
+				color: var(--danger);
+			}
+
+			.summary-note {
+				margin: 8px 0 0;
+				font-size: 13px;
+				line-height: 1.45;
+				color: var(--muted);
+			}
+
+			.list {
+				margin-top: 16px;
+				display: grid;
+				gap: 12px;
+			}
+
+			.card {
+				border: 1px solid var(--border);
+				border-radius: 14px;
+				padding: 14px;
+				background: #fff;
+			}
+
+			.card-head {
+				display: grid;
+				grid-template-columns: 22px 1fr;
+				gap: 10px;
+				align-items: start;
+			}
+
+			.badge {
+				width: 22px;
+				height: 22px;
+				border-radius: 999px;
+				display: grid;
+				place-items: center;
+				font-size: 13px;
+				font-weight: 700;
+				color: var(--danger);
+				background: var(--danger-soft);
+			}
+
+			.card-title {
+				margin: 0;
+				font-size: 15px;
+				font-weight: 700;
+				line-height: 1.35;
+				color: var(--danger);
+			}
+
+			.meta {
+				margin-top: 10px;
+				display: grid;
+				gap: 8px;
+			}
+
+			.meta-label {
+				margin: 0;
+				font-size: 11px;
+				font-weight: 700;
+				letter-spacing: 0.06em;
+				text-transform: uppercase;
+				color: var(--muted);
+			}
+
+			.meta-value {
+				margin: 2px 0 0;
+				font-size: 12px;
+				line-height: 1.45;
+				color: var(--text);
+				word-break: break-word;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="body" id="root"></div>
+
+		<script>
+			const defaultData = {
+				title: 'Unoptimized Alt Tags',
+				count: 0,
+				domain: 'example.com',
+				entries: []
+			};
+
+			const escapeHtml = (value) =>
+				String(value)
+					.replaceAll('&', '&amp;')
+					.replaceAll('<', '&lt;')
+					.replaceAll('>', '&gt;')
+					.replaceAll('"', '&quot;')
+					.replaceAll("'", '&#39;');
+
+			function render(data) {
+				const entries = Array.isArray(data.entries) ? data.entries : [];
+				document.getElementById('root').innerHTML = `
+        <section class="section">
+          <h1 class="title">${escapeHtml(data.title || 'Unoptimized Alt Tags')}</h1>
+          <p class="copy">
+            Important product and collection images are missing descriptive alt text, reducing image search discoverability and weakening crawler context.
+          </p>
+        </section>
+
+        <section class="section">
+          <div class="summary">
+            <p class="summary-label">Detected</p>
+            <p class="summary-count">${escapeHtml(data.count ?? entries.length)}</p>
+            <p class="summary-note">Missing image alt tags found on ${escapeHtml(data.domain || 'this domain')}</p>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="list">
+            ${entries
+							.map(
+								(entry, index) => `
+                  <article class="card">
+                    <div class="card-head">
+                      <div class="badge">×</div>
+                      <p class="card-title">Missing alt #${index + 1}</p>
+                    </div>
+                    <div class="meta">
+                      <div>
+                        <p class="meta-label">Page</p>
+                        <p class="meta-value">${escapeHtml(entry.page || '')}</p>
+                      </div>
+                      <div>
+                        <p class="meta-label">Image</p>
+                        <p class="meta-value">${escapeHtml(entry.image || '')}</p>
+                      </div>
+                    </div>
+                  </article>
+                `
+							)
+							.join('')}
+          </div>
+        </section>
+      `;
+			}
+
+			window.addEventListener('message', (event) => {
+				if (event.data?.type !== 'audit-panel-data') return;
+				if (event.data?.tab !== 'missing-images') return;
+				render({ ...defaultData, ...event.data.payload });
+			});
+
+			render(defaultData);
+		</script>
+	</body>
+</html>

@@ -1,3 +1,4 @@
+import { captureRobotsEvidence } from '$lib/server/audit-capture';
 import type { AuditLogger, AuditSummary } from '../shared';
 import { addItem, AI_BOTS, createListResult, fetchText, SEARCH_BOTS } from '../shared';
 
@@ -10,6 +11,12 @@ export async function analyzeRobots(origin: string, summary: AuditSummary, logge
 		const response = await fetchText(`${origin}/robots.txt`);
 		const text = response.data;
 		const lines = text.split('\n').map((line) => line.trim().toLowerCase());
+		const foundAgents = text
+			.split(/\r?\n/)
+			.map((line) => line.trim())
+			.filter((line) => /^user-agent:/i.test(line))
+			.map((line) => line.split(':', 2)[1]?.trim())
+			.filter((value): value is string => Boolean(value));
 		robotsSitemap = text.match(/^sitemap:\s*(.+)$/im)?.[1]?.trim() || null;
 
 		if (robotsSitemap)
@@ -62,6 +69,29 @@ export async function analyzeRobots(origin: string, summary: AuditSummary, logge
 				addItem(summary, result, 'warn', `${bot} Not Specified`, { category: 'ai' });
 			}
 		});
+
+		if (aiIssues > 0) {
+			try {
+				const capture = await captureRobotsEvidence({
+					domain: new URL(origin).hostname,
+					robotsUrl: `${origin}/robots.txt`,
+					storefrontUrl: `${origin}/`,
+					foundAgents
+				});
+				const firstAiIssue = result.items.find(
+					(item) => item.category === 'ai' && (item.status === 'warn' || item.status === 'fail')
+				);
+				if (capture && firstAiIssue) {
+					firstAiIssue.meta = {
+						...((firstAiIssue.meta as Record<string, unknown> | undefined) || {}),
+						screenshot: capture
+					};
+				}
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
+				logger.warn(`robots: evidence capture failed (${message})`);
+			}
+		}
 
 		result.stats =
 			aiIssues > 0 ? `${aiIssues} AI issue(s) found` : 'robots.txt configuration looks good.';

@@ -1,0 +1,98 @@
+:host {
+	display: block;
+	color: #202124;
+	font-family: Arial, Helvetica, sans-serif;
+}
+
+.section {
+	padding-top: 18px;
+}
+
+.section:first-child {
+	padding-top: 0;
+}
+
+.title {
+	margin: 0;
+	font-size: 28px;
+	line-height: 1.08;
+	font-weight: 700;
+	color: #d93025;
+}
+
+.copy {
+	margin: 10px 0 0;
+	font-size: 13px;
+	line-height: 1.55;
+	color: #5f6368;
+}
+
+.summary {
+	margin-top: 18px;
+	padding: 18px 12px 14px;
+	text-align: center;
+}
+
+.summary-label {
+	margin: 0;
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: #5f6368;
+}
+
+.summary-count {
+	margin: 8px 0 0;
+	font-size: 64px;
+	line-height: 1;
+	font-weight: 700;
+	color: #d93025;
+}
+
+.summary-note {
+	margin: 8px 0 0;
+	font-size: 13px;
+	line-height: 1.45;
+	color: #5f6368;
+}
+
+.list {
+	margin-top: 16px;
+	display: grid;
+	gap: 12px;
+}
+
+.card {
+	border: 1px solid #e0e3e7;
+	border-radius: 14px;
+	padding: 14px;
+	background: #fff;
+}
+
+.card-head {
+	display: grid;
+	grid-template-columns: 22px 1fr;
+	gap: 10px;
+	align-items: center;
+}
+
+.badge {
+	width: 22px;
+	height: 22px;
+	border-radius: 999px;
+	display: grid;
+	place-items: center;
+	font-size: 13px;
+	font-weight: 700;
+	color: #d93025;
+	background: #fce8e6;
+}
+
+.card-title {
+	margin: 0;
+	font-size: 15px;
+	font-weight: 700;
+	line-height: 1.35;
+	color: #d93025;
+}

@@ -1,4 +1,5 @@
 import type { AnyNode } from 'domhandler';
+import { captureHeadingEvidence, captureImageAltEvidence } from '$lib/server/audit-capture';
 import {
 	addItem,
 	createListResult,
@@ -23,6 +24,16 @@ export async function analyzeMetaAndHeadings(
 
 	const titleMap = new Map();
 	const descriptionMap = new Map();
+	const headingEvidence: Array<{ page: string; issue: string }> = [];
+	const imageAltEvidence: Array<{ page: string; image: string }> = [];
+	const maxEvidenceItems = 5;
+	const domain = (() => {
+		try {
+			return new URL(pages[0] || '').hostname || 'this domain';
+		} catch {
+			return 'this domain';
+		}
+	})();
 
 	for (const page of pages) {
 		try {
@@ -44,6 +55,18 @@ export async function analyzeMetaAndHeadings(
 				.trim()
 				.split(' ')
 				.filter(Boolean).length;
+			const headingIssue =
+				h1Count === 0
+					? 'Missing H1 tag'
+					: h1Count > 1
+						? emptyH1 > 0
+							? 'Empty or multiple H1 tags found'
+							: 'Multiple H1 tags found'
+						: null;
+
+			if (headingIssue && headingEvidence.length < maxEvidenceItems) {
+				headingEvidence.push({ page, issue: headingIssue });
+			}
 
 			if (h1Count === 1 && emptyH1 === 0) {
 				addItem(summary, h1Tags, 'pass', 'Single H1 tag present', { title: page });
@@ -76,6 +99,20 @@ export async function analyzeMetaAndHeadings(
 			}
 
 			if (missingAlt > 0) {
+				if (imageAltEvidence.length < maxEvidenceItems) {
+					$('img').each((_: number, element: AnyNode) => {
+						if (imageAltEvidence.length >= maxEvidenceItems) return;
+						if ($(element).attr('alt')?.trim()) return;
+						const src = $(element).attr('src')?.trim();
+						if (!src) return;
+						try {
+							imageAltEvidence.push({ page, image: new URL(src, page).href });
+						} catch {
+							return;
+						}
+					});
+				}
+
 				addItem(summary, imageAltTags, 'warn', 'Images missing alt text', {
 					title: `${page} (${missingAlt} images)`
 				});
@@ -160,6 +197,42 @@ export async function analyzeMetaAndHeadings(
 					}
 				});
 			}
+		}
+	}
+
+	if (headingEvidence.length > 0) {
+		try {
+			const capture = await captureHeadingEvidence(domain, headingEvidence);
+			const firstIssue = h1Tags.items.find(
+				(item) => item.status === 'warn' || item.status === 'fail'
+			);
+			if (capture && firstIssue) {
+				firstIssue.meta = {
+					...((firstIssue.meta as Record<string, unknown> | undefined) || {}),
+					screenshot: capture
+				};
+			}
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			logger.warn(`page-analysis: heading evidence capture failed (${message})`);
+		}
+	}
+
+	if (imageAltEvidence.length > 0) {
+		try {
+			const capture = await captureImageAltEvidence(domain, imageAltEvidence);
+			const firstIssue = imageAltTags.items.find(
+				(item) => item.status === 'warn' || item.status === 'fail'
+			);
+			if (capture && firstIssue) {
+				firstIssue.meta = {
+					...((firstIssue.meta as Record<string, unknown> | undefined) || {}),
+					screenshot: capture
+				};
+			}
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			logger.warn(`page-analysis: image alt evidence capture failed (${message})`);
 		}
 	}
 
