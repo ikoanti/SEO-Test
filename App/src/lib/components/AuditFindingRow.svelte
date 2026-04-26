@@ -147,6 +147,30 @@
 		background: transparent;
 	}
 
+	.finding-row-section-header.finding-row-pass {
+		border: 0;
+		background: transparent;
+		color: var(--status-pass);
+	}
+
+	.finding-row-section-header.finding-row-warn {
+		border: 0;
+		background: transparent;
+		color: var(--status-warn);
+	}
+
+	.finding-row-section-header.finding-row-fail {
+		border: 0;
+		background: transparent;
+		color: var(--status-fail);
+	}
+
+	.finding-row-section-header.finding-row-info {
+		border: 0;
+		background: transparent;
+		color: var(--status-info);
+	}
+
 	.finding-row-indented {
 		margin-left: 1.25rem;
 	}
@@ -200,6 +224,10 @@
 		display: inline-flex;
 		flex: 0 0 auto;
 		color: var(--text-muted);
+	}
+
+	.finding-row-section-header .trigger-icon {
+		color: inherit;
 	}
 
 	.status-pass {
