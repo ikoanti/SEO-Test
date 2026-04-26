@@ -530,7 +530,7 @@ async function analyzeMetaAndHeadings(pages, summary, logger) {
 
 			if (h1Count === 1 && emptyH1 === 0)
 				addItem(summary, h1Tags, 'pass', 'Single H1 tag present', { title: page });
-			else if (h1Count === 0) addItem(summary, h1Tags, 'fail', 'Missing H1 tag', { title: page });
+			else if (h1Count === 0) addItem(summary, h1Tags, 'warn', 'Missing H1 tag', { title: page });
 			else
 				addItem(
 					summary,
@@ -541,7 +541,7 @@ async function analyzeMetaAndHeadings(pages, summary, logger) {
 				);
 
 			if (title.length === 0)
-				addItem(summary, metaTitles, 'fail', 'Missing meta title', { title: page });
+				addItem(summary, metaTitles, 'warn', 'Missing meta title', { title: page });
 			else if (title.length > 60)
 				addItem(summary, metaTitles, 'warn', 'Meta title too long', {
 					title: `${page} (${title.length} chars)`
