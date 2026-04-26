@@ -152,6 +152,7 @@
 	const isReportPending = () => reportPendingStatuses.has(reportStatus());
 	const isReportFailed = () => reportStatus() === 'failed';
 	const canGenerateReport = () => runStatus() === 'completed' && !isReportPending();
+	const hasReport = () => Boolean(pageData.reportHtml);
 	const pageTitle = () =>
 		pageData.auditRecord?.name ||
 		pageData.runRecord?.name ||
@@ -389,50 +390,47 @@
 
 		<div class="card audit-card" id="card-report">
 			<h3 class="audit-card-title">📄 AI Report Generator</h3>
-			<p class="section-subtitle">
-				Generate a professional Mini Technical SEO Audit document using Claude AI
-			</p>
-			{#if !canGenerateReport()}
-				<p class="muted report-status-note">
-					{#if isPending()}
-						Report generation unlocks when the audit finishes.
-					{:else if isFailed()}
-						Report generation is unavailable because the audit run failed.
-					{:else}
-						Report generation is unavailable until the audit is completed.
-					{/if}
-				</p>
-			{/if}
-			<form method="POST" action="?/generateReport" class="stack">
-				{#if form?.reportError}
-					<p class="report-error">{form.reportError}</p>
-				{/if}
-				{#if pageData.reportRecord?.error_message}
-					<p class="report-error">{pageData.reportRecord.error_message}</p>
-				{/if}
-				<button type="submit" class="audit-primary-button" disabled={!canGenerateReport()}>
-					<Sparkles size={18} />
-					<span>
-						{#if isReportPending()}
-							Report generation queued
-						{:else if canGenerateReport()}
-							Generate Mini SEO Audit Report
-						{:else}
-							Audit completion required
-						{/if}
-					</span>
-				</button>
-			</form>
 			{#if isReportPending()}
 				<p class="muted report-status-note">
 					Report generation is running in the background and will finish even if you leave this
 					page.
 				</p>
 			{:else if isReportFailed()}
-				<p class="muted report-status-note">The last report generation attempt failed.</p>
+				<p class="report-error">
+					{pageData.reportRecord?.error_message || 'The last report generation attempt failed.'}
+				</p>
+				<form method="POST" action="?/generateReport" class="stack">
+					{#if form?.reportError}
+						<p class="report-error">{form.reportError}</p>
+					{/if}
+					<button type="submit" class="audit-primary-button">
+						<Sparkles size={18} />
+						<span>Retry report generation</span>
+					</button>
+				</form>
+			{:else if canGenerateReport()}
+				<form method="POST" action="?/generateReport" class="stack">
+					{#if form?.reportError}
+						<p class="report-error">{form.reportError}</p>
+					{/if}
+					<button type="submit" class="audit-primary-button">
+						<Sparkles size={18} />
+						<span>{hasReport() ? 'Regenerate report' : 'Generate report'}</span>
+					</button>
+				</form>
+			{:else}
+				<p class="muted report-status-note">
+					{#if isPending()}
+						Available after the audit completes.
+					{:else if isFailed()}
+						Unavailable because the audit run failed.
+					{:else}
+						Available after audit completion.
+					{/if}
+				</p>
 			{/if}
 
-			{#if pageData.reportHtml}
+			{#if hasReport()}
 				<div class="audit-inline-actions">
 					<button
 						type="button"
@@ -464,7 +462,7 @@
 				</div>
 				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 				<div class="report-output">{@html pageData.reportHtml}</div>
-			{:else}
+			{:else if !isReportPending()}
 				<p class="muted">No generated report yet.</p>
 			{/if}
 		</div>
