@@ -39,6 +39,9 @@
 	} = $props();
 	let selectedStatus = $state<AuditFindingStatusFilter | null>(null);
 	let showPassedFindings = $state(false);
+	let showAllWarnFindings = $state(false);
+	let showAllFailFindings = $state(false);
+	let showAllInfoFindings = $state(false);
 
 	function statPills(item?: AuditItemView) {
 		const findings = item?.findings || [];
@@ -55,41 +58,83 @@
 		warn: 'warn',
 		fail: 'fail'
 	};
-	const visibleFindings = $derived.by(() => {
+	const findingsByStatus = $derived.by(() => {
 		const findings = item?.findings || [];
-		if (!findings.length) {
-			return [];
-		}
-
 		const targetStatus = selectedStatus ? targetStatusForFilter[selectedStatus] : null;
 		const sourceFindings = targetStatus
 			? findings.filter((finding) => finding.status === targetStatus)
 			: findings;
 
-		const failFindings = sourceFindings.filter((finding) => finding.status === 'fail');
-		const warnFindings = sourceFindings.filter((finding) => finding.status === 'warn');
-		const infoFindings = sourceFindings.filter(
-			(finding) => !finding.status || finding.status === 'info'
-		);
-		const passFindings = sourceFindings.filter((finding) => finding.status === 'pass');
-		const shouldShowPasses =
-			selectedStatus === 'pass' || showPassedFindings || passFindings.length <= 1;
-
-		return [
-			...failFindings,
-			...warnFindings,
-			...infoFindings,
-			...(shouldShowPasses ? passFindings : [])
-		];
+		return {
+			fail: sourceFindings.filter((finding) => finding.status === 'fail'),
+			warn: sourceFindings.filter((finding) => finding.status === 'warn'),
+			info: sourceFindings.filter((finding) => !finding.status || finding.status === 'info'),
+			pass: sourceFindings.filter((finding) => finding.status === 'pass')
+		};
 	});
-	const hiddenPassCount = $derived.by(() => {
-		if (!item?.findings?.length || selectedStatus === 'pass' || showPassedFindings) {
+	const visibleFailFindings = $derived.by(() => {
+		if (selectedStatus === 'fail' || showAllFailFindings) {
+			return findingsByStatus.fail;
+		}
+
+		return findingsByStatus.fail.slice(0, 5);
+	});
+	const hiddenFailCount = $derived.by(() => {
+		if (selectedStatus === 'fail' || showAllFailFindings) {
 			return 0;
 		}
 
-		const passCount = item.findings.filter((finding) => finding.status === 'pass').length;
-		return passCount > 1 ? passCount : 0;
+		return Math.max(findingsByStatus.fail.length - 5, 0);
 	});
+	const visibleWarnFindings = $derived.by(() => {
+		if (selectedStatus === 'warn' || showAllWarnFindings) {
+			return findingsByStatus.warn;
+		}
+
+		return findingsByStatus.warn.slice(0, 5);
+	});
+	const hiddenWarnCount = $derived.by(() => {
+		if (selectedStatus === 'warn' || showAllWarnFindings) {
+			return 0;
+		}
+
+		return Math.max(findingsByStatus.warn.length - 5, 0);
+	});
+	const visibleInfoFindings = $derived.by(() => {
+		if (showAllInfoFindings) {
+			return findingsByStatus.info;
+		}
+
+		return findingsByStatus.info.slice(0, 5);
+	});
+	const hiddenInfoCount = $derived.by(() => {
+		if (showAllInfoFindings) {
+			return 0;
+		}
+
+		return Math.max(findingsByStatus.info.length - 5, 0);
+	});
+	const visiblePassFindings = $derived.by(() => {
+		if (selectedStatus === 'pass' || showPassedFindings || findingsByStatus.pass.length <= 1) {
+			return findingsByStatus.pass;
+		}
+
+		return [];
+	});
+	const hiddenPassCount = $derived.by(() => {
+		if (selectedStatus === 'pass' || showPassedFindings) {
+			return 0;
+		}
+
+		return findingsByStatus.pass.length > 1 ? findingsByStatus.pass.length : 0;
+	});
+	const hasVisibleFindings = $derived.by(
+		() =>
+			visibleFailFindings.length > 0 ||
+			visibleWarnFindings.length > 0 ||
+			visibleInfoFindings.length > 0 ||
+			visiblePassFindings.length > 0
+	);
 	const showSummaryRow = $derived(
 		Boolean(
 			item &&
@@ -107,8 +152,104 @@
 		<AuditStatusPills pass={pills.pass} warn={pills.warn} fail={pills.fail} bind:selectedStatus />
 	{/if}
 	<ul class={`check-list ${section.mini ? 'mini-list' : ''}`}>
-		{#if visibleFindings.length}
-			{#each visibleFindings as finding, index (`${item?.id || section.key}-${index}`)}
+		{#if hasVisibleFindings}
+			{#each visibleFailFindings as finding, index (`${item?.id || section.key}-fail-${index}`)}
+				<AuditFindingRow
+					status={finding.status || 'info'}
+					title={finding.title || finding.status || 'Finding'}
+					detail={finding.detail}
+					href={finding.page_url}
+					codeSnippet={typeof finding.meta?.codeSnippet === 'string'
+						? finding.meta.codeSnippet
+						: undefined}
+				/>
+			{/each}
+			{#if hiddenFailCount > 0}
+				<AuditFindingRow
+					status="fail"
+					title={`${hiddenFailCount} more fails`}
+					clickable={true}
+					expanded={showAllFailFindings}
+					onactivate={() => {
+						showAllFailFindings = !showAllFailFindings;
+					}}
+				/>
+			{:else if findingsByStatus.fail.length > 5}
+				<AuditFindingRow
+					status="fail"
+					title="Collapse fails"
+					clickable={true}
+					expanded={showAllFailFindings}
+					onactivate={() => {
+						showAllFailFindings = !showAllFailFindings;
+					}}
+				/>
+			{/if}
+			{#each visibleWarnFindings as finding, index (`${item?.id || section.key}-warn-${index}`)}
+				<AuditFindingRow
+					status={finding.status || 'info'}
+					title={finding.title || finding.status || 'Finding'}
+					detail={finding.detail}
+					href={finding.page_url}
+					codeSnippet={typeof finding.meta?.codeSnippet === 'string'
+						? finding.meta.codeSnippet
+						: undefined}
+				/>
+			{/each}
+			{#if hiddenWarnCount > 0}
+				<AuditFindingRow
+					status="warn"
+					title={`${hiddenWarnCount} more issues`}
+					clickable={true}
+					expanded={showAllWarnFindings}
+					onactivate={() => {
+						showAllWarnFindings = !showAllWarnFindings;
+					}}
+				/>
+			{:else if findingsByStatus.warn.length > 5}
+				<AuditFindingRow
+					status="warn"
+					title="Collapse issues"
+					clickable={true}
+					expanded={showAllWarnFindings}
+					onactivate={() => {
+						showAllWarnFindings = !showAllWarnFindings;
+					}}
+				/>
+			{/if}
+			{#each visibleInfoFindings as finding, index (`${item?.id || section.key}-info-${index}`)}
+				<AuditFindingRow
+					status={finding.status || 'info'}
+					title={finding.title || finding.status || 'Finding'}
+					detail={finding.detail}
+					href={finding.page_url}
+					codeSnippet={typeof finding.meta?.codeSnippet === 'string'
+						? finding.meta.codeSnippet
+						: undefined}
+				/>
+			{/each}
+			{#if hiddenInfoCount > 0}
+				<AuditFindingRow
+					status="info"
+					title={`${hiddenInfoCount} more items`}
+					clickable={true}
+					expanded={showAllInfoFindings}
+					onactivate={() => {
+						showAllInfoFindings = !showAllInfoFindings;
+					}}
+				/>
+			{:else if findingsByStatus.info.length > 5}
+				<AuditFindingRow
+					status="info"
+					title="Collapse items"
+					clickable={true}
+					expanded={showAllInfoFindings}
+					onactivate={() => {
+						showAllInfoFindings = !showAllInfoFindings;
+					}}
+				/>
+			{/if}
+			{#each visiblePassFindings as finding, index (`${item?.id || section.key}-pass-${index}`)}
 				<AuditFindingRow
 					status={finding.status || 'info'}
 					title={finding.title || finding.status || 'Finding'}
