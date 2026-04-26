@@ -87,7 +87,8 @@
 			(finding) => !finding.status || finding.status === 'info'
 		);
 		const passFindings = sourceFindings.filter((finding) => finding.status === 'pass');
-		const shouldShowPasses = selectedStatus === 'pass' || showPassedFindings;
+		const shouldShowPasses =
+			selectedStatus === 'pass' || showPassedFindings || passFindings.length <= 1;
 
 		return [
 			...failFindings,
@@ -101,7 +102,8 @@
 			return 0;
 		}
 
-		return item.findings.filter((finding) => finding.status === 'pass').length;
+		const passCount = item.findings.filter((finding) => finding.status === 'pass').length;
+		return passCount > 1 ? passCount : 0;
 	});
 	const showSummaryRow = $derived(
 		Boolean(
