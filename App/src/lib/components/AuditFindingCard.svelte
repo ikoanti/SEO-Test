@@ -38,6 +38,7 @@
 		item?: AuditItemView;
 	} = $props();
 	let selectedStatus = $state<AuditFindingStatusFilter | null>(null);
+	let showPassedFindings = $state(false);
 
 	const getRecord = (value: unknown): Record<string, unknown> =>
 		value && typeof value === 'object' && !Array.isArray(value)
@@ -75,13 +76,38 @@
 		warn: 'warn',
 		fail: 'fail'
 	};
-	const filteredFindings = $derived.by(() => {
-		if (!item?.findings?.length || !selectedStatus) {
-			return item?.findings || [];
+	const visibleFindings = $derived.by(() => {
+		const findings = item?.findings || [];
+		if (!findings.length) {
+			return [];
 		}
 
-		const targetStatus = targetStatusForFilter[selectedStatus];
-		return item.findings.filter((finding) => finding.status === targetStatus);
+		const targetStatus = selectedStatus ? targetStatusForFilter[selectedStatus] : null;
+		const sourceFindings = targetStatus
+			? findings.filter((finding) => finding.status === targetStatus)
+			: findings;
+
+		const failFindings = sourceFindings.filter((finding) => finding.status === 'fail');
+		const warnFindings = sourceFindings.filter((finding) => finding.status === 'warn');
+		const infoFindings = sourceFindings.filter(
+			(finding) => !finding.status || finding.status === 'info'
+		);
+		const passFindings = sourceFindings.filter((finding) => finding.status === 'pass');
+		const shouldShowPasses = selectedStatus === 'pass' || showPassedFindings;
+
+		return [
+			...failFindings,
+			...warnFindings,
+			...infoFindings,
+			...(shouldShowPasses ? passFindings : [])
+		];
+	});
+	const hiddenPassCount = $derived.by(() => {
+		if (!item?.findings?.length || selectedStatus === 'pass' || showPassedFindings) {
+			return 0;
+		}
+
+		return item.findings.filter((finding) => finding.status === 'pass').length;
 	});
 	const showSummaryRow = $derived(
 		Boolean(
@@ -109,8 +135,8 @@
 		</div>
 	{/if}
 	<ul class={`check-list ${section.mini ? 'mini-list' : ''}`}>
-		{#if filteredFindings.length}
-			{#each filteredFindings as finding, index (`${item?.id || section.key}-${index}`)}
+		{#if visibleFindings.length}
+			{#each visibleFindings as finding, index (`${item?.id || section.key}-${index}`)}
 				<AuditFindingRow
 					status={finding.status || 'info'}
 					title={finding.title || finding.status || 'Finding'}
@@ -122,13 +148,45 @@
 						: undefined}
 				/>
 			{/each}
+			{#if hiddenPassCount > 0}
+				<AuditFindingRow
+					status="pass"
+					title={`${hiddenPassCount} passed`}
+					clickable={true}
+					expanded={showPassedFindings}
+					onactivate={() => {
+						showPassedFindings = !showPassedFindings;
+					}}
+				/>
+			{/if}
 		{:else if summaryItem}
 			<AuditFindingRow
 				status={summaryItem.status || 'info'}
 				title={summaryItem.summary || 'No findings.'}
 			/>
+			{#if hiddenPassCount > 0}
+				<AuditFindingRow
+					status="pass"
+					title={`${hiddenPassCount} passed`}
+					clickable={true}
+					expanded={showPassedFindings}
+					onactivate={() => {
+						showPassedFindings = !showPassedFindings;
+					}}
+				/>
+			{/if}
 		{:else if showEmptyRow}
 			<AuditFindingRow status="info" title="No persisted result for this check." />
+		{:else if hiddenPassCount > 0}
+			<AuditFindingRow
+				status="pass"
+				title={`${hiddenPassCount} passed`}
+				clickable={true}
+				expanded={showPassedFindings}
+				onactivate={() => {
+					showPassedFindings = !showPassedFindings;
+				}}
+			/>
 		{/if}
 	</ul>
 </div>

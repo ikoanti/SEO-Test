@@ -1,6 +1,13 @@
 <script lang="ts">
 	import type { AuditFindingStatus } from '$lib/audit-status';
-	import { AlertTriangle, CheckCircle2, CircleX, Info } from 'lucide-svelte';
+	import {
+		AlertTriangle,
+		CheckCircle2,
+		ChevronDown,
+		ChevronUp,
+		CircleX,
+		Info
+	} from 'lucide-svelte';
 
 	let {
 		status = 'info' as AuditFindingStatus,
@@ -8,7 +15,10 @@
 		detail = '',
 		href,
 		hrefLabel,
-		codeSnippet
+		codeSnippet,
+		clickable = false,
+		expanded = false,
+		onactivate
 	}: {
 		status?: AuditFindingStatus;
 		title: string;
@@ -16,24 +26,53 @@
 		href?: string;
 		hrefLabel?: string;
 		codeSnippet?: string;
+		clickable?: boolean;
+		expanded?: boolean;
+		onactivate?: (() => void) | undefined;
 	} = $props();
 </script>
 
 <li class={`finding-row finding-row-${status}`}>
-	<div class="check-status">
-		<span class={`status-icon status-${status}`}>
-			{#if status === 'pass'}
-				<CheckCircle2 size={18} strokeWidth={2.3} />
-			{:else if status === 'warn'}
-				<AlertTriangle size={18} strokeWidth={2.3} />
-			{:else if status === 'fail'}
-				<CircleX size={18} strokeWidth={2.3} />
-			{:else}
-				<Info size={18} strokeWidth={2.3} />
-			{/if}
-		</span>
-		{title}
-	</div>
+	{#if clickable}
+		<button type="button" class="check-trigger" onclick={onactivate}>
+			<span class="check-status">
+				<span class={`status-icon status-${status}`}>
+					{#if status === 'pass'}
+						<CheckCircle2 size={18} strokeWidth={2.3} />
+					{:else if status === 'warn'}
+						<AlertTriangle size={18} strokeWidth={2.3} />
+					{:else if status === 'fail'}
+						<CircleX size={18} strokeWidth={2.3} />
+					{:else}
+						<Info size={18} strokeWidth={2.3} />
+					{/if}
+				</span>
+				<span>{title}</span>
+			</span>
+			<span class="trigger-icon">
+				{#if expanded}
+					<ChevronUp size={16} strokeWidth={2.3} />
+				{:else}
+					<ChevronDown size={16} strokeWidth={2.3} />
+				{/if}
+			</span>
+		</button>
+	{:else}
+		<div class="check-status">
+			<span class={`status-icon status-${status}`}>
+				{#if status === 'pass'}
+					<CheckCircle2 size={18} strokeWidth={2.3} />
+				{:else if status === 'warn'}
+					<AlertTriangle size={18} strokeWidth={2.3} />
+				{:else if status === 'fail'}
+					<CircleX size={18} strokeWidth={2.3} />
+				{:else}
+					<Info size={18} strokeWidth={2.3} />
+				{/if}
+			</span>
+			{title}
+		</div>
+	{/if}
 	{#if detail}
 		<div class="check-detail">{detail}</div>
 	{/if}
@@ -80,8 +119,8 @@
 	}
 
 	.finding-row-info {
-		border-color: rgba(96, 165, 250, 0.24);
-		background: rgba(96, 165, 250, 0.08);
+		border-color: color-mix(in srgb, var(--status-info) 24%, transparent);
+		background: color-mix(in srgb, var(--status-info) 8%, transparent);
 	}
 
 	.check-status {
@@ -91,9 +130,29 @@
 		font-weight: 500;
 	}
 
+	.check-trigger {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.75rem;
+		width: 100%;
+		padding: 0;
+		border: 0;
+		background: transparent;
+		color: inherit;
+		box-shadow: none;
+		text-align: left;
+	}
+
 	.status-icon {
 		display: inline-flex;
 		flex: 0 0 auto;
+	}
+
+	.trigger-icon {
+		display: inline-flex;
+		flex: 0 0 auto;
+		color: var(--text-muted);
 	}
 
 	.status-pass {
@@ -109,7 +168,7 @@
 	}
 
 	.status-info {
-		color: #60a5fa;
+		color: var(--status-info);
 	}
 
 	.check-detail {
@@ -119,7 +178,7 @@
 	}
 
 	.check-link {
-		color: #60a5fa;
+		color: var(--status-info);
 		text-decoration: none;
 		word-break: break-all;
 	}
