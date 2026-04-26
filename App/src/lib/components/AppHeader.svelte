@@ -272,9 +272,9 @@
 		}
 
 		.profile-dropdown {
-			right: auto;
-			left: 50%;
-			transform: translateX(-50%);
+			right: 0;
+			left: auto;
+			transform: none;
 		}
 	}
 </style>
