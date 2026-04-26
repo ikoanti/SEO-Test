@@ -32,7 +32,6 @@ export const GET = async ({ params, locals, request }) => {
 			while (!closed) {
 				try {
 					const slimPayload = await buildAuditPageData(params.auditId, locals.pbToken, {
-						includeScreenshots: false,
 						includeReportHtml: false
 					});
 					ensureAuditWorkflowProcessing(slimPayload.workflowRecord, locals.pbToken);

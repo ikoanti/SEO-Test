@@ -106,17 +106,10 @@ function extractScreenshotFromMeta(metaJson: string) {
 	try {
 		const meta = JSON.parse(metaJson) as Record<string, unknown>;
 		const directScreenshot = getRecord(meta.screenshot);
-		const nestedMeta = getRecord(meta.meta);
-		const nestedScreenshot = getRecord(nestedMeta?.screenshot);
-		const screenshot = (directScreenshot || nestedScreenshot) as ScreenshotPayload | null;
+		const screenshot = directScreenshot as ScreenshotPayload | null;
 
 		if (directScreenshot) {
 			delete meta.screenshot;
-		}
-
-		if (nestedMeta && nestedScreenshot) {
-			delete nestedMeta.screenshot;
-			meta.meta = nestedMeta;
 		}
 
 		return {

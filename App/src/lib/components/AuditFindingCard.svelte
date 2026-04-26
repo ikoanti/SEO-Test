@@ -100,23 +100,6 @@
 		return '';
 	}
 
-	function screenshotFor(finding: AuditFindingView) {
-		const metaRecord = finding.meta && typeof finding.meta === 'object' ? finding.meta : null;
-		const nestedMeta =
-			metaRecord?.meta && typeof metaRecord.meta === 'object'
-				? (metaRecord.meta as Record<string, unknown>)
-				: null;
-		const screenshotSource = metaRecord?.screenshot || nestedMeta?.screenshot;
-		const screenshot =
-			screenshotSource && typeof screenshotSource === 'object'
-				? (screenshotSource as Record<string, unknown>)
-				: null;
-		const contentType = typeof screenshot?.contentType === 'string' ? screenshot.contentType : '';
-		const imageBase64 = typeof screenshot?.imageBase64 === 'string' ? screenshot.imageBase64 : '';
-		if (!contentType || !imageBase64) return undefined;
-		return `data:${contentType};base64,${imageBase64}`;
-	}
-
 	function groupedRows(prefix: string, findings: AuditFindingView[]) {
 		const rows: RenderRow[] = [];
 		const groups: Record<string, AuditFindingView[]> = {};
@@ -276,16 +259,6 @@
 				src: item.screenshot.image_url,
 				alt: item.screenshot.title || `${section.title} evidence screenshot`
 			};
-		}
-
-		for (const finding of item?.findings || []) {
-			const imageSrc = screenshotFor(finding);
-			if (imageSrc) {
-				return {
-					src: imageSrc,
-					alt: finding.detail || finding.title || `${section.title} evidence screenshot`
-				};
-			}
 		}
 
 		return null;
