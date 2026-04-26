@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import type { AuditFindingStatus } from '$lib/audit-status';
 	import AuditFindingCard from '$lib/components/AuditFindingCard.svelte';
@@ -139,6 +140,12 @@
 	];
 
 	let { data, form }: { data: AuditPageViewData; form?: ActionData } = $props();
+	const enhanceAndRefresh = () => {
+		return async ({ update }: { update: () => Promise<void> }) => {
+			await update();
+			await invalidateAll();
+		};
+	};
 	let liveData = $state<AuditPageViewData | null>(null);
 	const pageData = $derived(liveData ?? data);
 	let copyState = $state('Copy');
@@ -399,7 +406,7 @@
 				<p class="report-error">
 					{pageData.reportRecord?.error_message || 'The last report generation attempt failed.'}
 				</p>
-				<form method="POST" action="?/generateReport" class="stack">
+				<form method="POST" action="?/generateReport" class="stack" use:enhance={enhanceAndRefresh}>
 					{#if form?.reportError}
 						<p class="report-error">{form.reportError}</p>
 					{/if}
@@ -409,7 +416,7 @@
 					</button>
 				</form>
 			{:else if canGenerateReport()}
-				<form method="POST" action="?/generateReport" class="stack">
+				<form method="POST" action="?/generateReport" class="stack" use:enhance={enhanceAndRefresh}>
 					{#if form?.reportError}
 						<p class="report-error">{form.reportError}</p>
 					{/if}

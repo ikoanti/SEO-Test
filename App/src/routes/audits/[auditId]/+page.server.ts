@@ -108,7 +108,7 @@ export const actions = {
 
 		if (['queued', 'running'].includes(String(auditRecord.report_status || ''))) {
 			ensureReportGenerationProcessing(auditRecord, locals.pbToken);
-			throw redirect(303, `/audits/${params.auditId}`);
+			return { reportQueued: true };
 		}
 
 		await updateAuditRecord(
@@ -123,7 +123,7 @@ export const actions = {
 			locals.pbToken
 		);
 		queueReportGeneration(auditRecord.id, locals.pbToken);
-		throw redirect(303, `/audits/${params.auditId}`);
+		return { reportQueued: true };
 	},
 	parsePdf: async ({ request, params, locals }) => {
 		const auditRecord = await getAudit(params.auditId, locals.pbToken);
