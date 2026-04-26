@@ -204,17 +204,32 @@
 		.brand-row {
 			grid-template-columns: 1fr;
 			justify-items: center;
+			gap: 12px;
+			margin-bottom: 20px;
 		}
 
 		.brand-copy {
 			flex-direction: column;
-			align-items: flex-start;
+			align-items: center;
 			gap: 6px;
 		}
 
 		.brand-side-left,
 		.brand-side-right {
 			justify-content: center;
+		}
+
+		.brand-side-right {
+			width: 100%;
+		}
+
+		.profile-menu {
+			width: min(100%, 22rem);
+		}
+
+		.profile-trigger {
+			justify-content: center;
+			width: 100%;
 		}
 
 		.profile-dropdown {

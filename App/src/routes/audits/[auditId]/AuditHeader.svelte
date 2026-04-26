@@ -54,6 +54,12 @@
 		flex-wrap: wrap;
 	}
 
+	.heading-copy h1 {
+		max-width: 100%;
+		line-height: 1.05;
+		word-break: break-word;
+	}
+
 	.back-link {
 		flex: 0 0 auto;
 		padding: 10px 14px;
@@ -117,16 +123,36 @@
 	}
 
 	@media (max-width: 760px) {
+		.audit-page-head h1 {
+			font-size: clamp(2.1rem, 10vw, 3rem);
+		}
+
 		.page-head-main {
-			align-items: flex-start;
+			flex-direction: column;
+			align-items: stretch;
 		}
 
 		.heading-copy {
 			align-items: flex-start;
 		}
 
+		.back-link {
+			align-self: flex-start;
+		}
+
 		.page-head-actions {
 			justify-content: flex-start;
+			width: 100%;
+		}
+
+		.action-capsule {
+			width: 100%;
+		}
+
+		.run-status,
+		.restart-button {
+			flex: 1 1 0;
+			justify-content: center;
 		}
 	}
 </style>
