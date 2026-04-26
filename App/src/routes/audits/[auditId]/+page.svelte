@@ -321,7 +321,11 @@
 		const blob =
 			docxResult instanceof Blob
 				? docxResult
-				: new Blob([docxResult], {
+				: new Blob([
+						ArrayBuffer.isView(docxResult)
+							? new Uint8Array(docxResult.buffer, docxResult.byteOffset, docxResult.byteLength)
+							: docxResult
+					], {
 						type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 					});
 		const link = document.createElement('a');
