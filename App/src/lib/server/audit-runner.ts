@@ -76,6 +76,23 @@ function buildSummary(audit: AuditSummaryResult) {
 	};
 }
 
+function stripScreenshots(value: unknown): unknown {
+	if (!value || typeof value !== 'object') return value;
+	if (Array.isArray(value)) return value.map((item) => stripScreenshots(item));
+
+	const source = value as Record<string, unknown>;
+	const target: Record<string, unknown> = {};
+	for (const [key, nestedValue] of Object.entries(source)) {
+		if (key === 'screenshot') continue;
+		target[key] = stripScreenshots(nestedValue);
+	}
+	return target;
+}
+
+function auditJson(audit: AuditSummaryResult) {
+	return JSON.stringify(stripScreenshots(audit));
+}
+
 function formatAuditError(error: unknown) {
 	if (!(error instanceof Error)) {
 		return 'Unknown audit failure.';
@@ -336,7 +353,7 @@ async function syncProgressSnapshot(
 	await updateAuditRecord(
 		auditId,
 		{
-			audit_json: JSON.stringify(partialAudit),
+			audit_json: auditJson(partialAudit),
 			summary_json: JSON.stringify(buildSummary(partialAudit))
 		},
 		token
@@ -403,7 +420,7 @@ async function processAuditWorkflow({ workflowId, auditId, url, token }: QueuePa
 			auditId,
 			{
 				status: 'completed',
-				audit_json: JSON.stringify(audit),
+				audit_json: auditJson(audit),
 				summary_json: JSON.stringify(buildSummary(audit)),
 				completed_at: completedAt
 			},

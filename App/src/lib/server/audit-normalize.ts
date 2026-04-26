@@ -4,6 +4,8 @@ type AuditListItem = {
 	status?: AuditFindingStatus;
 	detail?: string;
 	title?: string;
+	meta?: Record<string, unknown>;
+	screenshot?: unknown;
 };
 
 type AuditListSection = {
@@ -120,6 +122,19 @@ function buildListSection(
 	section: AuditListSection
 ): NormalizedAuditFindingType {
 	const findings = (section.items || []).map((item) => {
+		const meta = item as Record<string, unknown>;
+		const nestedMeta =
+			meta.meta && typeof meta.meta === 'object' && !Array.isArray(meta.meta)
+				? (meta.meta as Record<string, unknown>)
+				: null;
+		const screenshot = meta.screenshot || nestedMeta?.screenshot;
+		if (screenshot) {
+			meta.screenshot = screenshot;
+			if (nestedMeta) {
+				delete nestedMeta.screenshot;
+				meta.meta = nestedMeta;
+			}
+		}
 		const rawTitle = String(item.title || item.detail || label);
 		const title = truncateText(rawTitle, 255);
 		const detail = String(item.detail || '');
