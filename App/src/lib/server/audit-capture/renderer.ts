@@ -145,8 +145,13 @@ function buildSidebarSrcdoc(panelData: Record<string, unknown>) {
 		'utils/html.js',
 		'components/panels/ai-bot-visibility-panel.js',
 		'components/panels/broken-links-panel.js',
+		'components/panels/canonicals-panel.js',
+		'components/panels/content-quality-panel.js',
 		'components/panels/headings-panel.js',
 		'components/panels/image-alts-panel.js',
+		'components/panels/lazy-loading-panel.js',
+		'components/panels/meta-tags-panel.js',
+		'components/panels/open-graph-panel.js',
 		'components/panels/placeholder-panel.js',
 		'components/audit-sidebar.js'
 	];

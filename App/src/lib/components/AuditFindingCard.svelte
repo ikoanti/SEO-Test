@@ -61,8 +61,6 @@
 		href?: string;
 		urlList?: string[];
 		codeSnippet?: string;
-		imageSrc?: string;
-		imageAlt?: string;
 		sectionHeader?: boolean;
 		indented?: boolean;
 	};
@@ -155,9 +153,7 @@
 					key: `${prefix}-group-${groupKey}`,
 					status: firstFinding.status || 'info',
 					title: firstFinding.detail,
-					urlList: urls,
-					imageSrc: screenshotFor(firstFinding),
-					imageAlt: firstFinding.detail
+					urlList: urls
 				});
 			} else {
 				const finding = group[0];
@@ -169,9 +165,7 @@
 					detail: finding.detail,
 					href: displayHref(finding),
 					codeSnippet:
-						typeof finding.meta?.codeSnippet === 'string' ? finding.meta.codeSnippet : undefined,
-					imageSrc: screenshotFor(finding),
-					imageAlt: finding.detail || finding.title
+						typeof finding.meta?.codeSnippet === 'string' ? finding.meta.codeSnippet : undefined
 				});
 			}
 		}
@@ -270,6 +264,19 @@
 	);
 	const summaryItem = $derived(showSummaryRow ? item : undefined);
 	const showEmptyRow = $derived(Boolean(!item));
+	const cardScreenshot = $derived.by(() => {
+		for (const finding of item?.findings || []) {
+			const imageSrc = screenshotFor(finding);
+			if (imageSrc) {
+				return {
+					src: imageSrc,
+					alt: finding.detail || finding.title || `${section.title} evidence screenshot`
+				};
+			}
+		}
+
+		return null;
+	});
 </script>
 
 <div class="card audit-finding-card" id={`card-${section.key}`}>
@@ -283,6 +290,11 @@
 			bind:selectedStatus
 		/>
 	{/if}
+	{#if cardScreenshot}
+		<div class="card-image-proof">
+			<img src={cardScreenshot.src} alt={cardScreenshot.alt} loading="lazy" />
+		</div>
+	{/if}
 	<ul class={`check-list ${section.mini ? 'mini-list' : ''}`}>
 		{#if hasVisibleFindings}
 			{#each failRows as row (row.key)}
@@ -293,8 +305,6 @@
 					href={row.href}
 					urlList={row.urlList}
 					codeSnippet={row.codeSnippet}
-					imageSrc={row.imageSrc}
-					imageAlt={row.imageAlt}
 					sectionHeader={row.sectionHeader}
 					indented={row.indented}
 				/>
@@ -320,8 +330,6 @@
 					href={row.href}
 					urlList={row.urlList}
 					codeSnippet={row.codeSnippet}
-					imageSrc={row.imageSrc}
-					imageAlt={row.imageAlt}
 					sectionHeader={row.sectionHeader}
 					indented={row.indented}
 				/>
@@ -347,8 +355,6 @@
 					href={row.href}
 					urlList={row.urlList}
 					codeSnippet={row.codeSnippet}
-					imageSrc={row.imageSrc}
-					imageAlt={row.imageAlt}
 					sectionHeader={row.sectionHeader}
 					indented={row.indented}
 				/>
@@ -374,8 +380,6 @@
 					href={row.href}
 					urlList={row.urlList}
 					codeSnippet={row.codeSnippet}
-					imageSrc={row.imageSrc}
-					imageAlt={row.imageAlt}
 					sectionHeader={row.sectionHeader}
 					indented={row.indented}
 				/>
@@ -442,6 +446,20 @@
 		padding: 0;
 		margin: 0;
 		list-style: none;
+	}
+
+	.card-image-proof {
+		margin: 0 0 1rem;
+		overflow: hidden;
+		border: 1px solid var(--border);
+		border-radius: 0.9rem;
+		background: rgba(15, 23, 42, 0.72);
+	}
+
+	.card-image-proof img {
+		display: block;
+		width: 100%;
+		height: auto;
 	}
 
 	.group-toggle-item {

@@ -1,9 +1,10 @@
 import type { CheerioAPI } from 'cheerio';
 import type { AnyNode } from 'domhandler';
+import { captureLazyLoadingEvidence, captureOpenGraphEvidence } from '$lib/server/audit-capture';
 import type { AuditLogger, AuditSummary } from '../shared';
 import { addItem, createListResult } from '../shared';
 
-export function analyzeHomePage(
+export async function analyzeHomePage(
 	urlObj: URL,
 	$: CheerioAPI,
 	summary: AuditSummary,
@@ -21,6 +22,10 @@ export function analyzeHomePage(
 	const internationalDomains = createListResult();
 	const trustSignals = createListResult();
 	const lazyLoadImages = createListResult();
+	const maxEvidenceItems = 5;
+	const domain = urlObj.hostname || 'this domain';
+	const openGraphEvidence: Array<{ page: string; issue: string; property?: string }> = [];
+	const lazyLoadingEvidence: Array<{ page: string; issue: string; image?: string }> = [];
 
 	const schemaScripts = $('script[type="application/ld+json"]').length;
 	addItem(
@@ -94,6 +99,13 @@ export function analyzeHomePage(
 
 	for (const property of ['og:title', 'og:description', 'og:image', 'og:url']) {
 		const content = $(`meta[property="${property}"]`).attr('content');
+		if (!content && openGraphEvidence.length < maxEvidenceItems) {
+			openGraphEvidence.push({
+				page: urlObj.href,
+				issue: `${property} Missing`,
+				property
+			});
+		}
 		addItem(
 			summary,
 			openGraph,
@@ -157,9 +169,52 @@ export function analyzeHomePage(
 		}
 
 		for (const element of nonLazyImages) {
+			if (lazyLoadingEvidence.length < maxEvidenceItems) {
+				lazyLoadingEvidence.push({
+					page: urlObj.href,
+					issue: 'Image missing loading="lazy"',
+					image: resolveImageUrl(element)
+				});
+			}
 			addItem(summary, lazyLoadImages, 'warn', 'Image missing loading="lazy"', {
 				title: resolveImageUrl(element)
 			});
+		}
+	}
+
+	if (lazyLoadingEvidence.length > 0) {
+		try {
+			const capture = await captureLazyLoadingEvidence(domain, lazyLoadingEvidence);
+			const firstIssue = lazyLoadImages.items.find(
+				(item) => item.status === 'warn' || item.status === 'fail'
+			);
+			if (capture && firstIssue) {
+				firstIssue.meta = {
+					...((firstIssue.meta as Record<string, unknown> | undefined) || {}),
+					screenshot: capture
+				};
+			}
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			logger.warn(`homepage: lazy loading evidence capture failed (${message})`);
+		}
+	}
+
+	if (openGraphEvidence.length > 0) {
+		try {
+			const capture = await captureOpenGraphEvidence(domain, openGraphEvidence);
+			const firstIssue = openGraph.items.find(
+				(item) => item.status === 'warn' || item.status === 'fail'
+			);
+			if (capture && firstIssue) {
+				firstIssue.meta = {
+					...((firstIssue.meta as Record<string, unknown> | undefined) || {}),
+					screenshot: capture
+				};
+			}
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			logger.warn(`homepage: open graph evidence capture failed (${message})`);
 		}
 	}
 

@@ -1,5 +1,11 @@
 import type { AnyNode } from 'domhandler';
-import { captureHeadingEvidence, captureImageAltEvidence } from '$lib/server/audit-capture';
+import {
+	captureCanonicalEvidence,
+	captureContentQualityEvidence,
+	captureHeadingEvidence,
+	captureImageAltEvidence,
+	captureMetaEvidence
+} from '$lib/server/audit-capture';
 import {
 	addItem,
 	createListResult,
@@ -26,6 +32,9 @@ export async function analyzeMetaAndHeadings(
 	const descriptionMap = new Map();
 	const headingEvidence: Array<{ page: string; issue: string }> = [];
 	const imageAltEvidence: Array<{ page: string; image: string }> = [];
+	const metaEvidence: Array<{ page: string; issue: string; value?: string }> = [];
+	const canonicalEvidence: Array<{ page: string; issue: string; value?: string }> = [];
+	const contentQualityEvidence: Array<{ page: string; issue: string; wordCount?: number }> = [];
 	const maxEvidenceItems = 5;
 	const domain = (() => {
 		try {
@@ -83,8 +92,18 @@ export async function analyzeMetaAndHeadings(
 			}
 
 			if (title.length === 0) {
+				if (metaEvidence.length < maxEvidenceItems) {
+					metaEvidence.push({ page, issue: 'Missing meta title' });
+				}
 				addItem(summary, metaTitles, 'warn', 'Missing meta title', { title: page });
 			} else if (title.length > 60) {
+				if (metaEvidence.length < maxEvidenceItems) {
+					metaEvidence.push({
+						page,
+						issue: 'Meta title too long',
+						value: `${title.length} chars: ${title}`
+					});
+				}
 				addItem(summary, metaTitles, 'warn', 'Meta title too long', {
 					title: `${page} (${title.length} chars)`
 				});
@@ -93,6 +112,13 @@ export async function analyzeMetaAndHeadings(
 			}
 
 			if (metaDescription.length > 160) {
+				if (metaEvidence.length < maxEvidenceItems) {
+					metaEvidence.push({
+						page,
+						issue: 'Meta description too long',
+						value: `${metaDescription.length} chars: ${metaDescription}`
+					});
+				}
 				addItem(summary, metaTitles, 'warn', 'Meta description too long', {
 					title: `${page} (${metaDescription.length} chars)`
 				});
@@ -127,6 +153,9 @@ export async function analyzeMetaAndHeadings(
 				canonical ? 'Canonical URL present' : 'Canonical URL missing',
 				{ title: canonical || page }
 			);
+			if (!canonical && canonicalEvidence.length < maxEvidenceItems) {
+				canonicalEvidence.push({ page, issue: 'Canonical URL missing' });
+			}
 
 			const sameOriginLinks = extractInternalLinks($, page, new URL(page).origin);
 			addItem(
@@ -144,6 +173,13 @@ export async function analyzeMetaAndHeadings(
 				wordCount >= 250 ? 'Content length looks reasonable' : 'Thin content detected',
 				{ title: `${page} (${wordCount} words)` }
 			);
+			if (wordCount < 250 && contentQualityEvidence.length < maxEvidenceItems) {
+				contentQualityEvidence.push({
+					page,
+					issue: 'Thin content detected',
+					wordCount
+				});
+			}
 
 			addItem(
 				summary,
@@ -175,6 +211,13 @@ export async function analyzeMetaAndHeadings(
 	for (const [title, pagesForTitle] of titleMap.entries()) {
 		if (pagesForTitle.length > 1) {
 			for (const page of pagesForTitle) {
+				if (metaEvidence.length < maxEvidenceItems) {
+					metaEvidence.push({
+						page,
+						issue: 'Duplicate meta title detected',
+						value: title
+					});
+				}
 				addItem(summary, metaTitles, 'warn', 'Duplicate meta title detected', {
 					title: page,
 					meta: {
@@ -189,6 +232,13 @@ export async function analyzeMetaAndHeadings(
 	for (const [description, pagesForDescription] of descriptionMap.entries()) {
 		if (pagesForDescription.length > 1) {
 			for (const page of pagesForDescription) {
+				if (metaEvidence.length < maxEvidenceItems) {
+					metaEvidence.push({
+						page,
+						issue: 'Duplicate meta description detected',
+						value: description
+					});
+				}
 				addItem(summary, metaTitles, 'warn', 'Duplicate meta description detected', {
 					title: page,
 					meta: {
@@ -233,6 +283,60 @@ export async function analyzeMetaAndHeadings(
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
 			logger.warn(`page-analysis: image alt evidence capture failed (${message})`);
+		}
+	}
+
+	if (metaEvidence.length > 0) {
+		try {
+			const capture = await captureMetaEvidence(domain, metaEvidence);
+			const firstIssue = metaTitles.items.find(
+				(item) => item.status === 'warn' || item.status === 'fail'
+			);
+			if (capture && firstIssue) {
+				firstIssue.meta = {
+					...((firstIssue.meta as Record<string, unknown> | undefined) || {}),
+					screenshot: capture
+				};
+			}
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			logger.warn(`page-analysis: meta evidence capture failed (${message})`);
+		}
+	}
+
+	if (canonicalEvidence.length > 0) {
+		try {
+			const capture = await captureCanonicalEvidence(domain, canonicalEvidence);
+			const firstIssue = canonicalUrls.items.find(
+				(item) => item.status === 'warn' || item.status === 'fail'
+			);
+			if (capture && firstIssue) {
+				firstIssue.meta = {
+					...((firstIssue.meta as Record<string, unknown> | undefined) || {}),
+					screenshot: capture
+				};
+			}
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			logger.warn(`page-analysis: canonical evidence capture failed (${message})`);
+		}
+	}
+
+	if (contentQualityEvidence.length > 0) {
+		try {
+			const capture = await captureContentQualityEvidence(domain, contentQualityEvidence);
+			const firstIssue = contentQuality.items.find(
+				(item) => item.status === 'warn' || item.status === 'fail'
+			);
+			if (capture && firstIssue) {
+				firstIssue.meta = {
+					...((firstIssue.meta as Record<string, unknown> | undefined) || {}),
+					screenshot: capture
+				};
+			}
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			logger.warn(`page-analysis: content quality evidence capture failed (${message})`);
 		}
 	}
 

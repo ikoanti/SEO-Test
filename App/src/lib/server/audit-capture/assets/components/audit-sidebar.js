@@ -76,6 +76,36 @@ class AuditSidebar extends HTMLElement {
 			return el;
 		}
 
+		if (panel.kind === 'meta-tags') {
+			const el = document.createElement('meta-tags-panel');
+			el.panel = panel;
+			return el;
+		}
+
+		if (panel.kind === 'canonicals') {
+			const el = document.createElement('canonicals-panel');
+			el.panel = panel;
+			return el;
+		}
+
+		if (panel.kind === 'lazy-loading') {
+			const el = document.createElement('lazy-loading-panel');
+			el.panel = panel;
+			return el;
+		}
+
+		if (panel.kind === 'open-graph') {
+			const el = document.createElement('open-graph-panel');
+			el.panel = panel;
+			return el;
+		}
+
+		if (panel.kind === 'content-quality') {
+			const el = document.createElement('content-quality-panel');
+			el.panel = panel;
+			return el;
+		}
+
 		const el = document.createElement('placeholder-panel');
 		el.panel = panel;
 		return el;
