@@ -21,6 +21,9 @@ The app assumes these PocketBase collections already exist:
 - auth collection: `users`
 - base collection: `runs`
 - base collection: `audits`
+- base collection: `item_runs`
+- base collection: `audit_items`
+- base collection: `audit_findings`
 
 Suggested fields:
 

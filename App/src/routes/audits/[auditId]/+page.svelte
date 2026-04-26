@@ -20,6 +20,13 @@
 		status?: string;
 		summary?: string;
 		stats?: unknown;
+		itemRun?: {
+			status?: string;
+			started_at?: string;
+			completed_at?: string;
+			run_log?: string;
+			error_message?: string;
+		} | null;
 		findings: AuditFindingView[];
 	};
 
@@ -176,6 +183,7 @@
 		{#each data.normalizedItems || [] as item (item.id)}
 			<div class="card">
 				<h2>{item.label}</h2>
+				<p class="muted">Item run: {item.itemRun?.status || 'completed'}</p>
 				<p class="muted">Status: {item.status}</p>
 				<p class="muted">{item.summary}</p>
 				{#if item.stats}

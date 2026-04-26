@@ -26,7 +26,10 @@ export function getPocketBaseStatus() {
 		url: env.POCKETBASE_URL || 'http://127.0.0.1:8090',
 		authCollection: collections.auth,
 		runsCollection: collections.runs,
-		auditsCollection: collections.audits
+		auditsCollection: collections.audits,
+		itemRunsCollection: collections.itemRuns,
+		auditItemsCollection: collections.auditItems,
+		auditFindingsCollection: collections.auditFindings
 	};
 }
 

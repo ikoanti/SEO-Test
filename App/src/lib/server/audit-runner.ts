@@ -2,6 +2,7 @@ import { runAudit } from '$lib/server/audit';
 import { buildNormalizedAuditItems } from '$lib/server/audit-normalize';
 import {
 	createAuditFindingRecord,
+	createAuditItemRunRecord,
 	createAuditItemRecord,
 	createAuditRecord,
 	getRun,
@@ -109,9 +110,27 @@ async function processAuditRun({ runId, url, name, createdBy, token }: QueuePayl
 			const normalizedItems = buildNormalizedAuditItems(audit);
 
 			for (const item of normalizedItems) {
+				const itemStartedAt = timestamp();
+				const itemCompletedAt = timestamp();
+				const itemRunRecord = await createAuditItemRunRecord(
+					{
+						audit: auditRecord.id,
+						run: runId,
+						key: item.key,
+						label: item.label,
+						status: 'completed',
+						started_at: itemStartedAt,
+						completed_at: itemCompletedAt,
+						run_log: appendLog('', `${item.label} item run completed.`),
+						sort_order: item.sort_order
+					},
+					token
+				);
+
 				const auditItemRecord = await createAuditItemRecord(
 					{
 						audit: auditRecord.id,
+						item_run: itemRunRecord.id,
 						key: item.key,
 						label: item.label,
 						status: item.status,

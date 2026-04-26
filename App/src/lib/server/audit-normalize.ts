@@ -99,12 +99,17 @@ function buildListSection(
 	const findings = (section.items || []).map((item) => {
 		const title = String(item.title || item.detail || label);
 		const detail = String(item.detail || '');
-		const page_url =
-			title.startsWith('http://') || title.startsWith('https://')
-				? title
-				: detail.startsWith('http://') || detail.startsWith('https://')
-					? detail
-					: '';
+		const pageUrlCandidate =
+			title.startsWith('http://') || title.startsWith('https://') ? title : detail;
+		let page_url: string;
+
+		try {
+			const parsedUrl = new URL(pageUrlCandidate);
+			page_url =
+				parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:' ? parsedUrl.href : '';
+		} catch {
+			page_url = '';
+		}
 
 		return {
 			status: (item.status || 'info') as 'ok' | 'warn' | 'err' | 'info',

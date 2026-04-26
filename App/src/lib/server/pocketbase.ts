@@ -7,6 +7,7 @@ const AUTH_COLLECTION = env.POCKETBASE_AUTH_COLLECTION || 'users';
 const SUPERUSER_COLLECTION = '_superusers';
 const RUNS_COLLECTION = env.POCKETBASE_RUNS_COLLECTION || 'runs';
 const AUDITS_COLLECTION = env.POCKETBASE_AUDITS_COLLECTION || 'audits';
+const ITEM_RUNS_COLLECTION = env.POCKETBASE_ITEM_RUNS_COLLECTION || 'item_runs';
 const AUDIT_ITEMS_COLLECTION = env.POCKETBASE_AUDIT_ITEMS_COLLECTION || 'audit_items';
 const AUDIT_FINDINGS_COLLECTION = env.POCKETBASE_AUDIT_FINDINGS_COLLECTION || 'audit_findings';
 const AUTH_COOKIE_OPTIONS = {
@@ -76,6 +77,7 @@ export function getCollectionNames() {
 		superusers: SUPERUSER_COLLECTION,
 		runs: RUNS_COLLECTION,
 		audits: AUDITS_COLLECTION,
+		itemRuns: ITEM_RUNS_COLLECTION,
 		auditItems: AUDIT_ITEMS_COLLECTION,
 		auditFindings: AUDIT_FINDINGS_COLLECTION
 	};
@@ -248,9 +250,43 @@ export async function updateAuditRecord(
 	return pb.collection(AUDITS_COLLECTION).update(auditId, input);
 }
 
+export async function createAuditItemRunRecord(
+	input: {
+		audit: string;
+		run: string;
+		key: string;
+		label: string;
+		status: string;
+		started_at: string;
+		completed_at?: string;
+		error_message?: string;
+		run_log?: string;
+		sort_order: number;
+	},
+	token?: string
+) {
+	const pb = createAuthedClient(token);
+	const sortOrder =
+		Number.isFinite(input.sort_order) && input.sort_order > 0 ? input.sort_order : 1;
+
+	return pb.collection(ITEM_RUNS_COLLECTION).create({
+		audit: input.audit,
+		run: input.run,
+		key: input.key,
+		label: input.label,
+		status: input.status,
+		started_at: input.started_at,
+		...(input.completed_at ? { completed_at: input.completed_at } : {}),
+		error_message: input.error_message || '',
+		run_log: input.run_log || '',
+		sort_order: sortOrder
+	});
+}
+
 export async function createAuditItemRecord(
 	input: {
 		audit: string;
+		item_run?: string;
 		key: string;
 		label: string;
 		status: string;
@@ -266,6 +302,7 @@ export async function createAuditItemRecord(
 
 	return pb.collection(AUDIT_ITEMS_COLLECTION).create({
 		audit: input.audit,
+		...(input.item_run ? { item_run: input.item_run } : {}),
 		key: input.key,
 		label: input.label,
 		status: input.status,
@@ -288,13 +325,26 @@ export async function createAuditFindingRecord(
 	token?: string
 ) {
 	const pb = createAuthedClient(token);
+	let pageUrl: string | undefined;
+
+	if (input.page_url) {
+		try {
+			const parsedUrl = new URL(input.page_url);
+			if (parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:') {
+				pageUrl = parsedUrl.href;
+			}
+		} catch {
+			pageUrl = undefined;
+		}
+	}
+
 	return pb.collection(AUDIT_FINDINGS_COLLECTION).create({
 		audit: input.audit,
 		audit_item: input.audit_item,
 		status: input.status,
 		title: input.title,
 		detail: input.detail,
-		page_url: input.page_url || '',
+		...(pageUrl ? { page_url: pageUrl } : {}),
 		meta_json: input.meta_json || ''
 	});
 }
@@ -302,6 +352,14 @@ export async function createAuditFindingRecord(
 export async function listAuditItems(auditId: string, token?: string) {
 	const pb = createAuthedClient(token);
 	return pb.collection(AUDIT_ITEMS_COLLECTION).getFullList({
+		filter: `audit = "${auditId}"`,
+		sort: 'sort_order'
+	});
+}
+
+export async function listAuditItemRuns(auditId: string, token?: string) {
+	const pb = createAuthedClient(token);
+	return pb.collection(ITEM_RUNS_COLLECTION).getFullList({
 		filter: `audit = "${auditId}"`,
 		sort: 'sort_order'
 	});

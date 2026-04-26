@@ -105,6 +105,37 @@ migrate((app) => {
     try {
         app.findCollectionByNameOrId('audit_items')
     } catch {
+        try {
+            app.findCollectionByNameOrId('item_runs')
+        } catch {
+            app.save(new Collection({
+                type: 'base',
+                name: 'item_runs',
+                listRule: authenticatedRule,
+                viewRule: authenticatedRule,
+                createRule: authenticatedRule,
+                updateRule: authenticatedRule,
+                deleteRule: authenticatedRule,
+                fields: [
+                    { name: 'audit', type: 'relation', required: true, maxSelect: 1, collectionId: app.findCollectionByNameOrId('audits').id, cascadeDelete: true },
+                    { name: 'run', type: 'relation', required: true, maxSelect: 1, collectionId: app.findCollectionByNameOrId('runs').id, cascadeDelete: true },
+                    { name: 'key', type: 'text', required: true, max: 120 },
+                    { name: 'label', type: 'text', required: true, max: 160 },
+                    { name: 'status', type: 'text', required: true, max: 40 },
+                    { name: 'started_at', type: 'date', required: true },
+                    { name: 'completed_at', type: 'date', required: false },
+                    { name: 'error_message', type: 'editor', required: false },
+                    { name: 'run_log', type: 'editor', required: false },
+                    { name: 'sort_order', type: 'number', required: true, onlyInt: true, min: 1 }
+                ],
+                indexes: [
+                    'CREATE INDEX idx_item_runs_audit ON item_runs (audit)',
+                    'CREATE INDEX idx_item_runs_run ON item_runs (run)',
+                    'CREATE UNIQUE INDEX idx_item_runs_audit_key ON item_runs (audit, key)'
+                ]
+            }))
+        }
+
         app.save(new Collection({
             type: 'base',
             name: 'audit_items',
@@ -115,15 +146,17 @@ migrate((app) => {
             deleteRule: authenticatedRule,
             fields: [
                 { name: 'audit', type: 'relation', required: true, maxSelect: 1, collectionId: app.findCollectionByNameOrId('audits').id, cascadeDelete: true },
+                { name: 'item_run', type: 'relation', required: false, maxSelect: 1, collectionId: app.findCollectionByNameOrId('item_runs').id, cascadeDelete: true },
                 { name: 'key', type: 'text', required: true, max: 120 },
                 { name: 'label', type: 'text', required: true, max: 160 },
                 { name: 'status', type: 'text', required: true, max: 40 },
                 { name: 'summary', type: 'editor', required: false },
                 { name: 'stats_json', type: 'editor', required: false },
-                { name: 'sort_order', type: 'number', required: true, onlyInt: true, min: 0 }
+                { name: 'sort_order', type: 'number', required: true, onlyInt: true, min: 1 }
             ],
             indexes: [
                 'CREATE INDEX idx_audit_items_audit ON audit_items (audit)',
+                'CREATE INDEX idx_audit_items_item_run ON audit_items (item_run)',
                 'CREATE UNIQUE INDEX idx_audit_items_audit_key ON audit_items (audit, key)'
             ]
         }))
@@ -209,6 +242,10 @@ migrate((app) => {
 
     try {
         app.delete(app.findCollectionByNameOrId('audit_items'))
+    } catch {}
+
+    try {
+        app.delete(app.findCollectionByNameOrId('item_runs'))
     } catch {}
 
     try {

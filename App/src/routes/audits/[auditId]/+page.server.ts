@@ -6,6 +6,7 @@ import {
 	getAuditByRunId,
 	getRun,
 	listAuditFindings,
+	listAuditItemRuns,
 	listAuditItems,
 	updateAuditRecord
 } from '$lib/server/pocketbase';
@@ -21,9 +22,10 @@ export const load = async ({ params, locals }) => {
 			const aiVisibility = auditRecord.ai_visibility_json
 				? JSON.parse(auditRecord.ai_visibility_json)
 				: null;
-			const [auditItems, auditFindings] = await Promise.all([
+			const [auditItems, auditFindings, itemRuns] = await Promise.all([
 				listAuditItems(auditRecord.id, locals.pbToken),
-				listAuditFindings(auditRecord.id, locals.pbToken)
+				listAuditFindings(auditRecord.id, locals.pbToken),
+				listAuditItemRuns(auditRecord.id, locals.pbToken)
 			]);
 			const findingsByItemId = new Map<string, typeof auditFindings>();
 			for (const finding of auditFindings) {
@@ -32,6 +34,7 @@ export const load = async ({ params, locals }) => {
 				current.push(finding);
 				findingsByItemId.set(auditItemId, current);
 			}
+			const itemRunsById = new Map(itemRuns.map((itemRun) => [itemRun.id, itemRun]));
 
 			return {
 				runRecord,
@@ -42,6 +45,7 @@ export const load = async ({ params, locals }) => {
 				aiVisibility,
 				normalizedItems: auditItems.map((item) => ({
 					...item,
+					itemRun: itemRunsById.get(String(item.item_run || '')) || null,
 					stats: item.stats_json ? JSON.parse(item.stats_json) : null,
 					findings: (findingsByItemId.get(item.id) || []).map((finding) => ({
 						...finding,

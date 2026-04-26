@@ -82,6 +82,9 @@ This app is now designed to run as a single Docker Compose stack with:
   - `users` auth collection
   - `runs`
   - `audits`
+  - `item_runs`
+  - `audit_items`
+  - `audit_findings`
   - `audit_reports`
 - The Express app authenticates users against PocketBase and protects the `/api/*` routes with bearer-token validation.
 - The Express app saves audit payloads and generated HTML reports into PocketBase when the PocketBase env vars are configured.
