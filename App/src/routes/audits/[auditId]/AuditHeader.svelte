@@ -38,11 +38,13 @@
 
 	.page-head-main {
 		display: flex;
-		align-items: flex-start;
+		align-items: center;
 		gap: 1rem;
 	}
 
 	.back-link {
+		align-self: flex-start;
+		flex: 0 0 auto;
 		padding: 10px 14px;
 		border: 1px solid rgba(255, 255, 255, 0.08);
 		border-radius: 9999px;
@@ -63,6 +65,10 @@
 		justify-content: flex-end;
 		gap: 0.75rem;
 		flex-wrap: wrap;
+	}
+
+	.restart-button {
+		padding: 10px 14px;
 	}
 
 	.restart-button:disabled {
