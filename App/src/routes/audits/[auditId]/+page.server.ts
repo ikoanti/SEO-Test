@@ -56,19 +56,39 @@ export const load = async ({ params, locals }) => {
 			reportHtml: auditRecord?.report_html || '',
 			aiVisibility,
 			normalizedItems: runs.map((run) => {
-				const findingType = (run.expand as { audit_finding_type?: { label?: string } } | undefined)
-					?.audit_finding_type;
+				const findingType = (
+					run.expand as
+						| {
+								audit_finding_type?: {
+									key?: string;
+									label?: string;
+									sort_order?: number;
+								};
+						  }
+						| undefined
+				)?.audit_finding_type;
+				const findings = (findingsByRunId.get(run.id) || []).map((finding) => ({
+					...finding,
+					meta: finding.meta_json ? JSON.parse(finding.meta_json) : null
+				})) as Array<Record<string, unknown> & { status?: string }>;
+				const status = findings.some((finding) => finding.status === 'err')
+					? 'err'
+					: findings.some((finding) => finding.status === 'warn')
+						? 'warn'
+						: findings.some((finding) => finding.status === 'ok')
+							? 'ok'
+							: 'info';
 				return {
 					id: run.id,
+					key: findingType?.key || run.id,
 					label: findingType?.label || 'Audit check',
-					status: run.status,
+					status,
+					runStatus: run.status,
 					summary: run.run_log || '',
 					itemRun: run,
-					stats: null,
-					findings: (findingsByRunId.get(run.id) || []).map((finding) => ({
-						...finding,
-						meta: finding.meta_json ? JSON.parse(finding.meta_json) : null
-					}))
+					sortOrder: findingType?.sort_order || run.sort_order || 999,
+					stats: run.run_log ? { stats: run.run_log, count: findings.length } : null,
+					findings
 				};
 			}),
 			isPendingRun: ['queued', 'running'].includes(String(workflowRecord.status || ''))
