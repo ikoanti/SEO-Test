@@ -124,16 +124,23 @@
 
 	@media (max-width: 760px) {
 		.audit-page-head h1 {
-			font-size: clamp(2.1rem, 10vw, 3rem);
+			font-size: clamp(1.45rem, 6.2vw, 2rem);
 		}
 
 		.page-head-main {
 			flex-direction: column;
 			align-items: stretch;
+			gap: 0.75rem;
 		}
 
 		.heading-copy {
 			align-items: flex-start;
+		}
+
+		.heading-copy h1 {
+			max-width: 100%;
+			line-height: 1.1;
+			overflow-wrap: anywhere;
 		}
 
 		.back-link {
