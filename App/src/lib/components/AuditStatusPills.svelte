@@ -84,17 +84,12 @@
 		font-size: 0.8rem;
 		font-weight: 600;
 		transition:
-			transform 0.16s ease,
 			border-color 0.16s ease,
 			box-shadow 0.16s ease;
 	}
 
 	.scan-stat.is-selectable {
 		cursor: pointer;
-	}
-
-	.scan-stat.is-selectable:hover {
-		transform: translateY(-1px);
 	}
 
 	.scan-stat.is-active {
