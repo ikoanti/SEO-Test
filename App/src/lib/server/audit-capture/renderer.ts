@@ -4,7 +4,7 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
-import type { Page } from 'playwright-core';
+import type { Browser, Page } from 'playwright-core';
 
 function resolveAssetsDir() {
 	const candidates = [
@@ -32,6 +32,17 @@ const DISPLAY_WIDTH = 1600;
 const DISPLAY_HEIGHT = 1200;
 
 const assetCache = new Map<string, string>();
+let captureQueue = Promise.resolve();
+
+type CaptureSession = {
+	display?: string;
+	xvfb?: ReturnType<typeof spawn>;
+	openbox?: ReturnType<typeof spawn>;
+	browser: Browser;
+};
+
+let headfulSessionPromise: Promise<CaptureSession> | null = null;
+let headlessBrowserPromise: Promise<Browser> | null = null;
 
 function assetText(relativePath: string) {
 	const cached = assetCache.get(relativePath);
@@ -122,13 +133,38 @@ async function captureDesktop(display: string) {
 	}
 }
 
-async function withVirtualDesktop<T>(fn: (display: string) => Promise<T>) {
+function chromeLaunchArgs() {
+	return [
+		'--no-sandbox',
+		'--no-zygote',
+		'--disable-dev-shm-usage',
+		'--disable-gpu',
+		'--disable-breakpad',
+		'--disable-crash-reporter',
+		'--disable-crashpad',
+		'--force-device-scale-factor=1',
+		'--window-position=0,0',
+		`--window-size=${WINDOW_WIDTH},${WINDOW_HEIGHT}`
+	];
+}
+
+async function launchBrowser(display?: string) {
+	return chromium.launch({
+		executablePath: resolveChromeExecutable(),
+		headless: !display,
+		args: chromeLaunchArgs(),
+		env: display ? { ...process.env, DISPLAY: display } : process.env
+	});
+}
+
+async function createHeadfulSession(): Promise<CaptureSession> {
 	const display = process.env.DISPLAY || `:${90 + Math.floor(Math.random() * 1000)}`;
 	const screen = `${DISPLAY_WIDTH}x${DISPLAY_HEIGHT}x24`;
 	const xvfb = spawn('Xvfb', [display, '-screen', '0', screen], {
 		stdio: 'ignore'
 	});
-	let openbox: ReturnType<typeof spawn> | null = null;
+	let openbox: ReturnType<typeof spawn> | undefined;
+
 	try {
 		await delay(1000);
 		openbox = spawn('openbox', [], {
@@ -136,10 +172,55 @@ async function withVirtualDesktop<T>(fn: (display: string) => Promise<T>) {
 			env: { ...process.env, DISPLAY: display }
 		});
 		await delay(1000);
-		return await fn(display);
-	} finally {
-		await terminateProcess(openbox);
+		const browser = await launchBrowser(display);
+		return { display, xvfb, openbox, browser };
+	} catch (error) {
+		await terminateProcess(openbox || null);
 		await terminateProcess(xvfb);
+		throw error;
+	}
+}
+
+async function getHeadfulSession() {
+	headfulSessionPromise ??= createHeadfulSession();
+	return headfulSessionPromise;
+}
+
+async function getHeadlessBrowser() {
+	headlessBrowserPromise ??= launchBrowser();
+	return headlessBrowserPromise;
+}
+
+async function closeCaptureSession() {
+	const headfulSession = await headfulSessionPromise?.catch(() => null);
+	headfulSessionPromise = null;
+	if (headfulSession) {
+		await headfulSession.browser.close().catch(() => undefined);
+		await terminateProcess(headfulSession.openbox || null);
+		await terminateProcess(headfulSession.xvfb || null);
+	}
+
+	const headlessBrowser = await headlessBrowserPromise?.catch(() => null);
+	headlessBrowserPromise = null;
+	await headlessBrowser?.close().catch(() => undefined);
+}
+
+process.once('beforeExit', () => {
+	void closeCaptureSession();
+});
+
+async function withCaptureQueue<T>(fn: () => Promise<T>) {
+	const previous = captureQueue;
+	let release!: () => void;
+	captureQueue = new Promise<void>((resolve) => {
+		release = resolve;
+	});
+	await previous.catch(() => undefined);
+
+	try {
+		return await fn();
+	} finally {
+		release();
 	}
 }
 
@@ -262,29 +343,11 @@ export async function captureAuditSidebarScreenshot({
 	const startedAt = Date.now();
 	const panel = typeof sidebarData.activeTab === 'string' ? sidebarData.activeTab : 'unknown-panel';
 	console.info(`[audit-capture] ${panel} capture started for ${pageUrl}`);
-	const runCapture = async (display?: string) => {
-		const browser = await chromium.launch({
-			executablePath: resolveChromeExecutable(),
-			headless: !display,
-			args: [
-				'--no-sandbox',
-				'--no-zygote',
-				'--disable-dev-shm-usage',
-				'--disable-gpu',
-				'--disable-breakpad',
-				'--disable-crash-reporter',
-				'--disable-crashpad',
-				'--force-device-scale-factor=1',
-				'--window-position=0,0',
-				`--window-size=${WINDOW_WIDTH},${WINDOW_HEIGHT}`
-			],
-			env: display ? { ...process.env, DISPLAY: display } : process.env
+	const runCapture = async ({ browser, display }: { browser: Browser; display?: string }) => {
+		const page = await browser.newPage({
+			viewport: { width: WINDOW_WIDTH, height: CAPTURE_HEIGHT }
 		});
-
 		try {
-			const page = await browser.newPage({
-				viewport: { width: WINDOW_WIDTH, height: CAPTURE_HEIGHT }
-			});
 			const urls = [pageUrl, ...fallbackPageUrls.filter((url) => url && url !== pageUrl)];
 			await openFirstAvailableUrl(page, urls);
 			await injectSidebar(page, sidebarData);
@@ -296,21 +359,24 @@ export async function captureAuditSidebarScreenshot({
 				imageBase64: image.toString('base64')
 			};
 		} finally {
-			await browser.close();
+			await page.close().catch(() => undefined);
 		}
 	};
 
-	if (shouldUseHeadfulCapture()) {
+	return withCaptureQueue(async () => {
+		if (shouldUseHeadfulCapture()) {
+			try {
+				const session = await getHeadfulSession();
+				return await runCapture({ browser: session.browser, display: session.display });
+			} finally {
+				console.info(`[audit-capture] ${panel} capture finished in ${Date.now() - startedAt}ms`);
+			}
+		}
+
 		try {
-			return await withVirtualDesktop((display) => runCapture(display));
+			return await runCapture({ browser: await getHeadlessBrowser() });
 		} finally {
 			console.info(`[audit-capture] ${panel} capture finished in ${Date.now() - startedAt}ms`);
 		}
-	}
-
-	try {
-		return await runCapture();
-	} finally {
-		console.info(`[audit-capture] ${panel} capture finished in ${Date.now() - startedAt}ms`);
-	}
+	});
 }
