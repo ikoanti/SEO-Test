@@ -41,12 +41,11 @@ WORKDIR /app
 COPY App/package*.json ./
 RUN npm ci --omit=dev
 
-COPY App/ ./
-COPY --from=build /app/public ./public
+COPY --from=build /app/build ./build
 
 ENV NODE_ENV=production
 ENV PORT=3000
 
 EXPOSE 3000
 
-CMD ["npm", "run", "preview", "--", "--host", "0.0.0.0", "--port", "3000"]
+CMD ["node", "build"]
