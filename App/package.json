@@ -39,6 +39,7 @@
 		"@anthropic-ai/sdk": "^0.91.0",
 		"axios": "^1.15.2",
 		"cheerio": "^1.2.0",
+		"html-docx-js-typescript": "^0.1.5",
 		"lucide-svelte": "^1.0.1",
 		"pocketbase": "^0.26.8"
 	}

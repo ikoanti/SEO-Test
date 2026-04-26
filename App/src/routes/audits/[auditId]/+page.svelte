@@ -7,6 +7,7 @@
 	import OpenPageRankCard from '$lib/components/OpenPageRankCard.svelte';
 	import PageSpeedCard from '$lib/components/PageSpeedCard.svelte';
 	import SegmentedPicker from '$lib/components/SegmentedPicker.svelte';
+	import { asBlob as htmlToDocxBlob } from 'html-docx-js-typescript';
 	import { Copy, Download, FileText, FileUp, Loader2, Sparkles } from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import AuditHeader from './AuditHeader.svelte';
@@ -312,14 +313,13 @@
 		if (!pageData.reportHtml) return;
 
 		const filename = resolvedFilename();
-		const header =
-			"<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Mini SEO Audit</title><style>body { font-family: Arial, sans-serif; }</style></head><body>";
-		const footer = '</body></html>';
-		const blob = new Blob(['\ufeff', header + pageData.reportHtml + footer], {
-			type: 'application/msword'
-		});
+		const fullHtml =
+			"<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Mini SEO Audit</title><style>body { font-family: Arial, sans-serif; }</style></head><body>" +
+			pageData.reportHtml +
+			'</body></html>';
+		const blob = htmlToDocxBlob(fullHtml);
 		const link = document.createElement('a');
-		link.download = `Mini-SEO-Audit-${filename}.doc`;
+		link.download = `Mini-SEO-Audit-${filename}.docx`;
 		link.href = URL.createObjectURL(blob);
 		document.body.appendChild(link);
 		link.click();
