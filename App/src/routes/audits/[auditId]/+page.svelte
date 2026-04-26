@@ -315,13 +315,47 @@
 		URL.revokeObjectURL(link.href);
 	}
 
+	async function blobToDataUrl(blob: Blob) {
+		return new Promise<string>((resolve, reject) => {
+			const reader = new FileReader();
+			reader.onload = () => resolve(String(reader.result || ''));
+			reader.onerror = () => reject(reader.error);
+			reader.readAsDataURL(blob);
+		});
+	}
+
+	async function inlineReportImages(html: string) {
+		const container = document.createElement('div');
+		container.innerHTML = html;
+		const images = Array.from(container.querySelectorAll('img[src]'));
+
+		await Promise.all(
+			images.map(async (image) => {
+				const source = image.getAttribute('src');
+				if (!source || source.startsWith('data:')) return;
+
+				try {
+					const response = await fetch(source);
+					if (!response.ok) return;
+					const blob = await response.blob();
+					image.setAttribute('src', await blobToDataUrl(blob));
+				} catch {
+					// Leave the original source in place if the browser cannot fetch it.
+				}
+			})
+		);
+
+		return container.innerHTML;
+	}
+
 	async function downloadReportDoc() {
 		if (!pageData.reportHtml) return;
 
 		const filename = resolvedFilename();
+		const reportHtml = await inlineReportImages(pageData.reportHtml);
 		const fullHtml =
 			"<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Mini SEO Audit</title><style>body { font-family: Arial, sans-serif; }</style></head><body>" +
-			pageData.reportHtml +
+			reportHtml +
 			'</body></html>';
 		const docxResult = await htmlToDocxBlob(fullHtml);
 		const blob =

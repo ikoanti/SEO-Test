@@ -539,6 +539,41 @@ export async function listAuditScreenshots(auditId: string, token?: string) {
 	}));
 }
 
+export async function getAuditScreenshotFile(
+	auditId: string,
+	screenshotId: string,
+	token?: string
+) {
+	const pb = createAuthedClient(token);
+	const screenshot = (await pb
+		.collection(AUDIT_SCREENSHOTS_COLLECTION)
+		.getOne(screenshotId)) as Record<string, unknown>;
+
+	if (String(screenshot.audit || '') !== auditId) {
+		throw new Error('Screenshot does not belong to this audit.');
+	}
+
+	const filename = typeof screenshot.image === 'string' ? screenshot.image : '';
+	if (!filename) {
+		throw new Error('Screenshot image is missing.');
+	}
+
+	const fileUrl = pb.files.getURL(screenshot, filename);
+	const response = await fetch(fileUrl, {
+		headers: token ? { Authorization: `Bearer ${token}` } : undefined
+	});
+
+	if (!response.ok) {
+		throw new Error(`Failed to fetch screenshot image: ${response.status}`);
+	}
+
+	return {
+		filename,
+		contentType: response.headers.get('content-type') || 'image/png',
+		body: await response.arrayBuffer()
+	};
+}
+
 export async function deleteAuditScreenshotsByRunId(runId: string, token?: string) {
 	const pb = createAuthedClient(token);
 	let screenshots;
