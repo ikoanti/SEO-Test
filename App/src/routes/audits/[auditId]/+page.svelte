@@ -560,7 +560,6 @@
 		flex-direction: column;
 		align-items: center;
 		gap: 1.5rem;
-		animation: fadeInUp 0.8s ease 0.1s both;
 	}
 
 	.audit-tab-picker {
@@ -642,14 +641,4 @@
 		word-break: break-word;
 	}
 
-	@keyframes fadeInUp {
-		from {
-			opacity: 0;
-			transform: translateY(20px);
-		}
-		to {
-			opacity: 1;
-			transform: translateY(0);
-		}
-	}
 </style>
