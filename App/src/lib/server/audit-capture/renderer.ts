@@ -265,8 +265,12 @@ export async function captureAuditSidebarScreenshot({
 			headless: !display,
 			args: [
 				'--no-sandbox',
+				'--no-zygote',
 				'--disable-dev-shm-usage',
 				'--disable-gpu',
+				'--disable-breakpad',
+				'--disable-crash-reporter',
+				'--disable-crashpad',
 				'--force-device-scale-factor=1',
 				'--window-position=0,0',
 				`--window-size=${WINDOW_WIDTH},${WINDOW_HEIGHT}`

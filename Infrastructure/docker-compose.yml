@@ -4,6 +4,7 @@ services:
       context: ..
       dockerfile: Infrastructure/Dockerfile
       target: base
+    init: true
     environment:
       NODE_ENV: production
       PORT: 3000
