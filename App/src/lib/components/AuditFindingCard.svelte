@@ -80,15 +80,28 @@
 		return undefined;
 	}
 
+	function duplicateValueFor(finding: AuditFindingView) {
+		const metaRecord = finding.meta && typeof finding.meta === 'object' ? finding.meta : null;
+		const nestedMeta =
+			metaRecord?.meta && typeof metaRecord.meta === 'object'
+				? (metaRecord.meta as Record<string, unknown>)
+				: null;
+		const direct = metaRecord?.duplicateValue;
+		const nested = nestedMeta?.duplicateValue;
+		if (typeof direct === 'string' && direct.trim()) return direct;
+		if (typeof nested === 'string' && nested.trim()) return nested;
+		return '';
+	}
+
 	function groupedRows(prefix: string, findings: AuditFindingView[]) {
 		const rows: RenderRow[] = [];
 		const groups: Record<string, AuditFindingView[]> = {};
 		const order: string[] = [];
 
 		for (const finding of findings) {
-			const duplicateValue = finding.meta?.duplicateValue;
+			const duplicateValue = duplicateValueFor(finding);
 			const isDuplicateMetaGroup =
-				typeof duplicateValue === 'string' &&
+				Boolean(duplicateValue) &&
 				Boolean(finding.detail?.match(/^Duplicate meta (title|description) detected$/));
 
 			if (!isDuplicateMetaGroup) {
@@ -109,9 +122,9 @@
 		for (const groupKey of order) {
 			const group = groups[groupKey] || [];
 			const firstFinding = group[0];
-			const duplicateValue = firstFinding?.meta?.duplicateValue;
+			const duplicateValue = firstFinding ? duplicateValueFor(firstFinding) : '';
 			const isDuplicateMetaGroup =
-				typeof duplicateValue === 'string' &&
+				Boolean(duplicateValue) &&
 				Boolean(firstFinding?.detail?.match(/^Duplicate meta (title|description) detected$/));
 
 			if (isDuplicateMetaGroup && group.length > 0 && firstFinding?.detail) {
@@ -123,8 +136,7 @@
 				});
 
 				for (const finding of group) {
-					const duplicateValue =
-						typeof finding.meta?.duplicateValue === 'string' ? finding.meta.duplicateValue : '';
+					const duplicateValue = duplicateValueFor(finding);
 					rows.push({
 						key: `${prefix}-${finding.id}`,
 						status: finding.status || 'info',
