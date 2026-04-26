@@ -2,7 +2,7 @@
 	import { resolve } from '$app/paths';
 	import type { AppUser } from '$lib/server/pocketbase';
 	import logo from '$lib/assets/logo.png';
-	import { ChevronDown, LogOut, UserRound } from 'lucide-svelte';
+	import { ChevronDown, LogOut, Menu, UserRound } from 'lucide-svelte';
 
 	let { user }: { user?: AppUser | null } = $props();
 
@@ -54,9 +54,14 @@
 					aria-expanded={profileMenuOpen}
 					onclick={toggleProfileMenu}
 				>
-					<UserRound size={16} />
-					<span>{user.name || user.email || 'Account'}</span>
-					<ChevronDown size={16} />
+					<span class="profile-trigger-desktop">
+						<UserRound size={16} />
+						<span>{user.name || user.email || 'Account'}</span>
+						<ChevronDown size={16} />
+					</span>
+					<span class="profile-trigger-mobile" aria-hidden="true">
+						<Menu size={18} />
+					</span>
 				</button>
 				{#if profileMenuOpen}
 					<div class="profile-dropdown" role="menu">
@@ -142,7 +147,6 @@
 	.profile-trigger {
 		display: inline-flex;
 		align-items: center;
-		gap: 8px;
 		padding: 10px 14px;
 		border: 1px solid rgba(255, 255, 255, 0.08);
 		border-radius: 9999px;
@@ -150,6 +154,18 @@
 		cursor: pointer;
 		list-style: none;
 		color: var(--text-main);
+	}
+
+	.profile-trigger-desktop {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+	}
+
+	.profile-trigger-mobile {
+		display: none;
+		align-items: center;
+		justify-content: center;
 	}
 
 	.profile-trigger::-webkit-details-marker {
@@ -202,34 +218,57 @@
 
 	@media (max-width: 900px) {
 		.brand-row {
-			grid-template-columns: 1fr;
-			justify-items: center;
+			grid-template-columns: auto minmax(0, 1fr) auto;
+			align-items: center;
 			gap: 12px;
 			margin-bottom: 20px;
 		}
 
 		.brand-copy {
-			flex-direction: column;
+			min-width: 0;
 			align-items: center;
-			gap: 6px;
+			justify-self: center;
+			gap: 2px;
+		}
+
+		.brand-copy {
+			display: none;
+		}
+
+		.brand-subtitle {
+			display: none;
 		}
 
 		.brand-side-left,
 		.brand-side-right {
-			justify-content: center;
+			width: auto;
+		}
+
+		.brand-side-left {
+			justify-content: flex-start;
 		}
 
 		.brand-side-right {
-			width: 100%;
+			justify-content: flex-end;
 		}
 
 		.profile-menu {
-			width: min(100%, 22rem);
+			width: auto;
 		}
 
 		.profile-trigger {
 			justify-content: center;
-			width: 100%;
+			width: 44px;
+			height: 44px;
+			padding: 0;
+		}
+
+		.profile-trigger-desktop {
+			display: none;
+		}
+
+		.profile-trigger-mobile {
+			display: inline-flex;
 		}
 
 		.profile-dropdown {
