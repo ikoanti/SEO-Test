@@ -14,6 +14,7 @@
 		title,
 		detail = '',
 		href,
+		urlList,
 		codeSnippet,
 		clickable = false,
 		expanded = false,
@@ -25,6 +26,7 @@
 		title: string;
 		detail?: string;
 		href?: string;
+		urlList?: string[];
 		codeSnippet?: string;
 		clickable?: boolean;
 		expanded?: boolean;
@@ -121,6 +123,18 @@
 				{href}
 			</a>
 		</div>
+	{/if}
+	{#if urlList?.length}
+		<ul class="check-link-list">
+			{#each urlList as url (`${title}-${url}`)}
+				<li>
+					<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+					<a class="check-link" href={url} target="_blank" rel="noopener">
+						{url}
+					</a>
+				</li>
+			{/each}
+		</ul>
 	{/if}
 	{#if codeSnippet}
 		<div class="code-snippet-container">
@@ -256,6 +270,21 @@
 		color: var(--status-info);
 		text-decoration: none;
 		word-break: break-all;
+	}
+
+	.check-link-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0.35rem;
+		margin: 0.35rem 0 0;
+		padding-left: 1.5rem;
+		list-style: disc;
+	}
+
+	.check-link-list li {
+		color: var(--text-muted);
+		font-size: 0.82rem;
+		list-style: inherit;
 	}
 
 	.check-link:hover {

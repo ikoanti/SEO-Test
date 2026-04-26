@@ -59,6 +59,7 @@
 		title: string;
 		detail?: string;
 		href?: string;
+		urlList?: string[];
 		codeSnippet?: string;
 		sectionHeader?: boolean;
 		indented?: boolean;
@@ -128,26 +129,15 @@
 				Boolean(firstFinding?.detail?.match(/^Duplicate meta (title|description) detected$/));
 
 			if (isDuplicateMetaGroup && group.length > 0 && firstFinding?.detail) {
+				const urls = group
+					.map((finding) => displayHref(finding))
+					.filter((value): value is string => Boolean(value));
 				rows.push({
 					key: `${prefix}-group-${groupKey}`,
 					status: firstFinding.status || 'info',
 					title: firstFinding.detail,
-					sectionHeader: true
+					urlList: urls
 				});
-
-				for (const finding of group) {
-					const duplicateValue = duplicateValueFor(finding);
-					rows.push({
-						key: `${prefix}-${finding.id}`,
-						status: finding.status || 'info',
-						title: finding.title || finding.page_url || 'Page',
-						detail: duplicateValue || undefined,
-						href: displayHref(finding),
-						codeSnippet:
-							typeof finding.meta?.codeSnippet === 'string' ? finding.meta.codeSnippet : undefined,
-						indented: true
-					});
-				}
 			} else {
 				const finding = group[0];
 				if (!finding) continue;
@@ -278,6 +268,7 @@
 					title={row.title}
 					detail={row.detail}
 					href={row.href}
+					urlList={row.urlList}
 					codeSnippet={row.codeSnippet}
 					sectionHeader={row.sectionHeader}
 					indented={row.indented}
@@ -302,6 +293,7 @@
 					title={row.title}
 					detail={row.detail}
 					href={row.href}
+					urlList={row.urlList}
 					codeSnippet={row.codeSnippet}
 					sectionHeader={row.sectionHeader}
 					indented={row.indented}
@@ -326,6 +318,7 @@
 					title={row.title}
 					detail={row.detail}
 					href={row.href}
+					urlList={row.urlList}
 					codeSnippet={row.codeSnippet}
 					sectionHeader={row.sectionHeader}
 					indented={row.indented}
@@ -350,6 +343,7 @@
 					title={row.title}
 					detail={row.detail}
 					href={row.href}
+					urlList={row.urlList}
 					codeSnippet={row.codeSnippet}
 					sectionHeader={row.sectionHeader}
 					indented={row.indented}
