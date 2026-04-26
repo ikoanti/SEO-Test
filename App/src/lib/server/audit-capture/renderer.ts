@@ -5,7 +5,24 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
 import type { Page } from 'playwright-core';
 
-const ASSETS_DIR = path.join(fileURLToPath(new URL('.', import.meta.url)), 'assets');
+function resolveAssetsDir() {
+	const candidates = [
+		process.env.AUDIT_CAPTURE_ASSETS_DIR,
+		path.join(fileURLToPath(new URL('.', import.meta.url)), 'assets'),
+		path.join(process.cwd(), 'src/lib/server/audit-capture/assets'),
+		path.join(process.cwd(), 'audit-capture-assets')
+	].filter((value): value is string => Boolean(value));
+
+	for (const candidate of candidates) {
+		if (fs.existsSync(path.join(candidate, 'styles/shell.css'))) {
+			return candidate;
+		}
+	}
+
+	return candidates[0];
+}
+
+const ASSETS_DIR = resolveAssetsDir();
 const SIDEBAR_WIDTH = 420;
 const CAPTURE_HEIGHT = 900;
 const WINDOW_HEIGHT = 900;

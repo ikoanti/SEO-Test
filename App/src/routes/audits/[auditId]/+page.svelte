@@ -531,8 +531,6 @@
 					</div>
 					<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 					<div class="report-output">{@html pageData.reportHtml}</div>
-				{:else if !isReportPending()}
-					<p class="muted">No generated report yet.</p>
 				{/if}
 			</div>
 		{/if}
