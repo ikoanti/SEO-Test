@@ -37,6 +37,7 @@
 		section: LegacySection;
 		item?: AuditItemView;
 	} = $props();
+	const previewLimit = 5;
 	let selectedStatus = $state<AuditFindingStatusFilter | null>(null);
 	let showPassedFindings = $state(false);
 	let showAllWarnFindings = $state(false);
@@ -77,43 +78,25 @@
 			return findingsByStatus.fail;
 		}
 
-		return findingsByStatus.fail.slice(0, 5);
+		return findingsByStatus.fail.slice(0, previewLimit);
 	});
-	const hiddenFailCount = $derived.by(() => {
-		if (selectedStatus === 'fail' || showAllFailFindings) {
-			return 0;
-		}
-
-		return Math.max(findingsByStatus.fail.length - 5, 0);
-	});
+	const isFailSectionExpandable = $derived.by(() => findingsByStatus.fail.length > previewLimit);
 	const visibleWarnFindings = $derived.by(() => {
 		if (selectedStatus === 'warn' || showAllWarnFindings) {
 			return findingsByStatus.warn;
 		}
 
-		return findingsByStatus.warn.slice(0, 5);
+		return findingsByStatus.warn.slice(0, previewLimit);
 	});
-	const hiddenWarnCount = $derived.by(() => {
-		if (selectedStatus === 'warn' || showAllWarnFindings) {
-			return 0;
-		}
-
-		return Math.max(findingsByStatus.warn.length - 5, 0);
-	});
+	const isWarnSectionExpandable = $derived.by(() => findingsByStatus.warn.length > previewLimit);
 	const visibleInfoFindings = $derived.by(() => {
 		if (showAllInfoFindings) {
 			return findingsByStatus.info;
 		}
 
-		return findingsByStatus.info.slice(0, 5);
+		return findingsByStatus.info.slice(0, previewLimit);
 	});
-	const hiddenInfoCount = $derived.by(() => {
-		if (showAllInfoFindings) {
-			return 0;
-		}
-
-		return Math.max(findingsByStatus.info.length - 5, 0);
-	});
+	const isInfoSectionExpandable = $derived.by(() => findingsByStatus.info.length > previewLimit);
 	const visiblePassFindings = $derived.by(() => {
 		if (selectedStatus === 'pass' || showPassedFindings || findingsByStatus.pass.length <= 1) {
 			return findingsByStatus.pass;
@@ -121,19 +104,13 @@
 
 		return [];
 	});
-	const hiddenPassCount = $derived.by(() => {
-		if (selectedStatus === 'pass' || showPassedFindings) {
-			return 0;
-		}
-
-		return findingsByStatus.pass.length > 1 ? findingsByStatus.pass.length : 0;
-	});
+	const showPassSectionHeader = $derived.by(() => findingsByStatus.pass.length > 1);
 	const hasVisibleFindings = $derived.by(
 		() =>
-			visibleFailFindings.length > 0 ||
-			visibleWarnFindings.length > 0 ||
-			visibleInfoFindings.length > 0 ||
-			visiblePassFindings.length > 0
+			findingsByStatus.fail.length > 0 ||
+			findingsByStatus.warn.length > 0 ||
+			findingsByStatus.info.length > 0 ||
+			findingsByStatus.pass.length > 0
 	);
 	const showSummaryRow = $derived(
 		Boolean(
@@ -153,6 +130,19 @@
 	{/if}
 	<ul class={`check-list ${section.mini ? 'mini-list' : ''}`}>
 		{#if hasVisibleFindings}
+			{#if findingsByStatus.fail.length > 0}
+				<AuditFindingRow
+					status="fail"
+					title={`${findingsByStatus.fail.length} ${findingsByStatus.fail.length === 1 ? 'fail' : 'fails'}`}
+					clickable={isFailSectionExpandable}
+					expanded={showAllFailFindings}
+					onactivate={isFailSectionExpandable
+						? () => {
+								showAllFailFindings = !showAllFailFindings;
+							}
+						: undefined}
+				/>
+			{/if}
 			{#each visibleFailFindings as finding, index (`${item?.id || section.key}-fail-${index}`)}
 				<AuditFindingRow
 					status={finding.status || 'info'}
@@ -164,25 +154,17 @@
 						: undefined}
 				/>
 			{/each}
-			{#if hiddenFailCount > 0}
+			{#if findingsByStatus.warn.length > 0}
 				<AuditFindingRow
-					status="fail"
-					title={`${hiddenFailCount} more fails`}
-					clickable={true}
-					expanded={showAllFailFindings}
-					onactivate={() => {
-						showAllFailFindings = !showAllFailFindings;
-					}}
-				/>
-			{:else if findingsByStatus.fail.length > 5}
-				<AuditFindingRow
-					status="fail"
-					title="Collapse fails"
-					clickable={true}
-					expanded={showAllFailFindings}
-					onactivate={() => {
-						showAllFailFindings = !showAllFailFindings;
-					}}
+					status="warn"
+					title={`${findingsByStatus.warn.length} ${findingsByStatus.warn.length === 1 ? 'issue' : 'issues'}`}
+					clickable={isWarnSectionExpandable}
+					expanded={showAllWarnFindings}
+					onactivate={isWarnSectionExpandable
+						? () => {
+								showAllWarnFindings = !showAllWarnFindings;
+							}
+						: undefined}
 				/>
 			{/if}
 			{#each visibleWarnFindings as finding, index (`${item?.id || section.key}-warn-${index}`)}
@@ -196,25 +178,17 @@
 						: undefined}
 				/>
 			{/each}
-			{#if hiddenWarnCount > 0}
+			{#if findingsByStatus.info.length > 0}
 				<AuditFindingRow
-					status="warn"
-					title={`${hiddenWarnCount} more issues`}
-					clickable={true}
-					expanded={showAllWarnFindings}
-					onactivate={() => {
-						showAllWarnFindings = !showAllWarnFindings;
-					}}
-				/>
-			{:else if findingsByStatus.warn.length > 5}
-				<AuditFindingRow
-					status="warn"
-					title="Collapse issues"
-					clickable={true}
-					expanded={showAllWarnFindings}
-					onactivate={() => {
-						showAllWarnFindings = !showAllWarnFindings;
-					}}
+					status="info"
+					title={`${findingsByStatus.info.length} ${findingsByStatus.info.length === 1 ? 'item' : 'items'}`}
+					clickable={isInfoSectionExpandable}
+					expanded={showAllInfoFindings}
+					onactivate={isInfoSectionExpandable
+						? () => {
+								showAllInfoFindings = !showAllInfoFindings;
+							}
+						: undefined}
 				/>
 			{/if}
 			{#each visibleInfoFindings as finding, index (`${item?.id || section.key}-info-${index}`)}
@@ -228,24 +202,14 @@
 						: undefined}
 				/>
 			{/each}
-			{#if hiddenInfoCount > 0}
+			{#if showPassSectionHeader}
 				<AuditFindingRow
-					status="info"
-					title={`${hiddenInfoCount} more items`}
+					status="pass"
+					title={`${findingsByStatus.pass.length} passed`}
 					clickable={true}
-					expanded={showAllInfoFindings}
+					expanded={showPassedFindings}
 					onactivate={() => {
-						showAllInfoFindings = !showAllInfoFindings;
-					}}
-				/>
-			{:else if findingsByStatus.info.length > 5}
-				<AuditFindingRow
-					status="info"
-					title="Collapse items"
-					clickable={true}
-					expanded={showAllInfoFindings}
-					onactivate={() => {
-						showAllInfoFindings = !showAllInfoFindings;
+						showPassedFindings = !showPassedFindings;
 					}}
 				/>
 			{/if}
@@ -260,39 +224,17 @@
 						: undefined}
 				/>
 			{/each}
-			{#if hiddenPassCount > 0}
-				<AuditFindingRow
-					status="pass"
-					title={`${hiddenPassCount} passed`}
-					clickable={true}
-					expanded={showPassedFindings}
-					onactivate={() => {
-						showPassedFindings = !showPassedFindings;
-					}}
-				/>
-			{/if}
 		{:else if summaryItem}
 			<AuditFindingRow
 				status={summaryItem.status || 'info'}
 				title={summaryItem.summary || 'No findings.'}
 			/>
-			{#if hiddenPassCount > 0}
-				<AuditFindingRow
-					status="pass"
-					title={`${hiddenPassCount} passed`}
-					clickable={true}
-					expanded={showPassedFindings}
-					onactivate={() => {
-						showPassedFindings = !showPassedFindings;
-					}}
-				/>
-			{/if}
 		{:else if showEmptyRow}
 			<AuditFindingRow status="info" title="No persisted result for this check." />
-		{:else if hiddenPassCount > 0}
+		{:else if showPassSectionHeader}
 			<AuditFindingRow
 				status="pass"
-				title={`${hiddenPassCount} passed`}
+				title={`${findingsByStatus.pass.length} passed`}
 				clickable={true}
 				expanded={showPassedFindings}
 				onactivate={() => {
