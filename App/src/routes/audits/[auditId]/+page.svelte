@@ -323,7 +323,7 @@
 				? docxResult
 				: new Blob([
 						ArrayBuffer.isView(docxResult)
-							? new Uint8Array(docxResult.buffer, docxResult.byteOffset, docxResult.byteLength)
+							? Uint8Array.from(docxResult)
 							: docxResult
 					], {
 						type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
