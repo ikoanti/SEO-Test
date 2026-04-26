@@ -135,7 +135,7 @@ IMPORTANT RULES:
 export async function generateReportHtml(domain: string, auditData: unknown) {
 	const anthropic = getAnthropicClient();
 	const message = await anthropic.messages.create({
-		model: 'claude-sonnet-4-20250514',
+		model: 'claude-sonnet-4-6',
 		max_tokens: 8192,
 		messages: [{ role: 'user', content: buildReportPrompt(domain, auditData) }]
 	});
@@ -176,7 +176,7 @@ Return the result STRICTLY as a JSON object with these exact keys:
 "aiVisibility", "monthlyAudience", "mentions", "citedPages", "performingTopics", "topicOpportunities", "citedSources", "sourceOpportunities".`;
 
 	const message = await anthropic.messages.create({
-		model: 'claude-sonnet-4-20250514',
+		model: 'claude-sonnet-4-6',
 		max_tokens: 1024,
 		messages: [
 			{
