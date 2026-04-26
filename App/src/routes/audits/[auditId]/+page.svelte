@@ -2,7 +2,6 @@
 	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import AuditFindingCard from '$lib/components/AuditFindingCard.svelte';
-	import AuditFindingRow from '$lib/components/AuditFindingRow.svelte';
 	import { ArrowLeft, Copy, Download, FileText, FileUp, Sparkles } from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import type { ActionData } from './$types';
@@ -364,12 +363,6 @@
 					<span class="metric-value">{displayValue(openPageRank().globalRank)}</span>
 				</div>
 			</div>
-			<ul class="check-list">
-				<AuditFindingRow
-					status="info"
-					title={itemByKey('openPageRank')?.summary || 'Open Page Rank metrics'}
-				/>
-			</ul>
 		</div>
 
 		<div class="card legacy-card" id="card-speed">
@@ -764,15 +757,6 @@
 		flex-wrap: wrap;
 		gap: 0.75rem;
 		margin-bottom: 1rem;
-	}
-
-	.check-list {
-		display: flex;
-		flex-direction: column;
-		gap: 0.75rem;
-		padding: 0;
-		margin: 0;
-		list-style: none;
 	}
 
 	.report-generate-btn,

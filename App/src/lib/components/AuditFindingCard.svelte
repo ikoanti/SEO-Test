@@ -86,8 +86,13 @@
 		return item.findings.filter((finding) => finding.status === targetStatus);
 	});
 	const showSummaryRow = $derived(
-		Boolean(item && !item.findings?.length && (!selectedStatus || item.status === targetStatusForFilter[selectedStatus]))
+		Boolean(
+			item &&
+			!item.findings?.length &&
+			(!selectedStatus || item.status === targetStatusForFilter[selectedStatus])
+		)
 	);
+	const summaryItem = $derived(showSummaryRow ? item : undefined);
 	const showEmptyRow = $derived(Boolean(!item));
 </script>
 
@@ -119,10 +124,10 @@
 						: undefined}
 				/>
 			{/each}
-		{:else if showSummaryRow}
+		{:else if summaryItem}
 			<AuditFindingRow
-				status={(item.status as 'ok' | 'warn' | 'err' | 'info' | undefined) || 'info'}
-				title={item.summary || 'No findings.'}
+				status={(summaryItem.status as 'ok' | 'warn' | 'err' | 'info' | undefined) || 'info'}
+				title={summaryItem.summary || 'No findings.'}
 			/>
 		{:else if showEmptyRow}
 			<AuditFindingRow status="info" title="No persisted result for this check." />
