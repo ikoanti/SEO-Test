@@ -1,5 +1,7 @@
+import type { AuditFindingStatus } from '$lib/audit-status';
+
 type AuditListItem = {
-	status?: string;
+	status?: AuditFindingStatus;
 	detail?: string;
 	title?: string;
 };
@@ -31,12 +33,12 @@ export type AuditResult = {
 export type NormalizedAuditFindingType = {
 	key: string;
 	label: string;
-	status: 'ok' | 'warn' | 'err' | 'info';
+	status: AuditFindingStatus;
 	summary: string;
 	stats_json: string;
 	sort_order: number;
 	findings: Array<{
-		status: 'ok' | 'warn' | 'err' | 'info';
+		status: AuditFindingStatus;
 		title: string;
 		detail: string;
 		page_url: string;
@@ -92,22 +94,22 @@ function truncateText(value: string, maxLength: number) {
 	return `${value.slice(0, Math.max(0, maxLength - 1))}…`;
 }
 
-function deriveStatusFromCounts(items: AuditListItem[]): 'ok' | 'warn' | 'err' | 'info' {
+function deriveStatusFromCounts(items: AuditListItem[]): AuditFindingStatus {
 	const counts = items.reduce(
 		(accumulator, item) => {
 			const status = item.status || 'info';
-			if (status === 'err') accumulator.err += 1;
+			if (status === 'fail') accumulator.fail += 1;
 			else if (status === 'warn') accumulator.warn += 1;
-			else if (status === 'ok') accumulator.ok += 1;
+			else if (status === 'pass') accumulator.pass += 1;
 			else accumulator.info += 1;
 			return accumulator;
 		},
-		{ ok: 0, warn: 0, err: 0, info: 0 }
+		{ pass: 0, warn: 0, fail: 0, info: 0 }
 	);
 
-	if (counts.err > 0) return 'err';
+	if (counts.fail > 0) return 'fail';
 	if (counts.warn > 0) return 'warn';
-	if (counts.ok > 0) return 'ok';
+	if (counts.pass > 0) return 'pass';
 	return 'info';
 }
 
@@ -134,7 +136,7 @@ function buildListSection(
 		}
 
 		return {
-			status: (item.status || 'info') as 'ok' | 'warn' | 'err' | 'info',
+			status: (item.status || 'info') as AuditFindingStatus,
 			title,
 			detail,
 			page_url,
@@ -159,7 +161,7 @@ function buildMetricSection(
 	order: number,
 	summary: string,
 	stats: Record<string, unknown>,
-	status: 'ok' | 'warn' | 'err' | 'info' = 'info'
+	status: AuditFindingStatus = 'info'
 ): NormalizedAuditFindingType {
 	return {
 		key,
@@ -188,7 +190,13 @@ export function buildNormalizedAuditItems(audit: AuditResult): NormalizedAuditFi
 					? Math.round((mobileScore + desktopScore) / 2)
 					: 0;
 			const status =
-				averageScore >= 90 ? 'ok' : averageScore >= 50 ? 'warn' : averageScore > 0 ? 'err' : 'info';
+				averageScore >= 90
+					? 'pass'
+					: averageScore >= 50
+						? 'warn'
+						: averageScore > 0
+							? 'fail'
+							: 'info';
 
 			items.push(
 				buildMetricSection(

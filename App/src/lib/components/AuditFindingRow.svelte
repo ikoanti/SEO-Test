@@ -1,17 +1,16 @@
 <script lang="ts">
+	import type { AuditFindingStatus } from '$lib/audit-status';
 	import { AlertTriangle, CheckCircle2, CircleX, Info } from 'lucide-svelte';
 
-	type RowStatus = 'ok' | 'warn' | 'err' | 'info';
-
 	let {
-		status = 'info',
+		status = 'info' as AuditFindingStatus,
 		title,
 		detail = '',
 		href,
 		hrefLabel,
 		codeSnippet
 	}: {
-		status?: RowStatus;
+		status?: AuditFindingStatus;
 		title: string;
 		detail?: string;
 		href?: string;
@@ -23,11 +22,11 @@
 <li class="finding-row">
 	<div class="check-status">
 		<span class={`status-icon status-${status}`}>
-			{#if status === 'ok'}
+			{#if status === 'pass'}
 				<CheckCircle2 size={18} strokeWidth={2.3} />
 			{:else if status === 'warn'}
 				<AlertTriangle size={18} strokeWidth={2.3} />
-			{:else if status === 'err'}
+			{:else if status === 'fail'}
 				<CircleX size={18} strokeWidth={2.3} />
 			{:else}
 				<Info size={18} strokeWidth={2.3} />
@@ -76,16 +75,16 @@
 		flex: 0 0 auto;
 	}
 
-	.status-ok {
-		color: var(--success);
+	.status-pass {
+		color: var(--status-pass);
 	}
 
 	.status-warn {
-		color: var(--warning);
+		color: var(--status-warn);
 	}
 
-	.status-err {
-		color: var(--danger);
+	.status-fail {
+		color: var(--status-fail);
 	}
 
 	.status-info {

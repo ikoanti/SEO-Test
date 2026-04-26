@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import type { AuditFindingStatus } from '$lib/audit-status';
 	import AuditFindingCard from '$lib/components/AuditFindingCard.svelte';
 	import { ArrowLeft, Copy, Download, FileText, FileUp, Sparkles } from 'lucide-svelte';
 	import { onMount } from 'svelte';
@@ -8,7 +9,7 @@
 
 	type AuditFindingView = {
 		id: string;
-		status?: string;
+		status?: AuditFindingStatus;
 		title?: string;
 		detail?: string;
 		page_url?: string;
@@ -19,7 +20,7 @@
 		id: string;
 		key: string;
 		label: string;
-		status?: string;
+		status?: AuditFindingStatus;
 		runStatus?: string;
 		summary?: string;
 		stats?: unknown;
@@ -62,8 +63,6 @@
 		subtitle?: string;
 		mini?: boolean;
 	};
-
-	type StatusFilter = 'good' | 'warn' | 'bad';
 
 	const legacySections: LegacySection[] = [
 		{ key: 'h1Tags', title: 'H1 Elements', subtitle: 'Scanning exactly 50 pages…', mini: true },
@@ -131,7 +130,6 @@
 	let { data, form }: { data: AuditPageViewData; form?: ActionData } = $props();
 	let liveData = $state<AuditPageViewData | null>(null);
 	const pageData = $derived(liveData ?? data);
-	let selectedStatusFilter = $state<StatusFilter | null>(null);
 	let copyState = $state('Copy');
 
 	const pageSpeedStrategies = ['mobile', 'desktop'] as const;
@@ -147,11 +145,6 @@
 	const pageUrl = () => pageData.auditRecord?.url || pageData.runRecord?.url || '';
 
 	const itemByKey = (key: string) => pageData.normalizedItems?.find((item) => item.key === key);
-	const statusForFilter: Record<StatusFilter, string> = {
-		good: 'ok',
-		warn: 'warn',
-		bad: 'err'
-	};
 	const getRecord = (value: unknown): Record<string, unknown> =>
 		value && typeof value === 'object' && !Array.isArray(value)
 			? (value as Record<string, unknown>)
@@ -162,30 +155,13 @@
 		value === undefined || value === null || value === '' ? fallback : String(value);
 	const openPageRank = () => auditSection('openPageRank');
 	const pageSpeed = () => auditSection('pageSpeed');
-	const visibleSections = $derived(
-		legacySections.filter((section) =>
-			matchesStatusFilter(itemByKey(section.key), selectedStatusFilter)
-		)
-	);
-
-	function matchesStatusFilter(item: AuditItemView | undefined, filter: StatusFilter | null) {
-		if (!filter) return true;
-		if (!item) return false;
-
-		const targetStatus = statusForFilter[filter];
-		if (item.findings.some((finding) => finding.status === targetStatus)) {
-			return true;
-		}
-
-		return item.status === targetStatus;
-	}
 
 	function scoreClass(score: unknown) {
 		const value = Number(score);
 		if (!Number.isFinite(value) || value <= 0) return '';
-		if (value >= 90) return 'good';
-		if (value >= 50) return 'needs-improvement';
-		return 'poor';
+		if (value >= 90) return 'pass';
+		if (value >= 50) return 'warn';
+		return 'fail';
 	}
 
 	function metricsForPageSpeed(strategy: 'mobile' | 'desktop') {
@@ -207,7 +183,7 @@
 		if (!total) return '';
 		const passedPct = (passed / total) * 100;
 		const warnPct = (warnings / total) * 100;
-		return `background: linear-gradient(to right, var(--success) 0%, var(--success) ${passedPct}%, var(--warning) ${passedPct}%, var(--warning) ${passedPct + warnPct}%, var(--danger) ${passedPct + warnPct}%, var(--danger) 100%)`;
+		return `background: linear-gradient(to right, var(--status-pass) 0%, var(--status-pass) ${passedPct}%, var(--status-warn) ${passedPct}%, var(--status-warn) ${passedPct + warnPct}%, var(--status-fail) ${passedPct + warnPct}%, var(--status-fail) 100%)`;
 	}
 
 	async function copyReport() {
@@ -391,12 +367,8 @@
 			</div>
 		</div>
 
-		{#each visibleSections as section (section.key)}
-			<AuditFindingCard
-				{section}
-				item={itemByKey(section.key)}
-				bind:selectedStatus={selectedStatusFilter}
-			/>
+		{#each legacySections as section (section.key)}
+			<AuditFindingCard {section} item={itemByKey(section.key)} />
 		{/each}
 
 		<div class="card legacy-card card-aiv" id="card-ai-visibility">
@@ -566,16 +538,16 @@
 	.summary-count {
 		font-size: 2rem;
 		font-weight: 800;
-		color: var(--success);
+		color: var(--status-pass);
 		line-height: 1;
 	}
 
 	.summary-count.warn {
-		color: var(--warning);
+		color: var(--status-warn);
 	}
 
 	.summary-count.fail {
-		color: var(--danger);
+		color: var(--status-fail);
 	}
 
 	.summary-label {
@@ -667,7 +639,7 @@
 	}
 
 	.highlight-green {
-		color: var(--success);
+		color: var(--status-pass);
 	}
 
 	.speed-container {
@@ -699,19 +671,19 @@
 		font-weight: 700;
 	}
 
-	.metric-circle.good {
-		border-color: var(--success);
-		color: var(--success);
+	.metric-circle.pass {
+		border-color: var(--status-pass);
+		color: var(--status-pass);
 	}
 
-	.metric-circle.needs-improvement {
-		border-color: var(--warning);
-		color: var(--warning);
+	.metric-circle.warn {
+		border-color: var(--status-warn);
+		color: var(--status-warn);
 	}
 
-	.metric-circle.poor {
-		border-color: var(--danger);
-		color: var(--danger);
+	.metric-circle.fail {
+		border-color: var(--status-fail);
+		color: var(--status-fail);
 	}
 
 	.speed-label {
@@ -779,6 +751,21 @@
 		color: #fca5a5;
 	}
 
+	.report-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 12px;
+		margin: 16px 0;
+	}
+
+	.report-output {
+		padding: 20px;
+		overflow: auto;
+		border-radius: 16px;
+		background: #ffffff;
+		color: #0f172a;
+	}
+
 	.ai-visibility-results {
 		margin-top: 1rem;
 		margin-bottom: 0;
@@ -787,6 +774,15 @@
 	.run-log-card {
 		max-width: 800px;
 		margin: 1.5rem auto 0;
+	}
+
+	pre {
+		padding: 16px;
+		overflow: auto;
+		border-radius: 12px;
+		background: rgba(0, 0, 0, 0.2);
+		white-space: pre-wrap;
+		word-break: break-word;
 	}
 
 	@keyframes fadeInUp {

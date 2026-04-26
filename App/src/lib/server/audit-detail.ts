@@ -1,3 +1,4 @@
+import type { AuditFindingStatus } from '$lib/audit-status';
 import {
 	getAudit,
 	getWorkflowByAuditId,
@@ -65,19 +66,19 @@ export async function buildAuditPageData(auditId: string, token?: string) {
 			const findings = (findingsByRunId.get(run.id) || []).map((finding) => ({
 				...finding,
 				meta: finding.meta_json ? JSON.parse(finding.meta_json) : null
-			})) as Array<Record<string, unknown> & { status?: string }>;
+			})) as Array<Record<string, unknown> & { status?: AuditFindingStatus }>;
 			const displaySummary =
 				typeof findings[0]?.detail === 'string' && findings[0].detail.trim()
 					? findings[0].detail
 					: typeof findings[0]?.title === 'string' && findings[0].title.trim()
 						? findings[0].title
 						: '';
-			const status = findings.some((finding) => finding.status === 'err')
-				? 'err'
+			const status = findings.some((finding) => finding.status === 'fail')
+				? 'fail'
 				: findings.some((finding) => finding.status === 'warn')
 					? 'warn'
-					: findings.some((finding) => finding.status === 'ok')
-						? 'ok'
+					: findings.some((finding) => finding.status === 'pass')
+						? 'pass'
 						: 'info';
 			return {
 				id: run.id,

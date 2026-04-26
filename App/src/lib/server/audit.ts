@@ -25,9 +25,9 @@ function createListResult() {
 }
 
 function addItem(summary, list, status, detail, extra = {}) {
-	if (status === 'ok') summary.passed += 1;
+	if (status === 'pass') summary.passed += 1;
 	if (status === 'warn') summary.warnings += 1;
-	if (status === 'err') summary.failed += 1;
+	if (status === 'fail') summary.failed += 1;
 	list.items.push({ status, detail, ...extra });
 }
 
@@ -241,7 +241,7 @@ async function analyzeRobots(origin, summary, logger) {
 		robotsSitemap = text.match(/^sitemap:\s*(.+)$/im)?.[1]?.trim() || null;
 
 		if (robotsSitemap)
-			addItem(summary, result, 'ok', 'Sitemap Reference Found', { title: robotsSitemap });
+			addItem(summary, result, 'pass', 'Sitemap Reference Found', { title: robotsSitemap });
 		else addItem(summary, result, 'warn', 'Missing Sitemap Reference');
 
 		SEARCH_BOTS.forEach((bot) => {
@@ -259,7 +259,7 @@ async function analyzeRobots(origin, summary, logger) {
 			addItem(
 				summary,
 				result,
-				blocked ? 'err' : 'ok',
+				blocked ? 'fail' : 'pass',
 				blocked ? `${bot} is Blocked` : `${bot} Allowed`
 			);
 		});
@@ -282,9 +282,9 @@ async function analyzeRobots(origin, summary, logger) {
 
 			if (found && blocked) {
 				aiIssues += 1;
-				addItem(summary, result, 'err', `${bot} Blocked`, { category: 'ai' });
+				addItem(summary, result, 'fail', `${bot} Blocked`, { category: 'ai' });
 			} else if (found) {
-				addItem(summary, result, 'ok', `${bot} Allowed`, { category: 'ai' });
+				addItem(summary, result, 'pass', `${bot} Allowed`, { category: 'ai' });
 			} else {
 				aiIssues += 1;
 				addItem(summary, result, 'warn', `${bot} Not Specified`, { category: 'ai' });
@@ -295,7 +295,7 @@ async function analyzeRobots(origin, summary, logger) {
 			aiIssues > 0 ? `${aiIssues} AI issue(s) found` : 'robots.txt configuration looks good.';
 	} catch (error) {
 		logger.warn(`robots: failed (${error.message})`);
-		addItem(summary, result, 'err', 'robots.txt not found or unavailable.');
+		addItem(summary, result, 'fail', 'robots.txt not found or unavailable.');
 	}
 
 	return { result, robotsSitemap };
@@ -317,7 +317,7 @@ async function analyzeSitemap(origin, robotsSitemap, summary, logger) {
 			if (!response.data.includes('<urlset') && !response.data.includes('<sitemapindex')) continue;
 			const urls = (response.data.match(/<url>/g) || []).length;
 			const maps = (response.data.match(/<sitemap>/g) || []).length;
-			addItem(summary, result, 'ok', `Found at ${new URL(candidate).pathname}`, {
+			addItem(summary, result, 'pass', `Found at ${new URL(candidate).pathname}`, {
 				title:
 					maps > 0
 						? `Sitemap index with ${maps} child sitemap(s).`
@@ -329,7 +329,7 @@ async function analyzeSitemap(origin, robotsSitemap, summary, logger) {
 		}
 	}
 
-	if (!foundAny) addItem(summary, result, 'err', 'No Sitemap Found');
+	if (!foundAny) addItem(summary, result, 'fail', 'No Sitemap Found');
 	return result;
 }
 
@@ -351,7 +351,7 @@ function analyzeHomePage(urlObj, $, summary, logger) {
 	addItem(
 		summary,
 		structuredData,
-		schemaScripts > 0 ? 'ok' : 'warn',
+		schemaScripts > 0 ? 'pass' : 'warn',
 		schemaScripts > 0 ? 'JSON-LD Found' : 'No JSON-LD Found',
 		{ title: `${schemaScripts} JSON-LD block(s)` }
 	);
@@ -360,7 +360,7 @@ function analyzeHomePage(urlObj, $, summary, logger) {
 	addItem(
 		summary,
 		webIcons,
-		iconHref ? 'ok' : 'warn',
+		iconHref ? 'pass' : 'warn',
 		iconHref ? 'Favicon Present' : 'Favicon Missing',
 		{ title: iconHref || '' }
 	);
@@ -369,7 +369,7 @@ function analyzeHomePage(urlObj, $, summary, logger) {
 	addItem(
 		summary,
 		webIcons,
-		appleTouchHref ? 'ok' : 'warn',
+		appleTouchHref ? 'pass' : 'warn',
 		appleTouchHref ? 'Apple Touch Icon Present' : 'Apple Touch Icon Missing',
 		{ title: appleTouchHref || '' }
 	);
@@ -377,7 +377,7 @@ function analyzeHomePage(urlObj, $, summary, logger) {
 	addItem(
 		summary,
 		ssl,
-		urlObj.protocol === 'https:' ? 'ok' : 'err',
+		urlObj.protocol === 'https:' ? 'pass' : 'fail',
 		urlObj.protocol === 'https:' ? 'HTTPS Enabled' : 'HTTPS Not Enabled'
 	);
 
@@ -385,14 +385,14 @@ function analyzeHomePage(urlObj, $, summary, logger) {
 	addItem(
 		summary,
 		mobileUsability,
-		viewport ? 'ok' : 'warn',
+		viewport ? 'pass' : 'warn',
 		viewport ? 'Viewport Meta Tag Present' : 'Viewport Meta Tag Missing'
 	);
 
 	addItem(
 		summary,
 		flash,
-		$('object, embed').length > 0 ? 'warn' : 'ok',
+		$('object, embed').length > 0 ? 'warn' : 'pass',
 		$('object, embed').length > 0 ? 'Legacy Flash-like embeds found' : 'No Flash embeds found'
 	);
 
@@ -400,7 +400,7 @@ function analyzeHomePage(urlObj, $, summary, logger) {
 	addItem(
 		summary,
 		charsetResult,
-		charset ? 'ok' : 'warn',
+		charset ? 'pass' : 'warn',
 		charset ? 'Charset Declared' : 'Charset Missing',
 		{ title: charset || '' }
 	);
@@ -409,7 +409,7 @@ function analyzeHomePage(urlObj, $, summary, logger) {
 	addItem(
 		summary,
 		loremIpsum,
-		/lorem ipsum/i.test(bodyText) ? 'warn' : 'ok',
+		/lorem ipsum/i.test(bodyText) ? 'warn' : 'pass',
 		/lorem ipsum/i.test(bodyText) ? 'Lorem Ipsum Detected' : 'No Lorem Ipsum Detected'
 	);
 
@@ -419,7 +419,7 @@ function analyzeHomePage(urlObj, $, summary, logger) {
 		addItem(
 			summary,
 			openGraph,
-			content ? 'ok' : 'warn',
+			content ? 'pass' : 'warn',
 			content ? `${property} Present` : `${property} Missing`,
 			{ title: content || '' }
 		);
@@ -428,7 +428,7 @@ function analyzeHomePage(urlObj, $, summary, logger) {
 	addItem(
 		summary,
 		internationalDomains,
-		/\.[a-z]{2}$/i.test(urlObj.hostname) ? 'ok' : 'warn',
+		/\.[a-z]{2}$/i.test(urlObj.hostname) ? 'pass' : 'warn',
 		/\.[a-z]{2}$/i.test(urlObj.hostname)
 			? 'Country-code domain detected'
 			: 'Generic domain detected',
@@ -441,7 +441,7 @@ function analyzeHomePage(urlObj, $, summary, logger) {
 	addItem(
 		summary,
 		trustSignals,
-		trustSignalsMatches.length >= 3 ? 'ok' : 'warn',
+		trustSignalsMatches.length >= 3 ? 'pass' : 'warn',
 		trustSignalsMatches.length >= 3 ? 'Trust signals detected' : 'Limited trust signals detected',
 		{ title: trustSignalsMatches.join(', ') || 'None' }
 	);
@@ -451,7 +451,7 @@ function analyzeHomePage(urlObj, $, summary, logger) {
 	addItem(
 		summary,
 		lazyLoadImages,
-		totalImages === 0 || lazyImages > 0 ? 'ok' : 'warn',
+		totalImages === 0 || lazyImages > 0 ? 'pass' : 'warn',
 		totalImages === 0 || lazyImages > 0 ? 'Lazy loading present' : 'No lazy loading detected',
 		{ title: `${lazyImages}/${totalImages} images use loading="lazy"` }
 	);
@@ -501,8 +501,8 @@ async function analyzeMetaAndHeadings(pages, summary, logger) {
 				.filter(Boolean).length;
 
 			if (h1Count === 1 && emptyH1 === 0)
-				addItem(summary, h1Tags, 'ok', 'Single H1 tag present', { title: page });
-			else if (h1Count === 0) addItem(summary, h1Tags, 'err', 'Missing H1 tag', { title: page });
+				addItem(summary, h1Tags, 'pass', 'Single H1 tag present', { title: page });
+			else if (h1Count === 0) addItem(summary, h1Tags, 'fail', 'Missing H1 tag', { title: page });
 			else
 				addItem(
 					summary,
@@ -513,12 +513,12 @@ async function analyzeMetaAndHeadings(pages, summary, logger) {
 				);
 
 			if (title.length === 0)
-				addItem(summary, metaTitles, 'err', 'Missing meta title', { title: page });
+				addItem(summary, metaTitles, 'fail', 'Missing meta title', { title: page });
 			else if (title.length > 60)
 				addItem(summary, metaTitles, 'warn', 'Meta title too long', {
 					title: `${page} (${title.length} chars)`
 				});
-			else addItem(summary, metaTitles, 'ok', 'Meta title looks good', { title });
+			else addItem(summary, metaTitles, 'pass', 'Meta title looks good', { title });
 
 			if (metaDescription.length > 160)
 				addItem(summary, metaTitles, 'warn', 'Meta description too long', {
@@ -528,12 +528,12 @@ async function analyzeMetaAndHeadings(pages, summary, logger) {
 				addItem(summary, imageAltTags, 'warn', 'Images missing alt text', {
 					title: `${page} (${missingAlt} images)`
 				});
-			else addItem(summary, imageAltTags, 'ok', 'All images include alt text', { title: page });
+			else addItem(summary, imageAltTags, 'pass', 'All images include alt text', { title: page });
 
 			addItem(
 				summary,
 				canonicalUrls,
-				canonical ? 'ok' : 'warn',
+				canonical ? 'pass' : 'warn',
 				canonical ? 'Canonical URL present' : 'Canonical URL missing',
 				{ title: canonical || page }
 			);
@@ -542,7 +542,7 @@ async function analyzeMetaAndHeadings(pages, summary, logger) {
 			addItem(
 				summary,
 				internalLinks,
-				sameOriginLinks.length > 0 ? 'ok' : 'warn',
+				sameOriginLinks.length > 0 ? 'pass' : 'warn',
 				sameOriginLinks.length > 0 ? 'Internal links found' : 'No crawlable internal links found',
 				{ title: `${page} (${sameOriginLinks.length} links)` }
 			);
@@ -550,7 +550,7 @@ async function analyzeMetaAndHeadings(pages, summary, logger) {
 			addItem(
 				summary,
 				contentQuality,
-				wordCount >= 250 ? 'ok' : 'warn',
+				wordCount >= 250 ? 'pass' : 'warn',
 				wordCount >= 250 ? 'Content length looks reasonable' : 'Thin content detected',
 				{ title: `${page} (${wordCount} words)` }
 			);
@@ -558,7 +558,7 @@ async function analyzeMetaAndHeadings(pages, summary, logger) {
 			addItem(
 				summary,
 				shopifyUrls,
-				/\/collections\/|\/products\//.test(page) ? 'warn' : 'ok',
+				/\/collections\/|\/products\//.test(page) ? 'warn' : 'pass',
 				/\/collections\/|\/products\//.test(page)
 					? 'Shopify URL pattern detected'
 					: 'No Shopify URL pattern detected',

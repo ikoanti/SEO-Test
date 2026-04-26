@@ -149,7 +149,7 @@ migrate((app) => {
             fields: [
                 { name: 'website', type: 'relation', required: true, maxSelect: 1, collectionId: app.findCollectionByNameOrId('websites').id, cascadeDelete: true },
                 { name: 'created_by', type: 'relation', required: false, maxSelect: 1, collectionId: authCollection.id, cascadeDelete: true },
-                { name: 'status', type: 'text', required: true, max: 40 },
+                { name: 'status', type: 'select', required: true, maxSelect: 1, values: ['queued', 'running', 'completed', 'failed'] },
                 { name: 'completed_at', type: 'date', required: false },
                 { name: 'summary_json', type: 'editor', required: false },
                 { name: 'report_html', type: 'editor', required: false },
@@ -177,7 +177,7 @@ migrate((app) => {
             deleteRule: authenticatedRule,
             fields: [
                 { name: 'audit', type: 'relation', required: true, maxSelect: 1, collectionId: app.findCollectionByNameOrId('audits').id, cascadeDelete: true },
-                { name: 'status', type: 'text', required: true, max: 40 },
+                { name: 'status', type: 'select', required: true, maxSelect: 1, values: ['queued', 'running', 'completed', 'failed'] },
                 { name: 'queued_at', type: 'date', required: true },
                 { name: 'started_at', type: 'date', required: false },
                 { name: 'completed_at', type: 'date', required: false },
@@ -205,7 +205,7 @@ migrate((app) => {
             fields: [
                 { name: 'workflow', type: 'relation', required: true, maxSelect: 1, collectionId: app.findCollectionByNameOrId('workflows').id, cascadeDelete: true },
                 { name: 'audit_finding_type', type: 'relation', required: true, maxSelect: 1, collectionId: app.findCollectionByNameOrId('audit_finding_types').id, cascadeDelete: true },
-                { name: 'status', type: 'text', required: true, max: 40 },
+                { name: 'status', type: 'select', required: true, maxSelect: 1, values: ['queued', 'running', 'completed', 'failed'] },
                 { name: 'started_at', type: 'date', required: true },
                 { name: 'completed_at', type: 'date', required: false },
                 { name: 'error_message', type: 'editor', required: false },
@@ -235,7 +235,7 @@ migrate((app) => {
                 { name: 'audit', type: 'relation', required: true, maxSelect: 1, collectionId: app.findCollectionByNameOrId('audits').id, cascadeDelete: true },
                 { name: 'audit_finding_type', type: 'relation', required: true, maxSelect: 1, collectionId: app.findCollectionByNameOrId('audit_finding_types').id, cascadeDelete: true },
                 { name: 'run', type: 'relation', required: false, maxSelect: 1, collectionId: app.findCollectionByNameOrId('runs').id, cascadeDelete: true },
-                { name: 'status', type: 'text', required: true, max: 40 },
+                { name: 'status', type: 'select', required: true, maxSelect: 1, values: ['pass', 'warn', 'fail', 'info'] },
                 { name: 'title', type: 'text', required: true, max: 255 },
                 { name: 'detail', type: 'editor', required: false },
                 { name: 'page_url', type: 'url', required: false },

@@ -1,23 +1,22 @@
 <script lang="ts">
+	import type { AuditFindingStatusFilter } from '$lib/audit-status';
 	import { AlertTriangle, CheckCircle2, CircleX } from 'lucide-svelte';
 
-	type StatusFilter = 'good' | 'warn' | 'bad';
-
 	let {
-		good,
+		pass,
 		warn,
-		bad,
+		fail,
 		selectable = true,
-		selectedStatus = $bindable<StatusFilter | null>(null)
+		selectedStatus = $bindable<AuditFindingStatusFilter | null>(null)
 	}: {
-		good: number;
+		pass: number;
 		warn: number;
-		bad: number;
+		fail: number;
 		selectable?: boolean;
-		selectedStatus?: StatusFilter | null;
+		selectedStatus?: AuditFindingStatusFilter | null;
 	} = $props();
 
-	function toggleSelection(status: StatusFilter) {
+	function toggleSelection(status: AuditFindingStatusFilter) {
 		if (!selectable) return;
 		selectedStatus = selectedStatus === status ? null : status;
 	}
@@ -27,15 +26,15 @@
 	<svelte:element
 		this={selectable ? 'button' : 'div'}
 		type={selectable ? 'button' : undefined}
-		class={`scan-stat good ${selectedStatus === 'good' ? 'is-active' : ''} ${selectable ? 'is-selectable' : 'is-static'}`}
-		aria-pressed={selectable ? selectedStatus === 'good' : undefined}
+		class={`scan-stat pass ${selectedStatus === 'pass' ? 'is-active' : ''} ${selectable ? 'is-selectable' : 'is-static'}`}
+		aria-pressed={selectable ? selectedStatus === 'pass' : undefined}
 		role={selectable ? undefined : 'status'}
 		tabindex={selectable ? 0 : undefined}
-		onclick={() => toggleSelection('good')}
+		onclick={() => toggleSelection('pass')}
 	>
 		<CheckCircle2 size={16} strokeWidth={2.25} />
-		<span>{good}</span>
-		<span>Good</span>
+		<span>{pass}</span>
+		<span>Pass</span>
 	</svelte:element>
 	<svelte:element
 		this={selectable ? 'button' : 'div'}
@@ -53,15 +52,15 @@
 	<svelte:element
 		this={selectable ? 'button' : 'div'}
 		type={selectable ? 'button' : undefined}
-		class={`scan-stat bad ${selectedStatus === 'bad' ? 'is-active' : ''} ${selectable ? 'is-selectable' : 'is-static'}`}
-		aria-pressed={selectable ? selectedStatus === 'bad' : undefined}
+		class={`scan-stat fail ${selectedStatus === 'fail' ? 'is-active' : ''} ${selectable ? 'is-selectable' : 'is-static'}`}
+		aria-pressed={selectable ? selectedStatus === 'fail' : undefined}
 		role={selectable ? undefined : 'status'}
 		tabindex={selectable ? 0 : undefined}
-		onclick={() => toggleSelection('bad')}
+		onclick={() => toggleSelection('fail')}
 	>
 		<CircleX size={16} strokeWidth={2.25} />
-		<span>{bad}</span>
-		<span>Missing</span>
+		<span>{fail}</span>
+		<span>Fail</span>
 	</svelte:element>
 </div>
 
@@ -97,19 +96,19 @@
 		box-shadow: inset 0 0 0 1px currentColor;
 	}
 
-	.scan-stat.good {
+	.scan-stat.pass {
 		background: rgba(16, 185, 129, 0.12);
-		color: var(--success);
+		color: var(--status-pass);
 	}
 
 	.scan-stat.warn {
 		background: rgba(245, 158, 11, 0.12);
-		color: var(--warning);
+		color: var(--status-warn);
 	}
 
-	.scan-stat.bad {
+	.scan-stat.fail {
 		background: rgba(239, 68, 68, 0.12);
-		color: var(--danger);
+		color: var(--status-fail);
 	}
 
 	.scan-stat :global(svg) {

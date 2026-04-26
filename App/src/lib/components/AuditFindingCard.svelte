@@ -1,10 +1,11 @@
 <script lang="ts">
+	import type { AuditFindingStatus, AuditFindingStatusFilter } from '$lib/audit-status';
 	import AuditFindingRow from '$lib/components/AuditFindingRow.svelte';
 	import AuditStatusPills from '$lib/components/AuditStatusPills.svelte';
 
 	type AuditFindingView = {
 		id: string;
-		status?: string;
+		status?: AuditFindingStatus;
 		title?: string;
 		detail?: string;
 		page_url?: string;
@@ -15,7 +16,7 @@
 		id: string;
 		key: string;
 		label: string;
-		status?: string;
+		status?: AuditFindingStatus;
 		runStatus?: string;
 		summary?: string;
 		stats?: unknown;
@@ -29,17 +30,14 @@
 		mini?: boolean;
 	};
 
-	type StatusFilter = 'good' | 'warn' | 'bad';
-
 	let {
 		section,
-		item,
-		selectedStatus = $bindable<StatusFilter | null>(null)
+		item
 	}: {
 		section: LegacySection;
 		item?: AuditItemView;
-		selectedStatus?: StatusFilter | null;
 	} = $props();
+	let selectedStatus = $state<AuditFindingStatusFilter | null>(null);
 
 	const getRecord = (value: unknown): Record<string, unknown> =>
 		value && typeof value === 'object' && !Array.isArray(value)
@@ -55,9 +53,9 @@
 	function statPills(item?: AuditItemView) {
 		const findings = item?.findings || [];
 		return {
-			good: findings.filter((finding) => finding.status === 'ok').length,
+			pass: findings.filter((finding) => finding.status === 'pass').length,
 			warn: findings.filter((finding) => finding.status === 'warn').length,
-			bad: findings.filter((finding) => finding.status === 'err').length
+			fail: findings.filter((finding) => finding.status === 'fail').length
 		};
 	}
 
@@ -72,10 +70,10 @@
 	}
 
 	const pills = $derived(statPills(item));
-	const targetStatusForFilter: Record<StatusFilter, 'ok' | 'warn' | 'err'> = {
-		good: 'ok',
+	const targetStatusForFilter: Record<AuditFindingStatusFilter, AuditFindingStatus> = {
+		pass: 'pass',
 		warn: 'warn',
-		bad: 'err'
+		fail: 'fail'
 	};
 	const filteredFindings = $derived.by(() => {
 		if (!item?.findings?.length || !selectedStatus) {
@@ -102,19 +100,19 @@
 		<p class="subtitle">{statsText(item) || section.subtitle}</p>
 	{/if}
 	{#if section.mini}
-		<AuditStatusPills good={pills.good} warn={pills.warn} bad={pills.bad} bind:selectedStatus />
+		<AuditStatusPills pass={pills.pass} warn={pills.warn} fail={pills.fail} bind:selectedStatus />
 	{/if}
 	{#if section.key === 'internalLinks'}
 		<div class="links-summary">
-			<div class="stat"><span>{pills.good + pills.warn + pills.bad}</span> Total</div>
-			<div class="stat"><span class="error">{pills.bad}</span> Broken</div>
+			<div class="stat"><span>{pills.pass + pills.warn + pills.fail}</span> Total</div>
+			<div class="stat"><span class="error">{pills.fail}</span> Broken</div>
 		</div>
 	{/if}
 	<ul class={`check-list ${section.mini ? 'mini-list' : ''}`}>
 		{#if filteredFindings.length}
 			{#each filteredFindings as finding, index (`${item?.id || section.key}-${index}`)}
 				<AuditFindingRow
-					status={(finding.status as 'ok' | 'warn' | 'err' | 'info' | undefined) || 'info'}
+					status={finding.status || 'info'}
 					title={finding.title || finding.status || 'Finding'}
 					detail={finding.detail}
 					href={finding.page_url}
@@ -126,7 +124,7 @@
 			{/each}
 		{:else if summaryItem}
 			<AuditFindingRow
-				status={(summaryItem.status as 'ok' | 'warn' | 'err' | 'info' | undefined) || 'info'}
+				status={summaryItem.status || 'info'}
 				title={summaryItem.summary || 'No findings.'}
 			/>
 		{:else if showEmptyRow}
