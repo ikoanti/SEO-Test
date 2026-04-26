@@ -45,12 +45,6 @@
 			? (value as Record<string, unknown>)
 			: {};
 
-	function statsText(item?: AuditItemView) {
-		const metaStats = item?.findings?.find((finding) => finding.meta)?.meta;
-		const stats = getRecord(metaStats).stats;
-		return typeof stats === 'string' ? stats : item?.summary || '';
-	}
-
 	function statPills(item?: AuditItemView) {
 		const findings = item?.findings || [];
 		return {
