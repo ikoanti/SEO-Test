@@ -14,7 +14,6 @@
 		title,
 		detail = '',
 		href,
-		hrefLabel,
 		codeSnippet,
 		clickable = false,
 		expanded = false,
@@ -24,12 +23,45 @@
 		title: string;
 		detail?: string;
 		href?: string;
-		hrefLabel?: string;
 		codeSnippet?: string;
 		clickable?: boolean;
 		expanded?: boolean;
 		onactivate?: (() => void) | undefined;
 	} = $props();
+
+	const isUrlLike = (value?: string) => {
+		if (!value) return false;
+		try {
+			new URL(value);
+			return true;
+		} catch {
+			return false;
+		}
+	};
+
+	const primaryText = $derived.by(() => {
+		if (clickable) {
+			return title;
+		}
+
+		if (href && detail && (isUrlLike(title) || title === href)) {
+			return detail;
+		}
+
+		return title;
+	});
+
+	const secondaryDetail = $derived.by(() => {
+		if (clickable) {
+			return detail;
+		}
+
+		if (href && detail && (isUrlLike(title) || title === href)) {
+			return '';
+		}
+
+		return detail;
+	});
 </script>
 
 <li class={`finding-row finding-row-${status}`}>
@@ -70,17 +102,17 @@
 					<Info size={18} strokeWidth={2.3} />
 				{/if}
 			</span>
-			{title}
+			{primaryText}
 		</div>
 	{/if}
-	{#if detail}
-		<div class="check-detail">{detail}</div>
+	{#if secondaryDetail}
+		<div class="check-detail">{secondaryDetail}</div>
 	{/if}
 	{#if href}
 		<div class="check-detail">
 			<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
 			<a class="check-link" {href} target="_blank" rel="noopener">
-				{hrefLabel || href}
+				{href}
 			</a>
 		</div>
 	{/if}

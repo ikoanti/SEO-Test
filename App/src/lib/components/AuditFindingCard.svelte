@@ -64,16 +64,6 @@
 		};
 	}
 
-	function linkLabel(url: string) {
-		try {
-			const parsed = new URL(url);
-			const label = `${parsed.pathname}${parsed.search}` || '/';
-			return label.length > 55 ? `${label.slice(0, 55)}...` : label;
-		} catch {
-			return url.length > 55 ? `${url.slice(0, 55)}...` : url;
-		}
-	}
-
 	const pills = $derived(statPills(item));
 	const targetStatusForFilter: Record<AuditFindingStatusFilter, AuditFindingStatus> = {
 		pass: 'pass',
@@ -170,7 +160,6 @@
 					title={finding.title || finding.status || 'Finding'}
 					detail={finding.detail}
 					href={finding.page_url}
-					hrefLabel={finding.page_url ? linkLabel(finding.page_url) : undefined}
 					codeSnippet={typeof finding.meta?.codeSnippet === 'string'
 						? finding.meta.codeSnippet
 						: undefined}
