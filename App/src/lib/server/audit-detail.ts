@@ -66,6 +66,12 @@ export async function buildAuditPageData(auditId: string, token?: string) {
 				...finding,
 				meta: finding.meta_json ? JSON.parse(finding.meta_json) : null
 			})) as Array<Record<string, unknown> & { status?: string }>;
+			const displaySummary =
+				typeof findings[0]?.detail === 'string' && findings[0].detail.trim()
+					? findings[0].detail
+					: typeof findings[0]?.title === 'string' && findings[0].title.trim()
+						? findings[0].title
+						: '';
 			const status = findings.some((finding) => finding.status === 'err')
 				? 'err'
 				: findings.some((finding) => finding.status === 'warn')
@@ -79,10 +85,10 @@ export async function buildAuditPageData(auditId: string, token?: string) {
 				label: findingType?.label || 'Audit check',
 				status,
 				runStatus: run.status,
-				summary: run.run_log || '',
+				summary: displaySummary,
 				itemRun: run,
 				sortOrder: findingType?.sort_order || run.sort_order || 999,
-				stats: run.run_log ? { stats: run.run_log, count: findings.length } : null,
+				stats: displaySummary ? { stats: displaySummary, count: findings.length } : null,
 				findings
 			};
 		}),
