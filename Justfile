@@ -1,5 +1,7 @@
 set shell := ["zsh", "-cu"]
 
+compose := "docker compose -p seo-mini-tool -f Infrastructure/docker-compose.yml -f Infrastructure/docker-compose.dev.yml --env-file Infrastructure/.env"
+
 default:
 	@just --list
 
@@ -7,15 +9,17 @@ install:
 	cd App && npm install
 
 dev:
-	docker compose -f Infrastructure/docker-compose.yml -f Infrastructure/docker-compose.dev.yml --env-file Infrastructure/.env down -v --remove-orphans
-	docker compose -f Infrastructure/docker-compose.yml -f Infrastructure/docker-compose.dev.yml --env-file Infrastructure/.env up --build
+	{{compose}} down -v --remove-orphans
+	docker volume rm -f seo-mini-tool_pocketbase_data infrastructure_pocketbase_data 2>/dev/null || true
+	{{compose}} up --build
 
 dev-reset:
-	docker compose -f Infrastructure/docker-compose.yml -f Infrastructure/docker-compose.dev.yml --env-file Infrastructure/.env down -v --remove-orphans
-	docker compose -f Infrastructure/docker-compose.yml -f Infrastructure/docker-compose.dev.yml --env-file Infrastructure/.env up --build
+	{{compose}} down -v --remove-orphans
+	docker volume rm -f seo-mini-tool_pocketbase_data infrastructure_pocketbase_data 2>/dev/null || true
+	{{compose}} up --build
 
 dev-keep:
-	docker compose -f Infrastructure/docker-compose.yml -f Infrastructure/docker-compose.dev.yml --env-file Infrastructure/.env up --build
+	{{compose}} up --build
 
 down:
-	docker compose -f Infrastructure/docker-compose.yml -f Infrastructure/docker-compose.dev.yml --env-file Infrastructure/.env down --remove-orphans
+	{{compose}} down --remove-orphans
