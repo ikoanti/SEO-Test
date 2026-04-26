@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
-	import { resolve } from '$app/paths';
 	import type { AuditFindingStatus } from '$lib/audit-status';
 	import AuditFindingCard from '$lib/components/AuditFindingCard.svelte';
 	import PageSpeedCard from '$lib/components/PageSpeedCard.svelte';
-	import { ArrowLeft, Copy, Download, FileText, FileUp, RotateCcw, Sparkles } from 'lucide-svelte';
+	import { Copy, Download, FileText, FileUp, Sparkles } from 'lucide-svelte';
 	import { onMount } from 'svelte';
+	import AuditHeader from './AuditHeader.svelte';
 	import type { ActionData } from './$types';
 
 	type AuditFindingView = {
@@ -261,27 +261,7 @@
 	});
 </script>
 
-<section class="page-head audit-page-head">
-	<div class="page-head-main">
-		<a class="back-link icon-link" href={resolve('/audits')}>
-			<ArrowLeft size={16} />
-			<span>Back to audits</span>
-		</a>
-		<div>
-			<h1>{pageTitle()}</h1>
-			<p class="muted">{pageUrl()}</p>
-			<p class="muted">Run status: {runStatus()}</p>
-		</div>
-	</div>
-	<div class="page-head-actions">
-		<form method="POST" action="?/restart">
-			<button type="submit" class="icon-button restart-button" disabled={isPending()}>
-				<RotateCcw size={16} />
-				<span>Restart audit</span>
-			</button>
-		</form>
-	</div>
-</section>
+<AuditHeader title={pageTitle()} url={pageUrl()} status={runStatus()} isPending={isPending()} />
 
 {#if isFailed()}
 	<section class="card legacy-card">
@@ -468,29 +448,6 @@
 {/if}
 
 <style>
-	.audit-page-head h1 {
-		font-size: clamp(1.4rem, 2.4vw, 2rem);
-	}
-
-	.page-head-main {
-		display: flex;
-		align-items: flex-start;
-		gap: 1rem;
-	}
-
-	.page-head-actions {
-		display: flex;
-		align-items: center;
-		justify-content: flex-end;
-		gap: 0.75rem;
-		flex-wrap: wrap;
-	}
-
-	.restart-button:disabled {
-		cursor: not-allowed;
-		opacity: 0.65;
-	}
-
 	.summary-bar {
 		display: grid;
 		grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -692,15 +649,6 @@
 	}
 
 	@media (max-width: 760px) {
-		.page-head-main {
-			flex-direction: column;
-			gap: 0.75rem;
-		}
-
-		.page-head-actions {
-			justify-content: flex-start;
-		}
-
 		.summary-bar,
 		.ahrefs-metrics {
 			grid-template-columns: 1fr;
