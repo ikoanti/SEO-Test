@@ -142,7 +142,6 @@
 		pageData.runRecord?.name ||
 		pageData.auditRecord?.url ||
 		pageData.runRecord?.url;
-	const pageUrl = () => pageData.auditRecord?.url || pageData.runRecord?.url || '';
 
 	const itemByKey = (key: string) => pageData.normalizedItems?.find((item) => item.key === key);
 	const getRecord = (value: unknown): Record<string, unknown> =>
