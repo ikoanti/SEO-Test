@@ -16,25 +16,25 @@
 
 <section class="summary-bar">
 	<div class="summary-item">
+		<span class="summary-count pass">{passed}</span>
 		<div class="summary-heading pass">
 			<CheckCircle2 size={18} strokeWidth={2.25} />
 			<span>Pass</span>
 		</div>
-		<span class="summary-count pass">{passed}</span>
 	</div>
 	<div class="summary-item">
+		<span class="summary-count warn">{warnings}</span>
 		<div class="summary-heading warn">
 			<AlertTriangle size={18} strokeWidth={2.25} />
 			<span>Warnings</span>
 		</div>
-		<span class="summary-count warn">{warnings}</span>
 	</div>
 	<div class="summary-item">
+		<span class="summary-count fail">{failed}</span>
 		<div class="summary-heading fail">
 			<CircleX size={18} strokeWidth={2.25} />
 			<span>Failed</span>
 		</div>
-		<span class="summary-count fail">{failed}</span>
 	</div>
 	<div class="summary-score-bar-wrap">
 		<div class="summary-score-bar" style={barStyle}></div>
@@ -69,6 +69,7 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 0.45rem;
+		margin-top: 0.5rem;
 		font-size: 0.9rem;
 		font-weight: 600;
 	}
@@ -86,7 +87,6 @@
 	}
 
 	.summary-count {
-		margin-top: 0.5rem;
 		font-size: 2rem;
 		font-weight: 800;
 		line-height: 1;
