@@ -567,7 +567,7 @@
 		justify-content: center;
 		gap: 0.5rem;
 		width: min(100%, 42rem);
-		margin: 1.5rem auto 0;
+		margin: 1.5rem auto 1.5rem;
 		padding: 0.4rem;
 		border: 1px solid rgba(255, 255, 255, 0.08);
 		border-radius: 999px;
