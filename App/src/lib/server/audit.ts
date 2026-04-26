@@ -165,7 +165,6 @@ async function analyzePageSpeed(targetUrl, summary, logger) {
 	const fetchStrategy = async (strategy) => {
 		logger.info(`pagespeed:${strategy}: requesting`);
 		const response = await axios.get('https://www.googleapis.com/pagespeedonline/v5/runPagespeed', {
-			timeout: 20000,
 			params: { url: targetUrl, strategy, key: apiKey }
 		});
 		const audits = response.data?.lighthouseResult?.audits || {};
