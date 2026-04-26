@@ -19,7 +19,7 @@
 	} = $props();
 </script>
 
-<li class="finding-row">
+<li class={`finding-row finding-row-${status}`}>
 	<div class="check-status">
 		<span class={`status-icon status-${status}`}>
 			{#if status === 'pass'}
@@ -58,9 +58,30 @@
 		flex-direction: column;
 		gap: 0.25rem;
 		padding: 0.75rem 1rem;
+		border: 1px solid rgba(255, 255, 255, 0.06);
 		border-radius: 0.5rem;
 		background: rgba(0, 0, 0, 0.2);
 		font-size: 0.95rem;
+	}
+
+	.finding-row-pass {
+		border-color: rgba(16, 185, 129, 0.24);
+		background: rgba(16, 185, 129, 0.08);
+	}
+
+	.finding-row-warn {
+		border-color: rgba(245, 158, 11, 0.24);
+		background: rgba(245, 158, 11, 0.08);
+	}
+
+	.finding-row-fail {
+		border-color: rgba(239, 68, 68, 0.24);
+		background: rgba(239, 68, 68, 0.08);
+	}
+
+	.finding-row-info {
+		border-color: rgba(96, 165, 250, 0.24);
+		background: rgba(96, 165, 250, 0.08);
 	}
 
 	.check-status {
