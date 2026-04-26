@@ -199,6 +199,17 @@ button[type='button'] {
 	margin-bottom: 1rem;
 }
 
+.audit-upload-row input[type='file'] {
+	flex: 1 1 18rem;
+	min-width: 0;
+	max-width: 100%;
+}
+
+.audit-upload-row .audit-primary-button {
+	flex: 0 1 auto;
+	min-width: 0;
+}
+
 .error {
 	color: #fca5a5;
 }
@@ -216,5 +227,9 @@ button[type='button'] {
 
 	.audit-upload-row {
 		flex-direction: column;
+	}
+
+	.audit-upload-row .audit-primary-button {
+		width: 100%;
 	}
 }
