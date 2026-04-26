@@ -99,7 +99,19 @@
 		const order: string[] = [];
 
 		for (const finding of findings) {
-			const groupKey = finding.detail?.trim() || `finding:${finding.id}`;
+			const duplicateValue = finding.meta?.duplicateValue;
+			const isDuplicateMetaGroup =
+				typeof duplicateValue === 'string' &&
+				Boolean(finding.detail?.match(/^Duplicate meta (title|description) detected$/));
+
+			if (!isDuplicateMetaGroup) {
+				const standaloneKey = `finding:${finding.id}`;
+				groups[standaloneKey] = [finding];
+				order.push(standaloneKey);
+				continue;
+			}
+
+			const groupKey = `${finding.detail}::${duplicateValue}`;
 			if (!groups[groupKey]) {
 				groups[groupKey] = [];
 				order.push(groupKey);
@@ -109,11 +121,17 @@
 
 		for (const groupKey of order) {
 			const group = groups[groupKey] || [];
-			if (group.length > 1 && group[0]?.detail) {
+			const firstFinding = group[0];
+			const duplicateValue = firstFinding?.meta?.duplicateValue;
+			const isDuplicateMetaGroup =
+				typeof duplicateValue === 'string' &&
+				Boolean(firstFinding?.detail?.match(/^Duplicate meta (title|description) detected$/));
+
+			if (isDuplicateMetaGroup && group.length > 0 && firstFinding?.detail) {
 				rows.push({
 					key: `${prefix}-group-${groupKey}`,
-					status: group[0].status || 'info',
-					title: group[0].detail,
+					status: firstFinding.status || 'info',
+					title: firstFinding.detail,
 					sectionHeader: true
 				});
 
