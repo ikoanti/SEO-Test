@@ -2,6 +2,8 @@
 	import { invalidateAll } from '$app/navigation';
 	import type { AuditFindingStatus } from '$lib/audit-status';
 	import AuditFindingCard from '$lib/components/AuditFindingCard.svelte';
+	import AuditOverviewCard from '$lib/components/AuditOverviewCard.svelte';
+	import OpenPageRankCard from '$lib/components/OpenPageRankCard.svelte';
 	import PageSpeedCard from '$lib/components/PageSpeedCard.svelte';
 	import { Copy, Download, FileText, FileUp, Sparkles } from 'lucide-svelte';
 	import { onMount } from 'svelte';
@@ -270,40 +272,18 @@
 {/if}
 
 {#if pageData.auditRecord}
-	<section class="summary-bar">
-		<div class="summary-item">
-			<span class="summary-count">{pageData.summary?.summary?.passed ?? 0}</span>
-			<span class="summary-label">✅ Passed</span>
-		</div>
-		<div class="summary-item">
-			<span class="summary-count warn">{pageData.summary?.summary?.warnings ?? 0}</span>
-			<span class="summary-label">⚠️ Warnings</span>
-		</div>
-		<div class="summary-item">
-			<span class="summary-count fail">{pageData.summary?.summary?.failed ?? 0}</span>
-			<span class="summary-label">❌ Failed</span>
-		</div>
-		<div class="summary-score-bar-wrap">
-			<div class="summary-score-bar" style={summaryBarStyle()}></div>
-		</div>
-	</section>
+	<AuditOverviewCard
+		passed={pageData.summary?.summary?.passed ?? 0}
+		warnings={pageData.summary?.summary?.warnings ?? 0}
+		failed={pageData.summary?.summary?.failed ?? 0}
+		barStyle={summaryBarStyle()}
+	/>
 
 	<section class="results-grid audit-results">
-		<div class="card legacy-card card-ahrefs" id="card-opr">
-			<div class="card-header">
-				<h3>Open Page Rank</h3>
-			</div>
-			<div class="ahrefs-metrics">
-				<div class="metric-item">
-					<span class="metric-label">Page Rank</span>
-					<span class="metric-value">{displayValue(openPageRank().pageRank)}</span>
-				</div>
-				<div class="metric-item">
-					<span class="metric-label">Global Rank</span>
-					<span class="metric-value">{displayValue(openPageRank().globalRank)}</span>
-				</div>
-			</div>
-		</div>
+		<OpenPageRankCard
+			pageRank={displayValue(openPageRank().pageRank)}
+			globalRank={displayValue(openPageRank().globalRank)}
+		/>
 
 		<PageSpeedCard pageSpeedData={pageSpeed()} />
 
@@ -447,65 +427,6 @@
 {/if}
 
 <style>
-	.summary-bar {
-		display: grid;
-		grid-template-columns: repeat(3, minmax(0, 1fr));
-		gap: 1rem;
-		align-items: center;
-		width: 100%;
-		max-width: 800px;
-		margin: 0 auto 1.5rem;
-		padding: 1rem;
-		border: 1px solid var(--border);
-		border-radius: 1rem;
-		background: var(--card-bg);
-	}
-
-	.summary-item {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		padding: 0.75rem;
-		border-radius: 0.75rem;
-		background: rgba(0, 0, 0, 0.2);
-	}
-
-	.summary-count {
-		font-size: 2rem;
-		font-weight: 800;
-		color: var(--status-pass);
-		line-height: 1;
-	}
-
-	.summary-count.warn {
-		color: var(--status-warn);
-	}
-
-	.summary-count.fail {
-		color: var(--status-fail);
-	}
-
-	.summary-label {
-		margin-top: 0.4rem;
-		color: var(--text-muted);
-		font-size: 0.9rem;
-		font-weight: 600;
-	}
-
-	.summary-score-bar-wrap {
-		grid-column: 1 / -1;
-		height: 12px;
-		background: rgba(0, 0, 0, 0.4);
-		border-radius: 6px;
-		overflow: hidden;
-	}
-
-	.summary-score-bar {
-		width: 100%;
-		height: 100%;
-		transition: background 0.5s ease;
-	}
-
 	.results-grid {
 		display: flex;
 		flex-direction: column;
@@ -536,36 +457,6 @@
 		margin: -0.5rem 0 1rem;
 		color: var(--text-muted);
 		font-size: 0.85rem;
-	}
-
-	.ahrefs-metrics {
-		display: grid;
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-		gap: 1rem;
-		margin-bottom: 1.5rem;
-	}
-
-	.metric-item {
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-		padding: 1rem;
-		border: 1px solid rgba(255, 255, 255, 0.05);
-		border-radius: 0.75rem;
-		background: rgba(255, 255, 255, 0.03);
-	}
-
-	.metric-label {
-		color: var(--text-muted);
-		font-size: 0.75rem;
-		letter-spacing: 0.05em;
-		text-transform: uppercase;
-	}
-
-	.metric-value {
-		color: #fff;
-		font-size: 1.25rem;
-		font-weight: 700;
 	}
 
 	.highlight-yellow {
@@ -648,11 +539,6 @@
 	}
 
 	@media (max-width: 760px) {
-		.summary-bar,
-		.ahrefs-metrics {
-			grid-template-columns: 1fr;
-		}
-
 		.file-upload-container {
 			flex-direction: column;
 		}

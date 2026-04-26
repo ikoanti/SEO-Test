@@ -54,6 +54,13 @@
 	}
 
 	const pills = $derived(statPills(item));
+	const visiblePillStatuses = $derived.by(() => {
+		const statuses: AuditFindingStatusFilter[] = [];
+		if (pills.pass > 0) statuses.push('pass');
+		if (pills.warn > 0) statuses.push('warn');
+		if (pills.fail > 0) statuses.push('fail');
+		return statuses.length ? statuses : (['pass', 'warn'] as AuditFindingStatusFilter[]);
+	});
 	const targetStatusForFilter: Record<AuditFindingStatusFilter, AuditFindingStatus> = {
 		pass: 'pass',
 		warn: 'warn',
@@ -138,7 +145,13 @@
 <div class="card audit-finding-card" id={`card-${section.key}`}>
 	<h3>{section.title}</h3>
 	{#if section.mini}
-		<AuditStatusPills pass={pills.pass} warn={pills.warn} fail={pills.fail} bind:selectedStatus />
+		<AuditStatusPills
+			pass={pills.pass}
+			warn={pills.warn}
+			fail={pills.fail}
+			statuses={visiblePillStatuses}
+			bind:selectedStatus
+		/>
 	{/if}
 	<ul class={`check-list ${section.mini ? 'mini-list' : ''}`}>
 		{#if hasVisibleFindings}
