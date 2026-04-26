@@ -1,8 +1,16 @@
-import { error, fail } from '@sveltejs/kit';
+import { error, fail, redirect } from '@sveltejs/kit';
 import { buildAuditPageData } from '$lib/server/audit-detail';
-import { ensureAuditWorkflowProcessing } from '$lib/server/audit-runner';
+import { ensureAuditWorkflowProcessing, queueAuditWorkflow } from '$lib/server/audit-runner';
 import { generateReportHtml, parsePdfMetrics } from '$lib/server/legacy-api';
-import { getAudit, updateAuditRecord } from '$lib/server/pocketbase';
+import {
+	deleteAuditFindingsByRunId,
+	getAudit,
+	getWorkflowByAuditId,
+	listRunsByWorkflow,
+	updateAuditRecord,
+	updateRunRecord,
+	updateWorkflowRecord
+} from '$lib/server/pocketbase';
 
 export const load = async ({ params, locals }) => {
 	try {
@@ -15,6 +23,72 @@ export const load = async ({ params, locals }) => {
 };
 
 export const actions = {
+	restart: async ({ params, locals }) => {
+		const auditRecord = await getAudit(params.auditId, locals.pbToken);
+		const workflowRecord = await getWorkflowByAuditId(params.auditId, locals.pbToken);
+		const website = (auditRecord.expand as { website?: { url?: string } } | undefined)?.website;
+
+		if (!website?.url) {
+			return fail(500, { restartError: 'Audit website URL is missing.' });
+		}
+
+		if (['queued', 'running'].includes(String(workflowRecord.status || ''))) {
+			ensureAuditWorkflowProcessing(workflowRecord, locals.pbToken);
+			throw redirect(303, `/audits/${params.auditId}`);
+		}
+
+		const runs = await listRunsByWorkflow(workflowRecord.id, locals.pbToken);
+		for (const run of runs) {
+			await deleteAuditFindingsByRunId(run.id, locals.pbToken);
+			await updateRunRecord(
+				run.id,
+				{
+					status: 'queued',
+					started_at: '',
+					completed_at: '',
+					error_message: '',
+					run_log: `[${new Date().toISOString()}] ${
+						(run.expand as { audit_finding_type?: { label?: string } } | undefined)
+							?.audit_finding_type?.label || 'Audit check'
+					} queued.`
+				},
+				locals.pbToken
+			);
+		}
+
+		await updateAuditRecord(
+			auditRecord.id,
+			{
+				status: 'queued',
+				audit_json: '',
+				summary_json: '',
+				completed_at: '',
+				report_html: '',
+				ai_visibility_json: ''
+			},
+			locals.pbToken
+		);
+		await updateWorkflowRecord(
+			workflowRecord.id,
+			{
+				status: 'queued',
+				started_at: '',
+				completed_at: '',
+				error_message: '',
+				run_log: `[${new Date().toISOString()}] Workflow queued.`
+			},
+			locals.pbToken
+		);
+
+		queueAuditWorkflow({
+			workflowId: workflowRecord.id,
+			auditId: auditRecord.id,
+			url: website.url,
+			token: locals.pbToken
+		});
+
+		throw redirect(303, `/audits/${params.auditId}`);
+	},
 	generateReport: async ({ params, locals }) => {
 		const auditRecord = await getAudit(params.auditId, locals.pbToken);
 		const audit = JSON.parse(auditRecord.audit_json || '{}');

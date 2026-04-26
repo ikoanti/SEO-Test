@@ -4,7 +4,7 @@
 	import type { AuditFindingStatus } from '$lib/audit-status';
 	import AuditFindingCard from '$lib/components/AuditFindingCard.svelte';
 	import PageSpeedCard from '$lib/components/PageSpeedCard.svelte';
-	import { ArrowLeft, Copy, Download, FileText, FileUp, Sparkles } from 'lucide-svelte';
+	import { ArrowLeft, Copy, Download, FileText, FileUp, RotateCcw, Sparkles } from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import type { ActionData } from './$types';
 
@@ -267,10 +267,18 @@
 		<p class="muted">{pageUrl()}</p>
 		<p class="muted">Run status: {runStatus()}</p>
 	</div>
-	<a class="back-link icon-link" href={resolve('/audits')}>
-		<ArrowLeft size={16} />
-		<span>Back to audits</span>
-	</a>
+	<div class="page-head-actions">
+		<form method="POST" action="?/restart">
+			<button type="submit" class="icon-button restart-button" disabled={isPending()}>
+				<RotateCcw size={16} />
+				<span>Restart audit</span>
+			</button>
+		</form>
+		<a class="back-link icon-link" href={resolve('/audits')}>
+			<ArrowLeft size={16} />
+			<span>Back to audits</span>
+		</a>
+	</div>
 </section>
 
 {#if isPending()}
@@ -465,6 +473,19 @@
 <style>
 	.audit-page-head h1 {
 		font-size: clamp(1.8rem, 3vw, 2.7rem);
+	}
+
+	.page-head-actions {
+		display: flex;
+		align-items: center;
+		justify-content: flex-end;
+		gap: 0.75rem;
+		flex-wrap: wrap;
+	}
+
+	.restart-button:disabled {
+		cursor: not-allowed;
+		opacity: 0.65;
 	}
 
 	.summary-bar {
@@ -671,6 +692,10 @@
 	}
 
 	@media (max-width: 760px) {
+		.page-head-actions {
+			justify-content: flex-start;
+		}
+
 		.summary-bar,
 		.ahrefs-metrics {
 			grid-template-columns: 1fr;
