@@ -72,6 +72,23 @@
 	}
 
 	const pills = $derived(statPills(item));
+	const targetStatusForFilter: Record<StatusFilter, 'ok' | 'warn' | 'err'> = {
+		good: 'ok',
+		warn: 'warn',
+		bad: 'err'
+	};
+	const filteredFindings = $derived.by(() => {
+		if (!item?.findings?.length || !selectedStatus) {
+			return item?.findings || [];
+		}
+
+		const targetStatus = targetStatusForFilter[selectedStatus];
+		return item.findings.filter((finding) => finding.status === targetStatus);
+	});
+	const showSummaryRow = $derived(
+		Boolean(item && !item.findings?.length && (!selectedStatus || item.status === targetStatusForFilter[selectedStatus]))
+	);
+	const showEmptyRow = $derived(Boolean(!item));
 </script>
 
 <div class="card audit-finding-card" id={`card-${section.key}`}>
@@ -89,8 +106,8 @@
 		</div>
 	{/if}
 	<ul class={`check-list ${section.mini ? 'mini-list' : ''}`}>
-		{#if item?.findings?.length}
-			{#each item.findings as finding, index (`${item.id}-${index}`)}
+		{#if filteredFindings.length}
+			{#each filteredFindings as finding, index (`${item?.id || section.key}-${index}`)}
 				<AuditFindingRow
 					status={(finding.status as 'ok' | 'warn' | 'err' | 'info' | undefined) || 'info'}
 					title={finding.title || finding.status || 'Finding'}
@@ -102,12 +119,12 @@
 						: undefined}
 				/>
 			{/each}
-		{:else if item}
+		{:else if showSummaryRow}
 			<AuditFindingRow
 				status={(item.status as 'ok' | 'warn' | 'err' | 'info' | undefined) || 'info'}
 				title={item.summary || 'No findings.'}
 			/>
-		{:else}
+		{:else if showEmptyRow}
 			<AuditFindingRow status="info" title="No persisted result for this check." />
 		{/if}
 	</ul>
