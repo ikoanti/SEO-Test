@@ -2,6 +2,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import AuditFindingCard from '$lib/components/AuditFindingCard.svelte';
+	import AuditFindingRow from '$lib/components/AuditFindingRow.svelte';
 	import { ArrowLeft, Copy, Download, FileText, FileUp, Sparkles } from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import type { ActionData } from './$types';
@@ -364,12 +365,10 @@
 				</div>
 			</div>
 			<ul class="check-list">
-				<li>
-					<div class="check-status">
-						<span class="icon-info">ℹ️</span>
-						{itemByKey('openPageRank')?.summary || 'Open Page Rank metrics'}
-					</div>
-				</li>
+				<AuditFindingRow
+					status="info"
+					title={itemByKey('openPageRank')?.summary || 'Open Page Rank metrics'}
+				/>
 			</ul>
 		</div>
 
@@ -774,27 +773,6 @@
 		padding: 0;
 		margin: 0;
 		list-style: none;
-	}
-
-	.check-list li {
-		display: flex;
-		flex-direction: column;
-		gap: 0.25rem;
-		padding: 0.75rem 1rem;
-		border-radius: 0.5rem;
-		background: rgba(0, 0, 0, 0.2);
-		font-size: 0.95rem;
-	}
-
-	.check-status {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		font-weight: 500;
-	}
-
-	.icon-info {
-		color: #60a5fa;
 	}
 
 	.report-generate-btn,

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import AuditFindingRow from '$lib/components/AuditFindingRow.svelte';
 	import AuditStatusPills from '$lib/components/AuditStatusPills.svelte';
 
 	type AuditFindingView = {
@@ -45,15 +46,6 @@
 			? (value as Record<string, unknown>)
 			: {};
 
-	const statusClass = (status?: string) =>
-		status === 'ok'
-			? 'icon-ok'
-			: status === 'warn'
-				? 'icon-warn'
-				: status === 'err'
-					? 'icon-err'
-					: 'icon-info';
-
 	function statsText(item?: AuditItemView) {
 		const metaStats = item?.findings?.find((finding) => finding.meta)?.meta;
 		const stats = getRecord(metaStats).stats;
@@ -99,59 +91,24 @@
 	<ul class={`check-list ${section.mini ? 'mini-list' : ''}`}>
 		{#if item?.findings?.length}
 			{#each item.findings as finding, index (`${item.id}-${index}`)}
-				<li>
-					<div class="check-status">
-						<span class={statusClass(finding.status)}>
-							{finding.status === 'ok'
-								? '✅'
-								: finding.status === 'warn'
-									? '⚠️'
-									: finding.status === 'err'
-										? '❌'
-										: 'ℹ️'}
-						</span>
-						{finding.title || finding.status || 'Finding'}
-					</div>
-					{#if finding.detail}
-						<div class="check-detail">{finding.detail}</div>
-					{/if}
-					{#if finding.page_url}
-						<div class="check-detail">
-							<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
-							<a class="check-link" href={finding.page_url} target="_blank" rel="noopener">
-								{linkLabel(finding.page_url)}
-							</a>
-						</div>
-					{/if}
-					{#if typeof finding.meta?.codeSnippet === 'string' && finding.meta.codeSnippet}
-						<div class="code-snippet-container">
-							<pre><code>{finding.meta.codeSnippet}</code></pre>
-						</div>
-					{/if}
-				</li>
+				<AuditFindingRow
+					status={(finding.status as 'ok' | 'warn' | 'err' | 'info' | undefined) || 'info'}
+					title={finding.title || finding.status || 'Finding'}
+					detail={finding.detail}
+					href={finding.page_url}
+					hrefLabel={finding.page_url ? linkLabel(finding.page_url) : undefined}
+					codeSnippet={typeof finding.meta?.codeSnippet === 'string'
+						? finding.meta.codeSnippet
+						: undefined}
+				/>
 			{/each}
 		{:else if item}
-			<li>
-				<div class="check-status">
-					<span class={statusClass(item.status)}>
-						{item.status === 'ok'
-							? '✅'
-							: item.status === 'warn'
-								? '⚠️'
-								: item.status === 'err'
-									? '❌'
-									: 'ℹ️'}
-					</span>
-					{item.summary || 'No findings.'}
-				</div>
-			</li>
+			<AuditFindingRow
+				status={(item.status as 'ok' | 'warn' | 'err' | 'info' | undefined) || 'info'}
+				title={item.summary || 'No findings.'}
+			/>
 		{:else}
-			<li>
-				<div class="check-status">
-					<span class="icon-info">ℹ️</span>
-					No persisted result for this check.
-				</div>
-			</li>
+			<AuditFindingRow status="info" title="No persisted result for this check." />
 		{/if}
 	</ul>
 </div>
@@ -212,72 +169,5 @@
 		padding: 0;
 		margin: 0;
 		list-style: none;
-	}
-
-	.check-list li {
-		display: flex;
-		flex-direction: column;
-		gap: 0.25rem;
-		padding: 0.75rem 1rem;
-		border-radius: 0.5rem;
-		background: rgba(0, 0, 0, 0.2);
-		font-size: 0.95rem;
-	}
-
-	.check-status {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		font-weight: 500;
-	}
-
-	.check-detail {
-		color: var(--text-muted);
-		font-size: 0.85rem;
-		word-break: break-word;
-	}
-
-	.check-link {
-		color: #60a5fa;
-		text-decoration: none;
-		word-break: break-all;
-	}
-
-	.check-link:hover {
-		text-decoration: underline;
-	}
-
-	.icon-ok {
-		color: var(--success);
-	}
-
-	.icon-warn {
-		color: var(--warning);
-	}
-
-	.icon-err {
-		color: var(--danger);
-	}
-
-	.icon-info {
-		color: #60a5fa;
-	}
-
-	.code-snippet-container {
-		margin-top: 0.75rem;
-		padding: 0.75rem 1rem;
-		overflow-x: auto;
-		border: 1px solid var(--border);
-		border-radius: 0.5rem;
-		background: #0f172a;
-		box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
-	}
-
-	.code-snippet-container pre {
-		margin: 0;
-		padding: 0;
-		background: transparent;
-		color: #e2e8f0;
-		font-size: 0.85rem;
 	}
 </style>
