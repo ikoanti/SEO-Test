@@ -19,9 +19,9 @@
 			<ArrowLeft size={16} />
 			<span>Back to audits</span>
 		</a>
-		<div>
+		<div class="heading-copy">
 			<h1>{title}</h1>
-			<p class="muted">Run status: {status || 'queued'}</p>
+			<span class="run-status">Run status: {status || 'queued'}</span>
 		</div>
 	</div>
 	<div class="page-head-actions">
@@ -45,8 +45,14 @@
 		gap: 1rem;
 	}
 
+	.heading-copy {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		flex-wrap: wrap;
+	}
+
 	.back-link {
-		align-self: flex-start;
 		flex: 0 0 auto;
 		padding: 10px 14px;
 		border: 1px solid rgba(255, 255, 255, 0.08);
@@ -60,6 +66,20 @@
 	.back-link:hover {
 		border-color: var(--border);
 		background: rgba(15, 23, 42, 0.9);
+	}
+
+	.run-status {
+		display: inline-flex;
+		align-items: center;
+		padding: 0.35rem 0.7rem;
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		border-radius: 9999px;
+		background: var(--surface-soft);
+		color: var(--text-muted);
+		font-size: 0.82rem;
+		font-weight: 600;
+		text-transform: capitalize;
+		white-space: nowrap;
 	}
 
 	.page-head-actions {
@@ -81,8 +101,11 @@
 
 	@media (max-width: 760px) {
 		.page-head-main {
-			flex-direction: column;
-			gap: 0.75rem;
+			align-items: flex-start;
+		}
+
+		.heading-copy {
+			align-items: flex-start;
 		}
 
 		.page-head-actions {
