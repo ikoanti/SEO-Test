@@ -260,7 +260,7 @@
 	});
 </script>
 
-<AuditHeader title={pageTitle()} status={runStatus()} isPending={isPending()} />
+<AuditHeader title={pageTitle()} isPending={isPending()} />
 
 {#if isFailed()}
 	<section class="card legacy-card">

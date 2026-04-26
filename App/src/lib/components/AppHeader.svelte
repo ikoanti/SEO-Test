@@ -39,10 +39,10 @@
 		</a>
 	</div>
 	{#if user}
-		<div class="brand-copy">
+		<a class="brand-copy" href={resolve('/audits')} aria-label="SEO Mini Audit Tool home">
 			<h1>SEO Mini Audit Tool</h1>
 			<p class="brand-subtitle">By Iraki Antidze</p>
-		</div>
+		</a>
 	{/if}
 	<div class="brand-side brand-side-right">
 		{#if user}

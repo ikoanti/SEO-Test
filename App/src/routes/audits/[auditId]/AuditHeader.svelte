@@ -4,11 +4,9 @@
 
 	let {
 		title,
-		status,
 		isPending = false
 	}: {
 		title?: string;
-		status?: string;
 		isPending?: boolean;
 	} = $props();
 </script>
@@ -21,7 +19,6 @@
 		</a>
 		<div>
 			<h1>{title}</h1>
-			<p class="muted">Run status: {status || 'queued'}</p>
 		</div>
 	</div>
 	<div class="page-head-actions">
@@ -43,6 +40,21 @@
 		display: flex;
 		align-items: flex-start;
 		gap: 1rem;
+	}
+
+	.back-link {
+		padding: 10px 14px;
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		border-radius: 9999px;
+		background: var(--surface-soft);
+		transition:
+			border-color 0.2s ease,
+			background-color 0.2s ease;
+	}
+
+	.back-link:hover {
+		border-color: var(--border);
+		background: rgba(15, 23, 42, 0.9);
 	}
 
 	.page-head-actions {
