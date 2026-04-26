@@ -80,19 +80,6 @@
 		return undefined;
 	}
 
-	function displayTitle(finding: AuditFindingView) {
-		const duplicateValue = finding.meta?.duplicateValue;
-		if (typeof duplicateValue === 'string' && duplicateValue.trim()) {
-			return duplicateValue;
-		}
-
-		if (finding.title && !isUrlLike(finding.title)) {
-			return finding.title;
-		}
-
-		return finding.detail || finding.status || 'Finding';
-	}
-
 	function groupedRows(prefix: string, findings: AuditFindingView[]) {
 		const rows: RenderRow[] = [];
 		const groups: Record<string, AuditFindingView[]> = {};
@@ -136,10 +123,13 @@
 				});
 
 				for (const finding of group) {
+					const duplicateValue =
+						typeof finding.meta?.duplicateValue === 'string' ? finding.meta.duplicateValue : '';
 					rows.push({
 						key: `${prefix}-${finding.id}`,
 						status: finding.status || 'info',
-						title: displayTitle(finding),
+						title: finding.title || finding.page_url || 'Page',
+						detail: duplicateValue || undefined,
 						href: displayHref(finding),
 						codeSnippet:
 							typeof finding.meta?.codeSnippet === 'string' ? finding.meta.codeSnippet : undefined,
