@@ -200,15 +200,19 @@ export async function createAuditRecord(
 
 export async function listAudits(searchQuery: string, token?: string) {
 	const pb = createAuthedClient(token);
-	let filter = '';
-	if (searchQuery.trim()) {
-		const escaped = escapeFilterValue(searchQuery.trim());
-		filter = `website.url ~ "${escaped}" || website.domain ~ "${escaped}" || status ~ "${escaped}"`;
-	}
-	return pb.collection(AUDITS_COLLECTION).getFullList({
-		sort: '-created',
-		expand: 'website',
-		...(filter ? { filter } : {})
+	const audits = await pb.collection(AUDITS_COLLECTION).getFullList({
+		expand: 'website'
+	});
+
+	const query = searchQuery.trim().toLowerCase();
+	if (!query) return audits;
+
+	return audits.filter((audit) => {
+		const website = (audit.expand as { website?: { url?: string; domain?: string } } | undefined)
+			?.website;
+		return [website?.url, website?.domain, audit.status]
+			.filter(Boolean)
+			.some((value) => String(value).toLowerCase().includes(query));
 	});
 }
 

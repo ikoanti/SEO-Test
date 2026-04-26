@@ -89,6 +89,52 @@ migrate((app) => {
         }))
     }
 
+    const findingTypesCollection = app.findCollectionByNameOrId('audit_finding_types')
+    const findingTypes = [
+        ['pageSpeed', 'Page Speed'],
+        ['openPageRank', 'Open PageRank'],
+        ['h1Tags', 'H1 Tags'],
+        ['metaTitles', 'Meta Titles'],
+        ['imageAltTags', 'Image Alt Tags'],
+        ['canonicalUrls', 'Canonical URLs'],
+        ['internalLinks', 'Internal Links'],
+        ['sitemap', 'Sitemap'],
+        ['robotsTxt', 'Robots.txt'],
+        ['llmsTxt', 'LLMs.txt'],
+        ['structuredData', 'Structured Data'],
+        ['security', 'Security'],
+        ['mixedContent', 'Mixed Content'],
+        ['contentQuality', 'Content Quality'],
+        ['webIcons', 'Web Icons'],
+        ['ssl', 'SSL'],
+        ['mobileUsability', 'Mobile Usability'],
+        ['flash', 'Flash'],
+        ['iframes', 'Iframes'],
+        ['charset', 'Charset'],
+        ['loremIpsum', 'Lorem Ipsum'],
+        ['openGraph', 'Open Graph'],
+        ['shopifyUrls', 'Shopify URLs'],
+        ['internationalDomains', 'International Domains'],
+        ['trailingSlash', 'Trailing Slash'],
+        ['wwwResolve', 'WWW Resolve'],
+        ['trustSignals', 'Trust Signals'],
+        ['tapTargets', 'Tap Targets'],
+        ['lazyLoadImages', 'Lazy Load Images'],
+        ['aiVisibility', 'AI Visibility']
+    ]
+
+    findingTypes.forEach(([key, label], index) => {
+        try {
+            app.findFirstRecordByFilter('audit_finding_types', `key = "${key}"`)
+        } catch {
+            const record = new Record(findingTypesCollection)
+            record.set('key', key)
+            record.set('label', label)
+            record.set('sort_order', index + 1)
+            app.save(record)
+        }
+    })
+
     try {
         app.findCollectionByNameOrId('audits')
     } catch {

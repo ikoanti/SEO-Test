@@ -54,6 +54,7 @@ const SECTION_LABELS: Array<[string, string]> = [
 	['internalLinks', 'Internal Links'],
 	['sitemap', 'Sitemap'],
 	['robotsTxt', 'Robots.txt'],
+	['llmsTxt', 'LLMs.txt'],
 	['structuredData', 'Structured Data'],
 	['security', 'Security'],
 	['mixedContent', 'Mixed Content'],
@@ -67,8 +68,12 @@ const SECTION_LABELS: Array<[string, string]> = [
 	['openGraph', 'Open Graph'],
 	['shopifyUrls', 'Shopify URLs'],
 	['internationalDomains', 'International Domains'],
+	['trailingSlash', 'Trailing Slash'],
+	['wwwResolve', 'WWW Resolve'],
 	['trustSignals', 'Trust Signals'],
-	['lazyLoadImages', 'Lazy Load Images']
+	['tapTargets', 'Tap Targets'],
+	['lazyLoadImages', 'Lazy Load Images'],
+	['aiVisibility', 'AI Visibility']
 ];
 
 function truncateText(value: string, maxLength: number) {
