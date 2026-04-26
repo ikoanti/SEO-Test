@@ -1,4 +1,6 @@
 <script lang="ts">
+	import AuditStatusPills from '$lib/components/AuditStatusPills.svelte';
+
 	type AuditFindingView = {
 		id: string;
 		status?: string;
@@ -76,11 +78,7 @@
 		<p class="subtitle">{statsText(item) || section.subtitle}</p>
 	{/if}
 	{#if section.mini}
-		<div class="scan-stats">
-			<div class="scan-stat good">{pills.good} Good</div>
-			<div class="scan-stat warn">{pills.warn} Issues</div>
-			<div class="scan-stat bad">{pills.bad} Missing</div>
-		</div>
+		<AuditStatusPills good={pills.good} warn={pills.warn} bad={pills.bad} />
 	{/if}
 	{#if section.key === 'internalLinks'}
 		<div class="links-summary">
@@ -173,7 +171,6 @@
 		font-size: 0.85rem;
 	}
 
-	.scan-stats,
 	.links-summary {
 		display: flex;
 		flex-wrap: wrap;
@@ -181,28 +178,12 @@
 		margin-bottom: 1rem;
 	}
 
-	.scan-stat,
 	.links-summary .stat {
 		padding: 0.35rem 0.7rem;
 		border-radius: 999px;
 		background: rgba(0, 0, 0, 0.2);
 		font-size: 0.8rem;
 		font-weight: 600;
-	}
-
-	.scan-stat.good {
-		background: rgba(16, 185, 129, 0.12);
-		color: var(--success);
-	}
-
-	.scan-stat.warn {
-		background: rgba(245, 158, 11, 0.12);
-		color: var(--warning);
-	}
-
-	.scan-stat.bad {
-		background: rgba(239, 68, 68, 0.12);
-		color: var(--danger);
 	}
 
 	.links-summary .stat span {
