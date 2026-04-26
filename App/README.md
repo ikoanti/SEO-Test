@@ -12,7 +12,7 @@ This is now the primary SvelteKit target app.
 
 Environment is centralized in `../Infrastructure/.env`.
 
-`App/.env.local` is a symlink to `../Infrastructure/.env` so SvelteKit can read the same values during local development.
+Use `../Infrastructure/.env` as the single environment source for the Docker stack.
 
 ## PocketBase expectations
 
@@ -83,9 +83,11 @@ Data model:
 
 ## Development
 
+Run the app through the root Docker workflow instead of starting Vite directly:
+
 ```sh
-npm install
-npm run dev
+cd ..
+just dev
 ```
 
 ## Validation

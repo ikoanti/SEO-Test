@@ -25,25 +25,20 @@ Access the live deployed tool at: **[https://seo.irakli.life](https://seo.irakli
   - `@anthropic-ai/sdk`: Direct interactions with Claude AI to synthesize findings.
   - `cors` & `dotenv`: Basic infrastructure config and routing security.
 
-## ⚙️ Local Development
-If you're pulling this repository locally to work on the application:
+## ⚙️ Development
+Development now runs through Docker only.
 
-1. **Install app dependencies once:**
-   ```bash
-   cd SEO-Test/App
-   npm install
-   ```
+From `SEO-Test/`:
 
-2. **Run the local stack from the repo root:**
-   ```bash
-   cd ..
-   just dev
-   ```
+```bash
+just dev
+```
 
-This starts both:
+This starts the full stack in containers:
+- app on `http://127.0.0.1:3000`
 - PocketBase on `http://127.0.0.1:8090`
-- the Svelte app on the next available local Vite port
-- and resets the local PocketBase data on every run
+- the same Chromium/Xvfb capture environment used by the app runtime
+- and resets PocketBase data on every run
 
 Local credentials:
 - App login: `demo@local.test` / `DemoUser123!`
@@ -55,11 +50,12 @@ just
 just dev
 just dev-reset
 just dev-keep
+just down
 ```
 
 Notes:
-- local PocketBase bootstrap tooling lives in `Infrastructure/pocketbase/` and `scripts/`
-- app code stays isolated in `App/`
+- PocketBase bootstrap tooling lives in `Infrastructure/pocketbase/`
+- `just dev` is intentionally Docker-first so development matches deployed runtime behavior
 
 ## 🌐 Docker Deployment
 This app is now designed to run as a single Docker Compose stack with:
@@ -69,8 +65,7 @@ This app is now designed to run as a single Docker Compose stack with:
 
 ### Compose setup
 1. Configure real secrets and API keys in `Infrastructure/.env`
-2. Keep `App/.env.local` as a symlink to `../Infrastructure/.env`
-3. Start the stack:
+2. Start the stack:
    ```bash
    cd Infrastructure
    docker compose up --build -d
