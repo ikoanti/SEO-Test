@@ -358,16 +358,6 @@
 	</section>
 
 	<section class="results-grid audit-results">
-		<div class="card legacy-card" id="card-screenshot">
-			<h3>Website Screenshot</h3>
-			<div class="screenshot-container">
-				<div class="screenshot-placeholder">
-					<div class="pulse-loader"></div>
-					<span>Screenshot capture is not persisted for this run yet.</span>
-				</div>
-			</div>
-		</div>
-
 		<div class="card legacy-card card-ahrefs" id="card-opr">
 			<div class="card-header">
 				<h3>Open Page Rank</h3>
@@ -717,38 +707,6 @@
 		font-size: 0.85rem;
 	}
 
-	.screenshot-container {
-		position: relative;
-		width: 100%;
-		aspect-ratio: 1280 / 800;
-		overflow: hidden;
-		border: 1px solid var(--border);
-		border-radius: 0.5rem;
-		background: rgba(0, 0, 0, 0.3);
-	}
-
-	.screenshot-placeholder {
-		position: absolute;
-		inset: 0;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		gap: 1rem;
-		color: var(--text-muted);
-		font-size: 0.9rem;
-		text-align: center;
-	}
-
-	.pulse-loader {
-		width: 40px;
-		height: 40px;
-		border-radius: 50%;
-		background: var(--accent);
-		opacity: 0.6;
-		animation: pulse 1.5s ease-in-out infinite;
-	}
-
 	.ahrefs-metrics {
 		display: grid;
 		grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1022,18 +980,6 @@
 		to {
 			opacity: 1;
 			transform: translateY(0);
-		}
-	}
-
-	@keyframes pulse {
-		0%,
-		100% {
-			transform: scale(0.8);
-			opacity: 0.3;
-		}
-		50% {
-			transform: scale(1.1);
-			opacity: 0.6;
 		}
 	}
 
