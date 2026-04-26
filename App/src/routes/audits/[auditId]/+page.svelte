@@ -128,7 +128,6 @@
 
 <section class="page-head">
 	<div>
-		<p class="eyebrow">Audit</p>
 		<h1>{pageTitle()}</h1>
 		<p class="muted">{pageUrl()}</p>
 		<p class="muted">Run status: {runStatus()}</p>

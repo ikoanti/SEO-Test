@@ -58,7 +58,7 @@ migrate((app) => {
             fields: [
                 { name: 'name', type: 'text', required: true, max: 160 },
                 { name: 'url', type: 'url', required: true, presentable: true },
-                { name: 'created_by', type: 'relation', required: true, maxSelect: 1, collectionId: authCollection.id, cascadeDelete: true },
+                { name: 'created_by', type: 'relation', required: false, maxSelect: 1, collectionId: authCollection.id, cascadeDelete: true },
                 { name: 'status', type: 'text', required: true, max: 40 },
                 { name: 'queued_at', type: 'date', required: true },
                 { name: 'started_at', type: 'date', required: false },
@@ -88,7 +88,7 @@ migrate((app) => {
                 { name: 'run', type: 'relation', required: true, maxSelect: 1, collectionId: app.findCollectionByNameOrId('runs').id, cascadeDelete: true },
                 { name: 'name', type: 'text', required: true, max: 160 },
                 { name: 'url', type: 'url', required: true, presentable: true },
-                { name: 'created_by', type: 'relation', required: true, maxSelect: 1, collectionId: authCollection.id, cascadeDelete: true },
+                { name: 'created_by', type: 'relation', required: false, maxSelect: 1, collectionId: authCollection.id, cascadeDelete: true },
                 { name: 'completed_at', type: 'date', required: true },
                 { name: 'summary_json', type: 'editor', required: true },
                 { name: 'report_html', type: 'editor', required: false },

@@ -173,7 +173,7 @@ export async function createRunRecord(
 	return pb.collection(RUNS_COLLECTION).create({
 		name: input.name,
 		url: input.url,
-		created_by: input.created_by || null,
+		...(input.created_by ? { created_by: input.created_by } : {}),
 		status: input.status || 'queued',
 		error_message: input.error_message || '',
 		run_log: input.run_log || '',
@@ -217,7 +217,7 @@ export async function createAuditRecord(
 		run: input.run,
 		name: input.name,
 		url: input.url,
-		created_by: input.created_by || null,
+		...(input.created_by ? { created_by: input.created_by } : {}),
 		audit_json: input.audit_json,
 		summary_json: input.summary_json,
 		completed_at: input.completed_at || new Date().toISOString(),

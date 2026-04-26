@@ -68,8 +68,8 @@ This app is now designed to run as a single Docker Compose stack with:
 - `caddy`: the reverse proxy in front of the app
 
 ### Compose setup
-1. Copy `Infrastructure/.env.example` to `Infrastructure/.env`
-2. Set real secrets and API keys
+1. Configure real secrets and API keys in `Infrastructure/.env`
+2. Keep `App/.env.local` as a symlink to `../Infrastructure/.env`
 3. Start the stack:
    ```bash
    cd Infrastructure
@@ -88,7 +88,7 @@ This app is now designed to run as a single Docker Compose stack with:
 - You can seed the initial login with `APP_AUTH_EMAIL`, `APP_AUTH_PASSWORD`, and `APP_AUTH_NAME` in `Infrastructure/.env`.
 
 ### Useful endpoints
-- App health: `GET /health`
+- App health: `GET /api/health`
 - PocketBase status from the app: `GET /api/pocketbase/status`
 
 ## 🤝 Known Adjustments

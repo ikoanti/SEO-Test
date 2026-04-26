@@ -5,20 +5,14 @@ This is now the primary SvelteKit target app.
 ## Routes
 
 - `/login` — PocketBase-backed login screen
-- `/audits` — list of audits and create a new audit
-- `/audits/loading/[runId]` — loading page for an in-progress run
-- `/audits/[auditId]` — view one completed audit result
+- `/audits` — list of runs and create a new audit run
+- `/audits/[auditId]` — view a running audit state or completed audit result
 
 ## Environment
 
-Create `.env` from `.env.example` and configure:
+Environment is centralized in `../Infrastructure/.env`.
 
-```sh
-POCKETBASE_URL=http://127.0.0.1:8090
-POCKETBASE_AUTH_COLLECTION=users
-POCKETBASE_RUNS_COLLECTION=runs
-POCKETBASE_AUDITS_COLLECTION=audits
-```
+`App/.env.local` is a symlink to `../Infrastructure/.env` so SvelteKit can read the same values during local development.
 
 ## PocketBase expectations
 

@@ -1,4 +1,4 @@
-import { createWriteStream, existsSync, mkdirSync, rmSync } from 'node:fs';
+import { createWriteStream, existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { chmod, copyFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,6 +12,7 @@ const LOCAL_DIR = join(ROOT_DIR, '.local');
 const BIN_DIR = join(LOCAL_DIR, 'bin');
 const DATA_DIR = join(LOCAL_DIR, 'pocketbase-data');
 const DOWNLOADS_DIR = join(LOCAL_DIR, 'downloads');
+const ENV_PATH = join(ROOT_DIR, 'Infrastructure', '.env');
 const PB_VERSION = process.env.POCKETBASE_VERSION || '0.36.9';
 const PB_HOST = '127.0.0.1:8090';
 const PB_URL = `http://${PB_HOST}`;
@@ -33,6 +34,60 @@ function ensureDir(path: string) {
 	if (!existsSync(path)) {
 		mkdirSync(path, { recursive: true });
 	}
+}
+
+function parseEnvFile(path: string) {
+	if (!existsSync(path)) {
+		return {};
+	}
+
+	const envEntries: Record<string, string> = {};
+	const contents = readFileSync(path, 'utf8');
+
+	for (const rawLine of contents.split(/\r?\n/)) {
+		const line = rawLine.trim();
+		if (!line || line.startsWith('#')) continue;
+
+		const separatorIndex = line.indexOf('=');
+		if (separatorIndex === -1) continue;
+
+		const key = line.slice(0, separatorIndex).trim();
+		let value = line.slice(separatorIndex + 1).trim();
+
+		if (
+			(value.startsWith('"') && value.endsWith('"')) ||
+			(value.startsWith("'") && value.endsWith("'"))
+		) {
+			value = value.slice(1, -1);
+		}
+
+		if (key) {
+			envEntries[key] = value;
+		}
+	}
+
+	return envEntries;
+}
+
+function getLocalEnv() {
+	const localEnv = parseEnvFile(ENV_PATH);
+	const mergedEnv = {
+		...localEnv,
+		...process.env
+	};
+
+	return {
+		...mergedEnv,
+		POCKETBASE_URL: PB_URL,
+		POCKETBASE_AUTH_COLLECTION: 'users',
+		POCKETBASE_RUNS_COLLECTION: 'runs',
+		POCKETBASE_AUDITS_COLLECTION: 'audits',
+		APP_AUTH_EMAIL: mergedEnv.APP_AUTH_EMAIL || APP_AUTH_EMAIL,
+		APP_AUTH_PASSWORD: mergedEnv.APP_AUTH_PASSWORD || APP_AUTH_PASSWORD,
+		APP_AUTH_NAME: mergedEnv.APP_AUTH_NAME || 'Demo User',
+		POCKETBASE_SUPERUSER_EMAIL: mergedEnv.POCKETBASE_SUPERUSER_EMAIL || PB_SUPERUSER_EMAIL,
+		POCKETBASE_SUPERUSER_PASSWORD: mergedEnv.POCKETBASE_SUPERUSER_PASSWORD || PB_SUPERUSER_PASSWORD
+	};
 }
 
 function getPocketBaseTarget() {
@@ -204,13 +259,13 @@ async function ensureAppDeps() {
 	await runCommand(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['install'], { cwd: APP_DIR });
 }
 
-async function upsertSuperuser() {
+async function upsertSuperuser(email: string, password: string) {
 	log('ensuring PocketBase superuser exists');
 
 	try {
 		await runCommand(
 			PB_BINARY_PATH,
-			['superuser', 'upsert', PB_SUPERUSER_EMAIL, PB_SUPERUSER_PASSWORD, '--dir', DATA_DIR],
+			['superuser', 'upsert', email, password, '--dir', DATA_DIR],
 			{ cwd: ROOT_DIR }
 		);
 		return;
@@ -220,7 +275,7 @@ async function upsertSuperuser() {
 
 	await runCommand(
 		PB_BINARY_PATH,
-		['superuser', 'create', PB_SUPERUSER_EMAIL, PB_SUPERUSER_PASSWORD, '--dir', DATA_DIR],
+		['superuser', 'create', email, password, '--dir', DATA_DIR],
 		{ cwd: ROOT_DIR, allowFailure: true }
 	);
 }
@@ -269,6 +324,7 @@ function spawnLongRunning(
 async function main() {
 	const shouldReset = process.argv.includes('--reset');
 	let vite: ReturnType<typeof spawnLongRunning> | undefined;
+	const localEnv = getLocalEnv();
 
 	if (shouldReset) {
 		const existingProcessIds = await findListeningProcessIds(8090);
@@ -288,7 +344,7 @@ async function main() {
 
 	await ensureAppDeps();
 	await ensurePocketBaseBinary();
-	await upsertSuperuser();
+	await upsertSuperuser(localEnv.POCKETBASE_SUPERUSER_EMAIL, localEnv.POCKETBASE_SUPERUSER_PASSWORD);
 
 	let pocketbase: ReturnType<typeof spawnLongRunning> | null = null;
 
@@ -301,17 +357,7 @@ async function main() {
 			['serve', '--http', PB_HOST, '--dir', DATA_DIR, '--migrationsDir', MIGRATIONS_DIR],
 			{
 				cwd: ROOT_DIR,
-				env: {
-					...process.env,
-					POCKETBASE_AUTH_COLLECTION: 'users',
-					POCKETBASE_RUNS_COLLECTION: 'runs',
-					POCKETBASE_AUDITS_COLLECTION: 'audits',
-					APP_AUTH_EMAIL,
-					APP_AUTH_PASSWORD,
-					APP_AUTH_NAME: 'Demo User',
-					POCKETBASE_SUPERUSER_EMAIL: PB_SUPERUSER_EMAIL,
-					POCKETBASE_SUPERUSER_PASSWORD: PB_SUPERUSER_PASSWORD
-				}
+				env: localEnv
 			}
 		);
 	}
@@ -338,8 +384,8 @@ async function main() {
 	await waitForPocketBase();
 
 	log(`PocketBase ready at ${PB_URL}`);
-	log(`PocketBase superuser: ${PB_SUPERUSER_EMAIL} / ${PB_SUPERUSER_PASSWORD}`);
-	log(`App login: ${APP_AUTH_EMAIL} / ${APP_AUTH_PASSWORD}`);
+	log(`PocketBase superuser: ${localEnv.POCKETBASE_SUPERUSER_EMAIL} / ${localEnv.POCKETBASE_SUPERUSER_PASSWORD}`);
+	log(`App login: ${localEnv.APP_AUTH_EMAIL} / ${localEnv.APP_AUTH_PASSWORD}`);
 	log('starting app via Vite; use the Local URL printed below');
 
 	vite = spawnLongRunning(
@@ -347,13 +393,7 @@ async function main() {
 		['run', 'dev', '--', '--host', APP_HOST],
 		{
 			cwd: APP_DIR,
-			env: {
-				...process.env,
-				POCKETBASE_URL: PB_URL,
-				POCKETBASE_AUTH_COLLECTION: 'users',
-				POCKETBASE_RUNS_COLLECTION: 'runs',
-				POCKETBASE_AUDITS_COLLECTION: 'audits'
-			}
+			env: localEnv
 		}
 	);
 

@@ -1,4 +1,4 @@
-import { fail, redirect } from '@sveltejs/kit';
+import { fail, isRedirect, redirect } from '@sveltejs/kit';
 import { createRunRecord, getAuditByRunId, listRuns } from '$lib/server/pocketbase';
 import { ensureAuditRunProcessing, queueAuditRun } from '$lib/server/audit-runner';
 
@@ -47,11 +47,12 @@ export const actions = {
 		}
 
 		try {
+			const createdBy = locals.user?.isSuperuser ? undefined : locals.user?.id;
 			const record = await createRunRecord(
 				{
 					name: url,
 					url,
-					created_by: locals.user?.id,
+					created_by: createdBy,
 					status: 'queued',
 					run_log: `[${new Date().toISOString()}] Run queued.`
 				},
@@ -62,13 +63,13 @@ export const actions = {
 				runId: record.id,
 				url,
 				name: url,
-				createdBy: locals.user?.id,
+				createdBy,
 				token: locals.pbToken
 			});
 
 			throw redirect(302, `/audits/${record.id}`);
 		} catch (error) {
-			if (error instanceof Response) throw error;
+			if (isRedirect(error)) throw error;
 			return fail(500, {
 				createError: error instanceof Error ? error.message : 'Failed to create audit.',
 				url

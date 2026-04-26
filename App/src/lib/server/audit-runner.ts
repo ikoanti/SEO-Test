@@ -61,6 +61,19 @@ function buildSummary(audit: AuditSummaryResult) {
 	};
 }
 
+function formatAuditError(error: unknown) {
+	if (!(error instanceof Error)) {
+		return 'Unknown audit failure.';
+	}
+
+	const response = (error as Error & { response?: unknown }).response;
+	if (response && typeof response === 'object') {
+		return `${error.message}: ${JSON.stringify(response)}`;
+	}
+
+	return error.message;
+}
+
 async function processAuditRun({ runId, url, name, createdBy, token }: QueuePayload) {
 	const existingRecord = await getRun(runId, token);
 	let runLog = appendLog(existingRecord.run_log, 'Run started.');
@@ -137,7 +150,7 @@ async function processAuditRun({ runId, url, name, createdBy, token }: QueuePayl
 			token
 		);
 	} catch (error) {
-		const message = error instanceof Error ? error.message : 'Unknown audit failure.';
+		const message = formatAuditError(error);
 		runLog = appendLog(runLog, `Run failed: ${message}`);
 
 		await updateRunRecord(
