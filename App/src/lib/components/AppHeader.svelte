@@ -109,7 +109,7 @@
 	.brand-mark img {
 		display: block;
 		width: auto;
-		height: 32px;
+		height: 42px;
 	}
 
 	.brand-copy {
@@ -123,7 +123,7 @@
 
 	.brand-copy h1 {
 		margin: 0;
-		font-size: clamp(1.4rem, 2.6vw, 2rem);
+		font-size: clamp(1.2rem, 2vw, 1.6rem);
 		font-weight: 700;
 		color: #fff;
 	}

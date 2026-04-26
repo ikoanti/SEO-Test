@@ -4,9 +4,11 @@
 
 	let {
 		title,
+		status,
 		isPending = false
 	}: {
 		title?: string;
+		status?: string;
 		isPending?: boolean;
 	} = $props();
 </script>
@@ -19,6 +21,7 @@
 		</a>
 		<div>
 			<h1>{title}</h1>
+			<p class="muted">Run status: {status || 'queued'}</p>
 		</div>
 	</div>
 	<div class="page-head-actions">
@@ -33,7 +36,7 @@
 
 <style>
 	.audit-page-head h1 {
-		font-size: clamp(1.4rem, 2.4vw, 2rem);
+		font-size: clamp(1.8rem, 3vw, 2.5rem);
 	}
 
 	.page-head-main {
