@@ -261,6 +261,9 @@ export async function createAuditItemRecord(
 	token?: string
 ) {
 	const pb = createAuthedClient(token);
+	const sortOrder =
+		Number.isFinite(input.sort_order) && input.sort_order > 0 ? input.sort_order : 1;
+
 	return pb.collection(AUDIT_ITEMS_COLLECTION).create({
 		audit: input.audit,
 		key: input.key,
@@ -268,7 +271,7 @@ export async function createAuditItemRecord(
 		status: input.status,
 		summary: input.summary,
 		stats_json: input.stats_json || '',
-		sort_order: input.sort_order
+		sort_order: sortOrder
 	});
 }
 

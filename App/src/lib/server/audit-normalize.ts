@@ -147,7 +147,7 @@ function buildMetricSection(
 
 export function buildNormalizedAuditItems(audit: AuditResult): NormalizedAuditItem[] {
 	const items: NormalizedAuditItem[] = [];
-	let order = 0;
+	let order = 1;
 
 	for (const [key, label] of SECTION_LABELS) {
 		const value = audit[key];
