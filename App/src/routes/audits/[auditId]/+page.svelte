@@ -547,13 +547,6 @@
 	</section>
 {/if}
 
-{#if pageData.runRecord.run_log}
-	<section class="card audit-card run-log-card">
-		<h2>Run log</h2>
-		<pre>{pageData.runRecord.run_log}</pre>
-	</section>
-{/if}
-
 <style>
 	.results-grid {
 		display: flex;
@@ -625,19 +618,5 @@
 	.ai-visibility-results {
 		margin-top: 1rem;
 		margin-bottom: 0;
-	}
-
-	.run-log-card {
-		max-width: 800px;
-		margin: 1.5rem auto 0;
-	}
-
-	pre {
-		padding: 16px;
-		overflow: auto;
-		border-radius: 12px;
-		background: rgba(0, 0, 0, 0.2);
-		white-space: pre-wrap;
-		word-break: break-word;
 	}
 </style>
