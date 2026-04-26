@@ -4,30 +4,53 @@
 	let {
 		good,
 		warn,
-		bad
+		bad,
+		selectedStatus = $bindable<StatusFilter | null>(null)
 	}: {
 		good: number;
 		warn: number;
 		bad: number;
+		selectedStatus?: StatusFilter | null;
 	} = $props();
+
+	type StatusFilter = 'good' | 'warn' | 'bad';
+
+	function toggleSelection(status: StatusFilter) {
+		selectedStatus = selectedStatus === status ? null : status;
+	}
 </script>
 
 <div class="scan-stats">
-	<div class="scan-stat good">
+	<button
+		type="button"
+		class={`scan-stat good ${selectedStatus === 'good' ? 'is-active' : ''}`}
+		aria-pressed={selectedStatus === 'good'}
+		onclick={() => toggleSelection('good')}
+	>
 		<CheckCircle2 size={16} strokeWidth={2.25} />
 		<span>{good}</span>
 		<span>Good</span>
-	</div>
-	<div class="scan-stat warn">
+	</button>
+	<button
+		type="button"
+		class={`scan-stat warn ${selectedStatus === 'warn' ? 'is-active' : ''}`}
+		aria-pressed={selectedStatus === 'warn'}
+		onclick={() => toggleSelection('warn')}
+	>
 		<AlertTriangle size={16} strokeWidth={2.25} />
 		<span>{warn}</span>
 		<span>Issues</span>
-	</div>
-	<div class="scan-stat bad">
+	</button>
+	<button
+		type="button"
+		class={`scan-stat bad ${selectedStatus === 'bad' ? 'is-active' : ''}`}
+		aria-pressed={selectedStatus === 'bad'}
+		onclick={() => toggleSelection('bad')}
+	>
 		<CircleX size={16} strokeWidth={2.25} />
 		<span>{bad}</span>
 		<span>Missing</span>
-	</div>
+	</button>
 </div>
 
 <style>
@@ -43,10 +66,25 @@
 		align-items: center;
 		gap: 0.4rem;
 		padding: 0.35rem 0.7rem;
+		border: 1px solid transparent;
 		border-radius: 999px;
 		background: rgba(0, 0, 0, 0.2);
 		font-size: 0.8rem;
 		font-weight: 600;
+		cursor: pointer;
+		transition:
+			transform 0.16s ease,
+			border-color 0.16s ease,
+			box-shadow 0.16s ease;
+	}
+
+	.scan-stat:hover {
+		transform: translateY(-1px);
+	}
+
+	.scan-stat.is-active {
+		border-color: currentColor;
+		box-shadow: inset 0 0 0 1px currentColor;
 	}
 
 	.scan-stat.good {

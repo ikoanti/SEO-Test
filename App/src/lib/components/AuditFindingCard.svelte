@@ -28,7 +28,17 @@
 		mini?: boolean;
 	};
 
-	let { section, item }: { section: LegacySection; item?: AuditItemView } = $props();
+	type StatusFilter = 'good' | 'warn' | 'bad';
+
+	let {
+		section,
+		item,
+		selectedStatus = $bindable<StatusFilter | null>(null)
+	}: {
+		section: LegacySection;
+		item?: AuditItemView;
+		selectedStatus?: StatusFilter | null;
+	} = $props();
 
 	const getRecord = (value: unknown): Record<string, unknown> =>
 		value && typeof value === 'object' && !Array.isArray(value)
@@ -78,7 +88,7 @@
 		<p class="subtitle">{statsText(item) || section.subtitle}</p>
 	{/if}
 	{#if section.mini}
-		<AuditStatusPills good={pills.good} warn={pills.warn} bad={pills.bad} />
+		<AuditStatusPills good={pills.good} warn={pills.warn} bad={pills.bad} bind:selectedStatus />
 	{/if}
 	{#if section.key === 'internalLinks'}
 		<div class="links-summary">

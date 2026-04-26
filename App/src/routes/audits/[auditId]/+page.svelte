@@ -63,6 +63,8 @@
 		mini?: boolean;
 	};
 
+	type StatusFilter = 'good' | 'warn' | 'bad';
+
 	const legacySections: LegacySection[] = [
 		{ key: 'h1Tags', title: 'H1 Elements', subtitle: 'Scanning exactly 50 pages…', mini: true },
 		{ key: 'metaTitles', title: 'Meta Titles', subtitle: 'Scanning exactly 50 pages…', mini: true },
@@ -129,6 +131,7 @@
 	let { data, form }: { data: AuditPageViewData; form?: ActionData } = $props();
 	let liveData = $state<AuditPageViewData | null>(null);
 	const pageData = $derived(liveData ?? data);
+	let selectedStatusFilter = $state<StatusFilter | null>(null);
 	let copyState = $state('Copy');
 
 	const pageSpeedStrategies = ['mobile', 'desktop'] as const;
@@ -144,6 +147,11 @@
 	const pageUrl = () => pageData.auditRecord?.url || pageData.runRecord?.url || '';
 
 	const itemByKey = (key: string) => pageData.normalizedItems?.find((item) => item.key === key);
+	const statusForFilter: Record<StatusFilter, string> = {
+		good: 'ok',
+		warn: 'warn',
+		bad: 'err'
+	};
 	const getRecord = (value: unknown): Record<string, unknown> =>
 		value && typeof value === 'object' && !Array.isArray(value)
 			? (value as Record<string, unknown>)
@@ -154,6 +162,23 @@
 		value === undefined || value === null || value === '' ? fallback : String(value);
 	const openPageRank = () => auditSection('openPageRank');
 	const pageSpeed = () => auditSection('pageSpeed');
+	const visibleSections = $derived(
+		legacySections.filter((section) =>
+			matchesStatusFilter(itemByKey(section.key), selectedStatusFilter)
+		)
+	);
+
+	function matchesStatusFilter(item: AuditItemView | undefined, filter: StatusFilter | null) {
+		if (!filter) return true;
+		if (!item) return false;
+
+		const targetStatus = statusForFilter[filter];
+		if (item.findings.some((finding) => finding.status === targetStatus)) {
+			return true;
+		}
+
+		return item.status === targetStatus;
+	}
 
 	function scoreClass(score: unknown) {
 		const value = Number(score);
@@ -374,8 +399,12 @@
 			</div>
 		</div>
 
-		{#each legacySections as section (section.key)}
-			<AuditFindingCard {section} item={itemByKey(section.key)} />
+		{#each visibleSections as section (section.key)}
+			<AuditFindingCard
+				{section}
+				item={itemByKey(section.key)}
+				bind:selectedStatus={selectedStatusFilter}
+			/>
 		{/each}
 
 		<div class="card legacy-card card-aiv" id="card-ai-visibility">
