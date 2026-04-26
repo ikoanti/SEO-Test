@@ -161,7 +161,7 @@ async function processReportGeneration(auditId: string, token?: string) {
 	const auditRecord = await getAudit(auditId, token);
 	const website = (auditRecord.expand as { website?: { url?: string } } | undefined)?.website;
 	const pageData = await buildAuditPageData(auditId, token);
-	const audit = auditRecord.audit_json ? JSON.parse(auditRecord.audit_json) : null;
+	const audit = pageData.audit;
 
 	if (String(auditRecord.status || '') !== 'completed') {
 		await updateAuditRecord(

@@ -29,6 +29,16 @@ function compactAuditRecord(auditRecord: Record<string, unknown>) {
 	};
 }
 
+function parseStoredJson(value: unknown) {
+	if (typeof value !== 'string' || !value.trim()) return null;
+
+	try {
+		return JSON.parse(value);
+	} catch {
+		return null;
+	}
+}
+
 export async function buildAuditPageData(
 	auditId: string,
 	token?: string,
@@ -38,11 +48,9 @@ export async function buildAuditPageData(
 	const auditRecord = await getAudit(auditId, token);
 	const workflowRecord = await getWorkflowByAuditId(auditRecord.id, token);
 
-	const audit = auditRecord.audit_json ? JSON.parse(auditRecord.audit_json) : null;
-	const summary = auditRecord.summary_json ? JSON.parse(auditRecord.summary_json) : null;
-	const aiVisibility = auditRecord.ai_visibility_json
-		? JSON.parse(auditRecord.ai_visibility_json)
-		: null;
+	const audit = parseStoredJson(auditRecord.audit_json);
+	const summary = parseStoredJson(auditRecord.summary_json);
+	const aiVisibility = parseStoredJson(auditRecord.ai_visibility_json);
 	const [runs, auditFindings, auditScreenshots] = await Promise.all([
 		listRunsByWorkflow(workflowRecord.id, token),
 		listAuditFindings(auditRecord.id, token),
@@ -104,7 +112,7 @@ export async function buildAuditPageData(
 			)?.audit_finding_type;
 			const findings = (findingsByRunId.get(run.id) || []).map((finding) => ({
 				...finding,
-				meta: finding.meta_json ? JSON.parse(finding.meta_json) : null
+				meta: parseStoredJson(finding.meta_json)
 			})) as Array<Record<string, unknown> & { status?: AuditFindingStatus }>;
 			const displaySummary =
 				typeof findings[0]?.detail === 'string' && findings[0].detail.trim()

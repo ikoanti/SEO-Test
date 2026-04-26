@@ -1,4 +1,4 @@
-import { error, fail, redirect } from '@sveltejs/kit';
+import { fail, redirect } from '@sveltejs/kit';
 import { buildAuditPageData } from '$lib/server/audit-detail';
 import { ensureAuditWorkflowProcessing, queueAuditWorkflow } from '$lib/server/audit-runner';
 import { parsePdfMetrics } from '$lib/server/legacy-api';
@@ -14,14 +14,10 @@ import {
 } from '$lib/server/pocketbase';
 
 export const load = async ({ params, locals }) => {
-	try {
-		const payload = await buildAuditPageData(params.auditId, locals.pbToken);
-		ensureAuditWorkflowProcessing(payload.workflowRecord, locals.pbToken);
-		ensureReportGenerationProcessing(payload.auditRecord, locals.pbToken);
-		return payload;
-	} catch {
-		throw error(500, 'Stored audit JSON is invalid.');
-	}
+	const payload = await buildAuditPageData(params.auditId, locals.pbToken);
+	ensureAuditWorkflowProcessing(payload.workflowRecord, locals.pbToken);
+	ensureReportGenerationProcessing(payload.auditRecord, locals.pbToken);
+	return payload;
 };
 
 export const actions = {
