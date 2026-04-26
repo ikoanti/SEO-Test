@@ -4,12 +4,10 @@
 
 	let {
 		title,
-		url,
 		status,
 		isPending = false
 	}: {
 		title?: string;
-		url?: string;
 		status?: string;
 		isPending?: boolean;
 	} = $props();
@@ -23,7 +21,6 @@
 		</a>
 		<div>
 			<h1>{title}</h1>
-			<p class="muted">{url}</p>
 			<p class="muted">Run status: {status || 'queued'}</p>
 		</div>
 	</div>
