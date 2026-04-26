@@ -180,6 +180,10 @@ export async function createAuditRecord(
 		audit_json?: string;
 		summary_json?: string;
 		completed_at?: string;
+		report_status?: string;
+		report_error?: string;
+		report_started_at?: string;
+		report_completed_at?: string;
 		report_html?: string;
 		ai_visibility_json?: string;
 	},
@@ -193,6 +197,10 @@ export async function createAuditRecord(
 		audit_json: input.audit_json || '',
 		summary_json: input.summary_json || '',
 		...(input.completed_at ? { completed_at: input.completed_at } : {}),
+		report_status: input.report_status || 'idle',
+		report_error: input.report_error || '',
+		...(input.report_started_at ? { report_started_at: input.report_started_at } : {}),
+		...(input.report_completed_at ? { report_completed_at: input.report_completed_at } : {}),
 		report_html: input.report_html || '',
 		ai_visibility_json: input.ai_visibility_json || ''
 	});
@@ -228,6 +236,10 @@ export async function updateAuditRecord(
 		audit_json?: string;
 		summary_json?: string;
 		completed_at?: string | null;
+		report_status?: string;
+		report_error?: string;
+		report_started_at?: string | null;
+		report_completed_at?: string | null;
 		report_html?: string;
 		ai_visibility_json?: string;
 	},

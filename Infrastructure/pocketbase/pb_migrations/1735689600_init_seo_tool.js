@@ -152,6 +152,10 @@ migrate((app) => {
                 { name: 'status', type: 'select', required: true, maxSelect: 1, values: ['queued', 'running', 'completed', 'failed'] },
                 { name: 'completed_at', type: 'date', required: false },
                 { name: 'summary_json', type: 'editor', required: false },
+                { name: 'report_status', type: 'select', required: false, maxSelect: 1, values: ['idle', 'queued', 'running', 'completed', 'failed'] },
+                { name: 'report_error', type: 'editor', required: false },
+                { name: 'report_started_at', type: 'date', required: false },
+                { name: 'report_completed_at', type: 'date', required: false },
                 { name: 'report_html', type: 'editor', required: false },
                 { name: 'ai_visibility_json', type: 'editor', required: false },
                 { name: 'audit_json', type: 'editor', required: false }

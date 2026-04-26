@@ -1,7 +1,8 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { buildAuditPageData } from '$lib/server/audit-detail';
 import { ensureAuditWorkflowProcessing, queueAuditWorkflow } from '$lib/server/audit-runner';
-import { generateReportHtml, parsePdfMetrics } from '$lib/server/legacy-api';
+import { parsePdfMetrics } from '$lib/server/legacy-api';
+import { ensureReportGenerationProcessing, queueReportGeneration } from '$lib/server/report-runner';
 import {
 	deleteAuditFindingsByRunId,
 	getAudit,
@@ -16,6 +17,7 @@ export const load = async ({ params, locals }) => {
 	try {
 		const payload = await buildAuditPageData(params.auditId, locals.pbToken);
 		ensureAuditWorkflowProcessing(payload.workflowRecord, locals.pbToken);
+		ensureReportGenerationProcessing(payload.auditRecord, locals.pbToken);
 		return payload;
 	} catch {
 		throw error(500, 'Stored audit JSON is invalid.');
@@ -64,6 +66,10 @@ export const actions = {
 				audit_json: '',
 				summary_json: '',
 				completed_at: null,
+				report_status: 'idle',
+				report_error: '',
+				report_started_at: null,
+				report_completed_at: null,
 				report_html: '',
 				ai_visibility_json: ''
 			},
@@ -93,8 +99,6 @@ export const actions = {
 	generateReport: async ({ params, locals }) => {
 		const auditRecord = await getAudit(params.auditId, locals.pbToken);
 		const workflowRecord = await getWorkflowByAuditId(params.auditId, locals.pbToken);
-		const audit = JSON.parse(auditRecord.audit_json || '{}');
-		const website = (auditRecord.expand as { website?: { url?: string } } | undefined)?.website;
 
 		if (String(workflowRecord.status || '') !== 'completed') {
 			return fail(400, {
@@ -102,15 +106,24 @@ export const actions = {
 			});
 		}
 
-		try {
-			const reportHtml = await generateReportHtml(audit.domain || website?.url || '', audit);
-			await updateAuditRecord(auditRecord.id, { report_html: reportHtml }, locals.pbToken);
-			return { reportSuccess: true };
-		} catch (err) {
-			return fail(500, {
-				reportError: err instanceof Error ? err.message : 'Failed to generate report.'
-			});
+		if (['queued', 'running'].includes(String(auditRecord.report_status || ''))) {
+			ensureReportGenerationProcessing(auditRecord, locals.pbToken);
+			throw redirect(303, `/audits/${params.auditId}`);
 		}
+
+		await updateAuditRecord(
+			auditRecord.id,
+			{
+				report_status: 'queued',
+				report_error: '',
+				report_started_at: null,
+				report_completed_at: null,
+				report_html: ''
+			},
+			locals.pbToken
+		);
+		queueReportGeneration(auditRecord.id, locals.pbToken);
+		throw redirect(303, `/audits/${params.auditId}`);
 	},
 	parsePdf: async ({ request, params, locals }) => {
 		const auditRecord = await getAudit(params.auditId, locals.pbToken);

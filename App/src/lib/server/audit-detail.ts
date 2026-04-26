@@ -47,6 +47,12 @@ export async function buildAuditPageData(auditId: string, token?: string) {
 			url: getWebsite(auditRecord)?.url,
 			name: getWebsite(auditRecord)?.domain || getWebsite(auditRecord)?.url
 		},
+		reportRecord: {
+			status: String(auditRecord.report_status || 'idle'),
+			error_message: String(auditRecord.report_error || ''),
+			started_at: auditRecord.report_started_at,
+			completed_at: auditRecord.report_completed_at
+		},
 		audit,
 		summary,
 		reportHtml: auditRecord?.report_html || '',
@@ -93,6 +99,7 @@ export async function buildAuditPageData(auditId: string, token?: string) {
 				findings
 			};
 		}),
-		isPendingRun: ['queued', 'running'].includes(String(workflowRecord.status || ''))
+		isPendingRun: ['queued', 'running'].includes(String(workflowRecord.status || '')),
+		isPendingReport: ['queued', 'running'].includes(String(auditRecord.report_status || ''))
 	};
 }

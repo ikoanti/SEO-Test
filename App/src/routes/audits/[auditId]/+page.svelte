@@ -49,7 +49,14 @@
 		auditRecord: {
 			name?: string;
 			url?: string;
+			report_status?: string;
 		} | null;
+		reportRecord: {
+			status?: string;
+			error_message?: string;
+			started_at?: string;
+			completed_at?: string;
+		};
 		audit: Record<string, unknown> | null;
 		summary: {
 			domain?: string;
@@ -58,6 +65,7 @@
 		reportHtml: string;
 		aiVisibility: Record<string, unknown> | null;
 		normalizedItems: AuditItemView[];
+		isPendingReport?: boolean;
 	};
 
 	type LegacySection = {
@@ -136,10 +144,14 @@
 	let copyState = $state('Copy');
 
 	const pendingStatuses = new Set(['queued', 'running']);
+	const reportPendingStatuses = new Set(['queued', 'running']);
 	const runStatus = () => pageData.runRecord.status || 'queued';
 	const isPending = () => pendingStatuses.has(runStatus());
 	const isFailed = () => runStatus() === 'failed';
-	const canGenerateReport = () => runStatus() === 'completed';
+	const reportStatus = () => pageData.reportRecord?.status || 'idle';
+	const isReportPending = () => reportPendingStatuses.has(reportStatus());
+	const isReportFailed = () => reportStatus() === 'failed';
+	const canGenerateReport = () => runStatus() === 'completed' && !isReportPending();
 	const pageTitle = () =>
 		pageData.auditRecord?.name ||
 		pageData.runRecord?.name ||
@@ -227,18 +239,29 @@
 		let stream: EventSource | undefined;
 
 		const startFallbackPolling = () => {
-			if (fallbackInterval || !pendingStatuses.has(pageData.runRecord.status || '')) return;
+			if (
+				fallbackInterval ||
+				(!pendingStatuses.has(pageData.runRecord.status || '') &&
+					!reportPendingStatuses.has(pageData.reportRecord?.status || ''))
+			)
+				return;
 			fallbackInterval = window.setInterval(() => {
 				void invalidateAll();
 			}, 1000);
 		};
 
-		if (pendingStatuses.has(pageData.runRecord.status || '')) {
+		if (
+			pendingStatuses.has(pageData.runRecord.status || '') ||
+			reportPendingStatuses.has(pageData.reportRecord?.status || '')
+		) {
 			stream = new EventSource(`/api/audits/${pageData.auditId}/stream`);
 			stream.onmessage = (event) => {
 				const next = JSON.parse(event.data) as AuditPageViewData;
 				liveData = next;
-				if (!pendingStatuses.has(next.runRecord.status || '')) {
+				if (
+					!pendingStatuses.has(next.runRecord.status || '') &&
+					!reportPendingStatuses.has(next.reportRecord?.status || '')
+				) {
 					stream?.close();
 					stream = undefined;
 					if (fallbackInterval) {
@@ -386,13 +409,30 @@
 				{#if form?.reportError}
 					<p class="report-error">{form.reportError}</p>
 				{/if}
+				{#if pageData.reportRecord?.error_message}
+					<p class="report-error">{pageData.reportRecord.error_message}</p>
+				{/if}
 				<button type="submit" class="report-generate-btn" disabled={!canGenerateReport()}>
 					<Sparkles size={18} />
 					<span>
-						{canGenerateReport() ? 'Generate Mini SEO Audit Report' : 'Audit completion required'}
+						{#if isReportPending()}
+							Report generation queued
+						{:else if canGenerateReport()}
+							Generate Mini SEO Audit Report
+						{:else}
+							Audit completion required
+						{/if}
 					</span>
 				</button>
 			</form>
+			{#if isReportPending()}
+				<p class="muted report-status-note">
+					Report generation is running in the background and will finish even if you leave this
+					page.
+				</p>
+			{:else if isReportFailed()}
+				<p class="muted report-status-note">The last report generation attempt failed.</p>
+			{/if}
 
 			{#if pageData.reportHtml}
 				<div class="report-actions">
