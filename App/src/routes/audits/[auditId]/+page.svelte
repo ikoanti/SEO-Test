@@ -6,6 +6,7 @@
 	import AuditOverviewCard from '$lib/components/AuditOverviewCard.svelte';
 	import OpenPageRankCard from '$lib/components/OpenPageRankCard.svelte';
 	import PageSpeedCard from '$lib/components/PageSpeedCard.svelte';
+	import SegmentedPicker from '$lib/components/SegmentedPicker.svelte';
 	import { Copy, Download, FileText, FileUp, Sparkles } from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import AuditHeader from './AuditHeader.svelte';
@@ -352,22 +353,7 @@
 		barStyle={summaryBarStyle()}
 	/>
 
-	<div class="audit-tab-picker" role="tablist" aria-label="Audit sections">
-		{#each tabs as tab (tab.key)}
-			<button
-				type="button"
-				role="tab"
-				class:active={activeTab === tab.key}
-				aria-selected={activeTab === tab.key}
-				class="audit-tab-button"
-				onclick={() => {
-					activeTab = tab.key;
-				}}
-			>
-				{tab.label}
-			</button>
-		{/each}
-	</div>
+	<SegmentedPicker options={tabs} bind:selected={activeTab} ariaLabel="Audit sections" />
 
 	<section class="results-grid audit-results">
 		{#if activeTab === 'findings'}
@@ -553,41 +539,6 @@
 		flex-direction: column;
 		align-items: center;
 		gap: 1.5rem;
-	}
-
-	.audit-tab-picker {
-		display: flex;
-		justify-content: center;
-		gap: 0.5rem;
-		width: min(100%, 42rem);
-		margin: 1.5rem auto 1.5rem;
-		padding: 0.4rem;
-		border: 1px solid rgba(255, 255, 255, 0.08);
-		border-radius: 999px;
-		background: rgba(255, 255, 255, 0.03);
-	}
-
-	.audit-tab-button {
-		flex: 1;
-		min-width: 0;
-		padding: 0.75rem 1rem;
-		border: 1px solid transparent;
-		border-radius: 999px;
-		background: transparent;
-		color: var(--text-muted);
-		font: inherit;
-		font-weight: 600;
-		cursor: pointer;
-		transition:
-			background 0.2s ease,
-			border-color 0.2s ease,
-			color 0.2s ease;
-	}
-
-	.audit-tab-button.active {
-		border-color: rgba(255, 255, 255, 0.14);
-		background: rgba(255, 255, 255, 0.06);
-		color: var(--text-color);
 	}
 
 	.highlight-yellow {
