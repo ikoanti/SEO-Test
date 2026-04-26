@@ -40,11 +40,6 @@
 	let selectedStatus = $state<AuditFindingStatusFilter | null>(null);
 	let showPassedFindings = $state(false);
 
-	const getRecord = (value: unknown): Record<string, unknown> =>
-		value && typeof value === 'object' && !Array.isArray(value)
-			? (value as Record<string, unknown>)
-			: {};
-
 	function statPills(item?: AuditItemView) {
 		const findings = item?.findings || [];
 		return {
