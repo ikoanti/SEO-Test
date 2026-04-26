@@ -289,7 +289,7 @@
 <AuditHeader title={pageTitle()} status={runStatus()} isPending={isPending()} />
 
 {#if isFailed()}
-	<section class="card legacy-card">
+	<section class="card audit-card">
 		<h2>Run failed</h2>
 		<p class="error">{pageData.runRecord.error_message || 'The audit run failed.'}</p>
 	</section>
@@ -315,19 +315,17 @@
 			<AuditFindingCard {section} item={itemByKey(section.key)} />
 		{/each}
 
-		<div class="card legacy-card card-aiv" id="card-ai-visibility">
-			<div class="card-header">
-				<h3>AI Visibility Analysis</h3>
-			</div>
-			<p class="subtitle">Upload an AI Visibility PDF report to extract key metrics</p>
+		<div class="card audit-card" id="card-ai-visibility">
+			<h3 class="audit-card-title">AI Visibility Analysis</h3>
+			<p class="section-subtitle">Upload an AI Visibility PDF report to extract key metrics</p>
 			<form
 				method="POST"
 				action="?/parsePdf"
 				enctype="multipart/form-data"
-				class="file-upload-container"
+				class="audit-upload-row"
 			>
 				<input name="pdf" type="file" accept="application/pdf" required />
-				<button type="submit" class="report-generate-btn">
+				<button type="submit" class="audit-primary-button">
 					<FileUp size={18} />
 					<span>Analyze PDF</span>
 				</button>
@@ -337,49 +335,49 @@
 			{/if}
 
 			{#if pageData.aiVisibility}
-				<div class="ahrefs-metrics ai-visibility-results">
-					<div class="metric-item">
+				<div class="metric-grid ai-visibility-results">
+					<div class="metric-card">
 						<span class="metric-label">AI Visibility</span>
 						<span class="metric-value highlight-yellow"
 							>{pageData.aiVisibility.aiVisibility ?? '-'}</span
 						>
 					</div>
-					<div class="metric-item">
+					<div class="metric-card">
 						<span class="metric-label">Monthly Audience</span>
 						<span class="metric-value highlight-green"
 							>{pageData.aiVisibility.monthlyAudience ?? '-'}</span
 						>
 					</div>
-					<div class="metric-item">
+					<div class="metric-card">
 						<span class="metric-label">Mentions</span>
 						<span class="metric-value highlight-green">{pageData.aiVisibility.mentions ?? '-'}</span
 						>
 					</div>
-					<div class="metric-item">
+					<div class="metric-card">
 						<span class="metric-label">Cited Pages</span>
 						<span class="metric-value highlight-green"
 							>{pageData.aiVisibility.citedPages ?? '-'}</span
 						>
 					</div>
-					<div class="metric-item">
+					<div class="metric-card">
 						<span class="metric-label">Perf. Topics</span>
 						<span class="metric-value highlight-yellow"
 							>{pageData.aiVisibility.performingTopics ?? '-'}</span
 						>
 					</div>
-					<div class="metric-item">
+					<div class="metric-card">
 						<span class="metric-label">Topic Opps</span>
 						<span class="metric-value highlight-yellow"
 							>{pageData.aiVisibility.topicOpportunities ?? '-'}</span
 						>
 					</div>
-					<div class="metric-item">
+					<div class="metric-card">
 						<span class="metric-label">Cited Sources</span>
 						<span class="metric-value highlight-yellow"
 							>{pageData.aiVisibility.citedSources ?? '-'}</span
 						>
 					</div>
-					<div class="metric-item">
+					<div class="metric-card">
 						<span class="metric-label">Source Opps</span>
 						<span class="metric-value highlight-yellow"
 							>{pageData.aiVisibility.sourceOpportunities ?? '-'}</span
@@ -389,9 +387,9 @@
 			{/if}
 		</div>
 
-		<div class="card legacy-card card-report" id="card-report">
-			<h3>📄 AI Report Generator</h3>
-			<p class="subtitle">
+		<div class="card audit-card" id="card-report">
+			<h3 class="audit-card-title">📄 AI Report Generator</h3>
+			<p class="section-subtitle">
 				Generate a professional Mini Technical SEO Audit document using Claude AI
 			</p>
 			{#if !canGenerateReport()}
@@ -412,7 +410,7 @@
 				{#if pageData.reportRecord?.error_message}
 					<p class="report-error">{pageData.reportRecord.error_message}</p>
 				{/if}
-				<button type="submit" class="report-generate-btn" disabled={!canGenerateReport()}>
+				<button type="submit" class="audit-primary-button" disabled={!canGenerateReport()}>
 					<Sparkles size={18} />
 					<span>
 						{#if isReportPending()}
@@ -435,10 +433,10 @@
 			{/if}
 
 			{#if pageData.reportHtml}
-				<div class="report-actions">
+				<div class="audit-inline-actions">
 					<button
 						type="button"
-						class="report-action-btn"
+						class="audit-action-button"
 						title="Copy to Clipboard"
 						onclick={copyReport}
 					>
@@ -447,7 +445,7 @@
 					</button>
 					<button
 						type="button"
-						class="report-action-btn"
+						class="audit-action-button"
 						title="Download as HTML"
 						onclick={downloadReportHtml}
 					>
@@ -456,7 +454,7 @@
 					</button>
 					<button
 						type="button"
-						class="report-action-btn"
+						class="audit-action-button"
 						title="Download as Word Doc"
 						onclick={downloadReportDoc}
 					>
@@ -474,7 +472,7 @@
 {/if}
 
 {#if pageData.runRecord.run_log}
-	<section class="card legacy-card run-log-card">
+	<section class="card audit-card run-log-card">
 		<h2>Run log</h2>
 		<pre>{pageData.runRecord.run_log}</pre>
 	</section>
@@ -489,57 +487,12 @@
 		animation: fadeInUp 0.8s ease 0.1s both;
 	}
 
-	.legacy-card {
-		width: 100%;
-		max-width: 800px;
-		border-radius: 1rem;
-		padding: 1.5rem;
-	}
-
-	.legacy-card h3 {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		margin: 0 0 1rem;
-		padding-bottom: 0.5rem;
-		border-bottom: 1px solid var(--border);
-		font-size: 1.25rem;
-		font-weight: 600;
-	}
-
-	.subtitle {
-		margin: -0.5rem 0 1rem;
-		color: var(--text-muted);
-		font-size: 0.85rem;
-	}
-
 	.highlight-yellow {
 		color: var(--goldenweb-primary);
 	}
 
 	.highlight-green {
 		color: var(--status-pass);
-	}
-
-	.file-upload-container {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.75rem;
-		margin-bottom: 1rem;
-	}
-
-	.report-generate-btn,
-	.report-action-btn {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		gap: 0.5rem;
-	}
-
-	.report-action-btn {
-		padding: 0.75rem 1rem;
-		border: 1px solid var(--border);
-		background: rgba(15, 23, 42, 0.9);
 	}
 
 	.report-error {
@@ -549,13 +502,6 @@
 
 	.report-status-note {
 		margin: 0 0 1rem;
-	}
-
-	.report-actions {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 12px;
-		margin: 16px 0;
 	}
 
 	.report-output {
@@ -593,12 +539,6 @@
 		to {
 			opacity: 1;
 			transform: translateY(0);
-		}
-	}
-
-	@media (max-width: 760px) {
-		.file-upload-container {
-			flex-direction: column;
 		}
 	}
 </style>
