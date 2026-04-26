@@ -447,37 +447,39 @@ function analyzeHomePage(urlObj, $, summary, logger) {
 	);
 
 	const images = $('img').toArray();
-	const lazyImages = images.filter(
-		(element) => ($(element).attr('loading') || '').toLowerCase() === 'lazy'
-	).length;
 	const totalImages = images.length;
+	const resolveImageUrl = (element) => {
+		const rawSrc =
+			$(element).attr('src') ||
+			$(element).attr('data-src') ||
+			$(element).attr('data-lazy-src') ||
+			'';
+
+		try {
+			return rawSrc ? new URL(rawSrc, urlObj.href).href : urlObj.href;
+		} catch {
+			return rawSrc || urlObj.href;
+		}
+	};
+	const lazyImageElements = images.filter(
+		(element) => ($(element).attr('loading') || '').toLowerCase() === 'lazy'
+	);
 	const nonLazyImages = images.filter(
 		(element) => ($(element).attr('loading') || '').toLowerCase() !== 'lazy'
 	);
 
 	if (totalImages === 0) {
 		addItem(summary, lazyLoadImages, 'pass', 'No Images Found');
-	} else if (nonLazyImages.length === 0) {
-		addItem(summary, lazyLoadImages, 'pass', 'Images Use Lazy Loading', {
-			title: `${lazyImages}/${totalImages} images use loading="lazy"`
-		});
 	} else {
-		for (const element of nonLazyImages) {
-			const rawSrc =
-				$(element).attr('src') ||
-				$(element).attr('data-src') ||
-				$(element).attr('data-lazy-src') ||
-				'';
-			const imageUrl = (() => {
-				try {
-					return rawSrc ? new URL(rawSrc, urlObj.href).href : urlObj.href;
-				} catch {
-					return rawSrc || urlObj.href;
-				}
-			})();
+		for (const element of lazyImageElements) {
+			addItem(summary, lazyLoadImages, 'pass', 'Image uses loading="lazy"', {
+				title: resolveImageUrl(element)
+			});
+		}
 
+		for (const element of nonLazyImages) {
 			addItem(summary, lazyLoadImages, 'warn', 'Image missing loading="lazy"', {
-				title: imageUrl
+				title: resolveImageUrl(element)
 			});
 		}
 	}
