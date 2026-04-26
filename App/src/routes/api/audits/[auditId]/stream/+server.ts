@@ -16,10 +16,18 @@ export const GET = async ({ params, locals, request }) => {
 			const close = () => {
 				if (closed) return;
 				closed = true;
-				controller.close();
+				try {
+					controller.close();
+				} catch {
+					return;
+				}
 			};
 
-			request.signal.addEventListener('abort', close);
+			const handleAbort = () => {
+				close();
+			};
+
+			request.signal.addEventListener('abort', handleAbort);
 
 			while (!closed) {
 				try {
@@ -27,22 +35,26 @@ export const GET = async ({ params, locals, request }) => {
 					ensureAuditWorkflowProcessing(payload.workflowRecord, locals.pbToken);
 					const serialized = JSON.stringify(payload);
 
-					if (serialized !== lastPayload) {
+					if (!closed && serialized !== lastPayload) {
 						controller.enqueue(encoder.encode(`data: ${serialized}\n\n`));
 						lastPayload = serialized;
 					}
 
 					if (!payload.isPendingRun) {
 						close();
+						request.signal.removeEventListener('abort', handleAbort);
 						return;
 					}
 
 					await delay(400);
 				} catch {
 					close();
+					request.signal.removeEventListener('abort', handleAbort);
 					return;
 				}
 			}
+
+			request.signal.removeEventListener('abort', handleAbort);
 		}
 	});
 
