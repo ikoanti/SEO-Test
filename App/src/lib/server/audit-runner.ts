@@ -6,7 +6,9 @@ import {
 } from '$lib/server/audit-normalize';
 import {
 	createAuditFindingRecord,
+	createAuditScreenshotRecord,
 	deleteAuditFindingsByRunId,
+	deleteAuditScreenshotsByRunId,
 	getOrCreateAuditFindingTypeRecord,
 	getOrCreateRunRecord,
 	getWorkflow,
@@ -27,6 +29,11 @@ type AuditRunnerState = {
 };
 
 type AuditSummaryResult = AuditResult;
+
+type ScreenshotPayload = {
+	contentType?: string;
+	imageBase64?: string;
+};
 
 type WorkflowRecordLike = {
 	id?: string;
@@ -80,6 +87,81 @@ function formatAuditError(error: unknown) {
 	}
 
 	return error.message;
+}
+
+function getRecord(value: unknown): Record<string, unknown> | null {
+	return value && typeof value === 'object' && !Array.isArray(value)
+		? (value as Record<string, unknown>)
+		: null;
+}
+
+function extractScreenshotFromMeta(metaJson: string) {
+	if (!metaJson) {
+		return {
+			meta_json: metaJson,
+			screenshot: null as ScreenshotPayload | null
+		};
+	}
+
+	try {
+		const meta = JSON.parse(metaJson) as Record<string, unknown>;
+		const directScreenshot = getRecord(meta.screenshot);
+		const nestedMeta = getRecord(meta.meta);
+		const nestedScreenshot = getRecord(nestedMeta?.screenshot);
+		const screenshot = (directScreenshot || nestedScreenshot) as ScreenshotPayload | null;
+
+		if (directScreenshot) {
+			delete meta.screenshot;
+		}
+
+		if (nestedMeta && nestedScreenshot) {
+			delete nestedMeta.screenshot;
+			meta.meta = nestedMeta;
+		}
+
+		return {
+			meta_json: JSON.stringify(meta),
+			screenshot:
+				screenshot?.contentType && screenshot?.imageBase64
+					? {
+							contentType: screenshot.contentType,
+							imageBase64: screenshot.imageBase64
+						}
+					: null
+		};
+	} catch {
+		return {
+			meta_json: metaJson,
+			screenshot: null as ScreenshotPayload | null
+		};
+	}
+}
+
+async function persistScreenshotIfPresent(
+	input: {
+		auditId: string;
+		findingTypeId: string;
+		runId: string;
+		title: string;
+		page_url?: string;
+		screenshot: ScreenshotPayload | null;
+	},
+	token?: string
+) {
+	if (!input.screenshot?.contentType || !input.screenshot.imageBase64) return;
+
+	await createAuditScreenshotRecord(
+		{
+			audit: input.auditId,
+			audit_finding_type: input.findingTypeId,
+			run: input.runId,
+			title: input.title,
+			page_url: input.page_url,
+			content_type: input.screenshot.contentType,
+			image_base64: input.screenshot.imageBase64
+		},
+		token
+	);
 }
 
 const STEP_KEYS: Record<string, string[]> = {
@@ -178,8 +260,20 @@ async function syncProgressSnapshot(
 		if (!run) continue;
 
 		await deleteAuditFindingsByRunId(run.runId, token);
+		await deleteAuditScreenshotsByRunId(run.runId, token);
 
 		if (item.findings.length === 0) {
+			const { meta_json, screenshot } = extractScreenshotFromMeta(item.stats_json);
+			await persistScreenshotIfPresent(
+				{
+					auditId,
+					findingTypeId: run.findingTypeId,
+					runId: run.runId,
+					title: item.label,
+					screenshot
+				},
+				token
+			);
 			await createAuditFindingRecord(
 				{
 					audit: auditId,
@@ -188,12 +282,24 @@ async function syncProgressSnapshot(
 					status: item.status,
 					title: item.label,
 					detail: item.summary,
-					meta_json: item.stats_json
+					meta_json
 				},
 				token
 			);
 		} else {
 			for (const finding of item.findings) {
+				const { meta_json, screenshot } = extractScreenshotFromMeta(finding.meta_json);
+				await persistScreenshotIfPresent(
+					{
+						auditId,
+						findingTypeId: run.findingTypeId,
+						runId: run.runId,
+						title: finding.detail || finding.title || item.label,
+						page_url: finding.page_url,
+						screenshot
+					},
+					token
+				);
 				await createAuditFindingRecord(
 					{
 						audit: auditId,
@@ -203,7 +309,7 @@ async function syncProgressSnapshot(
 						title: finding.title,
 						detail: finding.detail,
 						page_url: finding.page_url,
-						meta_json: finding.meta_json
+						meta_json
 					},
 					token
 				);

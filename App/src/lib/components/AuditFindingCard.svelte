@@ -20,6 +20,12 @@
 		runStatus?: string;
 		summary?: string;
 		stats?: unknown;
+		screenshot?: {
+			id?: string;
+			title?: string;
+			page_url?: string;
+			image_url?: string;
+		} | null;
 		findings: AuditFindingView[];
 	};
 
@@ -265,6 +271,13 @@
 	const summaryItem = $derived(showSummaryRow ? item : undefined);
 	const showEmptyRow = $derived(Boolean(!item));
 	const cardScreenshot = $derived.by(() => {
+		if (item?.screenshot?.image_url) {
+			return {
+				src: item.screenshot.image_url,
+				alt: item.screenshot.title || `${section.title} evidence screenshot`
+			};
+		}
+
 		for (const finding of item?.findings || []) {
 			const imageSrc = screenshotFor(finding);
 			if (imageSrc) {

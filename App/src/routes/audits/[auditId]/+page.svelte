@@ -37,6 +37,12 @@
 			run_log?: string;
 			error_message?: string;
 		} | null;
+		screenshot?: {
+			id?: string;
+			title?: string;
+			page_url?: string;
+			image_url?: string;
+		} | null;
 		findings: AuditFindingView[];
 	};
 

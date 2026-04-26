@@ -2,6 +2,7 @@ import type { AuditFindingStatus } from '$lib/audit-status';
 import {
 	getAudit,
 	getWorkflowByAuditId,
+	listAuditScreenshots,
 	listAuditFindings,
 	listRunsByWorkflow
 } from '$lib/server/pocketbase';
@@ -57,9 +58,10 @@ export async function buildAuditPageData(
 	const aiVisibility = auditRecord.ai_visibility_json
 		? JSON.parse(auditRecord.ai_visibility_json)
 		: null;
-	const [runs, auditFindings] = await Promise.all([
+	const [runs, auditFindings, auditScreenshots] = await Promise.all([
 		listRunsByWorkflow(workflowRecord.id, token),
-		listAuditFindings(auditRecord.id, token)
+		listAuditFindings(auditRecord.id, token),
+		listAuditScreenshots(auditRecord.id, token)
 	]);
 	const findingsByRunId = new Map<string, typeof auditFindings>();
 	for (const finding of auditFindings) {
@@ -67,6 +69,19 @@ export async function buildAuditPageData(
 		const current = findingsByRunId.get(runId) || [];
 		current.push(finding);
 		findingsByRunId.set(runId, current);
+	}
+	const screenshotsByRunId = new Map<string, (typeof auditScreenshots)[number]>();
+	const screenshotsByFindingTypeId = new Map<string, (typeof auditScreenshots)[number]>();
+	for (const screenshot of auditScreenshots) {
+		const screenshotRecord = screenshot as Record<string, unknown> & { image_url?: string };
+		const runId = String(screenshotRecord.run || '');
+		const findingTypeId = String(screenshotRecord.audit_finding_type || '');
+		if (runId && !screenshotsByRunId.has(runId)) {
+			screenshotsByRunId.set(runId, screenshot);
+		}
+		if (findingTypeId && !screenshotsByFindingTypeId.has(findingTypeId)) {
+			screenshotsByFindingTypeId.set(findingTypeId, screenshot);
+		}
 	}
 
 	return {
@@ -123,6 +138,14 @@ export async function buildAuditPageData(
 					: findings.some((finding) => finding.status === 'pass')
 						? 'pass'
 						: 'info';
+			const screenshot =
+				screenshotsByRunId.get(run.id) ||
+				(findingType?.key
+					? screenshotsByFindingTypeId.get(String(run.audit_finding_type || ''))
+					: null);
+			const screenshotRecord = screenshot as
+				| (Record<string, unknown> & { image_url?: string })
+				| null;
 			return {
 				id: run.id,
 				key: findingType?.key || run.id,
@@ -133,6 +156,18 @@ export async function buildAuditPageData(
 				itemRun: run,
 				sortOrder: findingType?.sort_order || run.sort_order || 999,
 				stats: displaySummary ? { stats: displaySummary, count: findings.length } : null,
+				screenshot: screenshotRecord
+					? {
+							id: typeof screenshotRecord.id === 'string' ? screenshotRecord.id : undefined,
+							title:
+								typeof screenshotRecord.title === 'string' ? screenshotRecord.title : undefined,
+							page_url:
+								typeof screenshotRecord.page_url === 'string'
+									? screenshotRecord.page_url
+									: undefined,
+							image_url: screenshotRecord.image_url || ''
+						}
+					: null,
 				findings
 			};
 		}),

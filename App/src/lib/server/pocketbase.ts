@@ -12,6 +12,8 @@ const RUNS_COLLECTION = env.POCKETBASE_RUNS_COLLECTION || 'runs';
 const AUDIT_FINDING_TYPES_COLLECTION =
 	env.POCKETBASE_AUDIT_FINDING_TYPES_COLLECTION || 'audit_finding_types';
 const AUDIT_FINDINGS_COLLECTION = env.POCKETBASE_AUDIT_FINDINGS_COLLECTION || 'audit_findings';
+const AUDIT_SCREENSHOTS_COLLECTION =
+	env.POCKETBASE_AUDIT_SCREENSHOTS_COLLECTION || 'audit_screenshots';
 const AUTH_COOKIE_OPTIONS = {
 	httpOnly: true,
 	sameSite: 'lax' as const,
@@ -100,7 +102,8 @@ export function getCollectionNames() {
 		workflows: WORKFLOWS_COLLECTION,
 		runs: RUNS_COLLECTION,
 		auditFindingTypes: AUDIT_FINDING_TYPES_COLLECTION,
-		auditFindings: AUDIT_FINDINGS_COLLECTION
+		auditFindings: AUDIT_FINDINGS_COLLECTION,
+		auditScreenshots: AUDIT_SCREENSHOTS_COLLECTION
 	};
 }
 
@@ -456,5 +459,74 @@ export async function deleteAuditFindingsByRunId(runId: string, token?: string) 
 
 	await Promise.all(
 		findings.map((finding) => pb.collection(AUDIT_FINDINGS_COLLECTION).delete(finding.id))
+	);
+}
+
+export async function createAuditScreenshotRecord(
+	input: {
+		audit: string;
+		audit_finding_type: string;
+		run?: string;
+		title: string;
+		page_url?: string;
+		content_type: string;
+		image_base64: string;
+	},
+	token?: string
+) {
+	const pb = createAuthedClient(token);
+	let pageUrl: string | undefined;
+
+	if (input.page_url) {
+		try {
+			const parsedUrl = new URL(input.page_url);
+			if (parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:') {
+				pageUrl = parsedUrl.href;
+			}
+		} catch {
+			pageUrl = undefined;
+		}
+	}
+
+	const imageBuffer = Buffer.from(input.image_base64, 'base64');
+	const imageBlob = new Blob([imageBuffer], { type: input.content_type || 'image/png' });
+	const formData = new FormData();
+	formData.set('audit', input.audit);
+	formData.set('audit_finding_type', input.audit_finding_type);
+	if (input.run) formData.set('run', input.run);
+	formData.set('title', truncateText(input.title || 'Audit screenshot', 255));
+	if (pageUrl) formData.set('page_url', pageUrl);
+	formData.set('image', imageBlob, 'audit-screenshot.png');
+
+	return pb.collection(AUDIT_SCREENSHOTS_COLLECTION).create(formData);
+}
+
+export async function listAuditScreenshots(auditId: string, token?: string) {
+	const pb = createAuthedClient(token);
+	const screenshots = await pb.collection(AUDIT_SCREENSHOTS_COLLECTION).getFullList({
+		filter: `audit = "${escapeFilterValue(auditId)}"`,
+		sort: 'created',
+		expand: 'audit_finding_type,run'
+	});
+
+	return screenshots.map((screenshot) => ({
+		...(screenshot as Record<string, unknown>),
+		image_url:
+			typeof screenshot.image === 'string' && screenshot.image
+				? pb.files.getURL(screenshot, screenshot.image)
+				: ''
+	}));
+}
+
+export async function deleteAuditScreenshotsByRunId(runId: string, token?: string) {
+	const pb = createAuthedClient(token);
+	const screenshots = await pb.collection(AUDIT_SCREENSHOTS_COLLECTION).getFullList({
+		filter: `run = "${escapeFilterValue(runId)}"`
+	});
+
+	await Promise.all(
+		screenshots.map((screenshot) =>
+			pb.collection(AUDIT_SCREENSHOTS_COLLECTION).delete(screenshot.id)
+		)
 	);
 }
