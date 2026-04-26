@@ -51,10 +51,6 @@
 		return typeof stats === 'string' ? stats : item?.summary || '';
 	}
 
-	function normalizeText(value?: string) {
-		return value?.trim().toLowerCase() || '';
-	}
-
 	function statPills(item?: AuditItemView) {
 		const findings = item?.findings || [];
 		return {
@@ -114,37 +110,10 @@
 	);
 	const summaryItem = $derived(showSummaryRow ? item : undefined);
 	const showEmptyRow = $derived(Boolean(!item));
-	const subtitleText = $derived.by(() => {
-		const candidate = statsText(item) || section.subtitle || '';
-		if (!candidate) {
-			return '';
-		}
-
-		const firstFinding = visibleFindings[0];
-		if (!firstFinding) {
-			return candidate;
-		}
-
-		const normalizedCandidate = normalizeText(candidate);
-		const normalizedTitle = normalizeText(firstFinding.title);
-		const normalizedDetail = normalizeText(firstFinding.detail);
-
-		if (
-			normalizedCandidate &&
-			(normalizedCandidate === normalizedTitle || normalizedCandidate === normalizedDetail)
-		) {
-			return '';
-		}
-
-		return candidate;
-	});
 </script>
 
 <div class="card audit-finding-card" id={`card-${section.key}`}>
 	<h3>{section.title}</h3>
-	{#if subtitleText}
-		<p class="subtitle">{subtitleText}</p>
-	{/if}
 	{#if section.mini}
 		<AuditStatusPills pass={pills.pass} warn={pills.warn} fail={pills.fail} bind:selectedStatus />
 	{/if}
@@ -221,12 +190,6 @@
 		border-bottom: 1px solid var(--border);
 		font-size: 1.25rem;
 		font-weight: 600;
-	}
-
-	.subtitle {
-		margin: -0.5rem 0 1rem;
-		color: var(--text-muted);
-		font-size: 0.85rem;
 	}
 
 	.check-list {
