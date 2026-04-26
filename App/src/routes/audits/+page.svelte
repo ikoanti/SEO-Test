@@ -63,7 +63,6 @@
 {/if}
 
 <section class="audit-list-section">
-	<h2>Audit list</h2>
 	{#if data.audits.length === 0}
 		<p class="empty-state">{data.query ? 'No audits matched your search.' : 'No audits yet.'}</p>
 	{:else}
@@ -110,10 +109,6 @@
 
 	.audit-search-form {
 		width: 100%;
-	}
-
-	.audit-list-section h2 {
-		margin: 0 0 12px;
 	}
 
 	.audit-list {
