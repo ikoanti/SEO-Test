@@ -2,8 +2,9 @@ import { fail, redirect } from '@sveltejs/kit';
 import { createRunRecord, getAuditByRunId, listRuns } from '$lib/server/pocketbase';
 import { ensureAuditRunProcessing, queueAuditRun } from '$lib/server/audit-runner';
 
-export const load = async ({ locals }) => {
-	const runs = await listRuns('', locals.pbToken);
+export const load = async ({ locals, url }) => {
+	const query = String(url.searchParams.get('q') || '').trim();
+	const runs = await listRuns(query, locals.pbToken);
 	runs.forEach((run) => ensureAuditRunProcessing(run, locals.pbToken));
 
 	const audits = await Promise.all(
@@ -30,19 +31,17 @@ export const load = async ({ locals }) => {
 		})
 	);
 
-	return { audits };
+	return { audits, query };
 };
 
 export const actions = {
 	create: async ({ request, locals }) => {
 		const data = await request.formData();
-		const name = String(data.get('name') || '').trim();
 		const url = String(data.get('url') || '').trim();
 
-		if (!name || !url) {
+		if (!url) {
 			return fail(400, {
-				createError: 'Audit name and URL are required.',
-				name,
+				createError: 'Audit URL is required.',
 				url
 			});
 		}
@@ -50,7 +49,7 @@ export const actions = {
 		try {
 			const record = await createRunRecord(
 				{
-					name,
+					name: url,
 					url,
 					created_by: locals.user?.id,
 					status: 'queued',
@@ -62,7 +61,7 @@ export const actions = {
 			queueAuditRun({
 				runId: record.id,
 				url,
-				name,
+				name: url,
 				createdBy: locals.user?.id,
 				token: locals.pbToken
 			});
@@ -72,7 +71,6 @@ export const actions = {
 			if (error instanceof Response) throw error;
 			return fail(500, {
 				createError: error instanceof Error ? error.message : 'Failed to create audit.',
-				name,
 				url
 			});
 		}

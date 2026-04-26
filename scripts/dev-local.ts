@@ -19,7 +19,7 @@ const APP_HOST = '127.0.0.1';
 const isWindows = process.platform === 'win32';
 const PB_BINARY_NAME = isWindows ? 'pocketbase.exe' : 'pocketbase';
 const PB_BINARY_PATH = join(BIN_DIR, PB_BINARY_NAME);
-const MIGRATIONS_DIR = join(ROOT_DIR, 'pb_migrations');
+const MIGRATIONS_DIR = join(ROOT_DIR, 'Infrastructure', 'pocketbase', 'pb_migrations');
 const APP_AUTH_EMAIL = 'demo@local.test';
 const APP_AUTH_PASSWORD = 'DemoUser123!';
 const PB_SUPERUSER_EMAIL = 'admin@local.test';
@@ -299,7 +299,20 @@ async function main() {
 		pocketbase = spawnLongRunning(
 			PB_BINARY_PATH,
 			['serve', '--http', PB_HOST, '--dir', DATA_DIR, '--migrationsDir', MIGRATIONS_DIR],
-			{ cwd: ROOT_DIR }
+			{
+				cwd: ROOT_DIR,
+				env: {
+					...process.env,
+					POCKETBASE_AUTH_COLLECTION: 'users',
+					POCKETBASE_RUNS_COLLECTION: 'runs',
+					POCKETBASE_AUDITS_COLLECTION: 'audits',
+					APP_AUTH_EMAIL,
+					APP_AUTH_PASSWORD,
+					APP_AUTH_NAME: 'Demo User',
+					POCKETBASE_SUPERUSER_EMAIL: PB_SUPERUSER_EMAIL,
+					POCKETBASE_SUPERUSER_PASSWORD: PB_SUPERUSER_PASSWORD
+				}
+			}
 		);
 	}
 

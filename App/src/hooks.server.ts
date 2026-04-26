@@ -1,25 +1,25 @@
 import { redirect, type Handle } from '@sveltejs/kit';
-import { authenticateToken, getAuthCookieName } from '$lib/server/pocketbase';
+import {
+	authenticateToken,
+	exportAuthCookie,
+	readAuthTokenFromCookie
+} from '$lib/server/pocketbase';
 
 const PROTECTED_PREFIXES = ['/audits'];
 
 export const handle: Handle = async ({ event, resolve }) => {
-	const token = event.cookies.get(getAuthCookieName());
+	const token = readAuthTokenFromCookie(event.request.headers.get('cookie'));
+	let authCookieHeader: string | null = null;
 
 	if (token) {
 		try {
 			const auth = await authenticateToken(token);
 			event.locals.user = auth.user;
 			event.locals.pbToken = auth.token;
-			event.cookies.set(getAuthCookieName(), auth.token, {
-				path: '/',
-				httpOnly: true,
-				sameSite: 'lax',
-				secure: false,
-				maxAge: 60 * 60 * 24 * 7
-			});
+			authCookieHeader = exportAuthCookie(auth.token, auth.user as Record<string, unknown>);
 		} catch {
-			event.cookies.delete(getAuthCookieName(), { path: '/' });
+			event.locals.user = null;
+			event.locals.pbToken = undefined;
 		}
 	}
 
@@ -41,5 +41,11 @@ export const handle: Handle = async ({ event, resolve }) => {
 		throw redirect(302, '/login');
 	}
 
-	return resolve(event);
+	const response = await resolve(event);
+
+	if (authCookieHeader && !response.headers.has('set-cookie')) {
+		response.headers.append('set-cookie', authCookieHeader);
+	}
+
+	return response;
 };

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { ArrowLeft, Copy, Download, FileText, FileUp, Sparkles } from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import type { ActionData } from './$types';
 
@@ -45,7 +46,7 @@
 	};
 
 	let { data, form }: { data: AuditPageViewData; form?: ActionData } = $props();
-	let copyState = $state('📋 Copy');
+	let copyState = $state('Copy');
 
 	const pendingStatuses = new Set(['queued', 'running']);
 	const runStatus = () => data.runRecord.status || 'queued';
@@ -71,9 +72,9 @@
 		container.innerHTML = data.reportHtml;
 		const text = container.innerText || container.textContent || '';
 		await navigator.clipboard.writeText(text);
-		copyState = '✅ Copied!';
+		copyState = 'Copied';
 		window.setTimeout(() => {
-			copyState = '📋 Copy';
+			copyState = 'Copy';
 		}, 2000);
 	}
 
@@ -132,7 +133,10 @@
 		<p class="muted">{pageUrl()}</p>
 		<p class="muted">Run status: {runStatus()}</p>
 	</div>
-	<a class="back-link" href={resolve('/audits')}>← Back to audits</a>
+	<a class="back-link icon-link" href={resolve('/audits')}>
+		<ArrowLeft size={16} />
+		<span>Back to audits</span>
+	</a>
 </section>
 
 {#if isPending()}
@@ -205,14 +209,26 @@
 			{#if form?.reportError}
 				<p class="error">{form.reportError}</p>
 			{/if}
-			<button type="submit">Generate Mini SEO Audit Report</button>
+			<button type="submit" class="icon-button">
+				<Sparkles size={18} />
+				<span>Generate Mini SEO Audit Report</span>
+			</button>
 		</form>
 
 		{#if data.reportHtml}
 			<div class="report-actions">
-				<button type="button" onclick={copyReport}>{copyState}</button>
-				<button type="button" onclick={downloadReportHtml}>⬇️ HTML</button>
-				<button type="button" onclick={downloadReportDoc}>⬇️ DOC</button>
+				<button type="button" class="icon-button" onclick={copyReport}>
+					<Copy size={16} />
+					<span>{copyState}</span>
+				</button>
+				<button type="button" class="icon-button" onclick={downloadReportHtml}>
+					<Download size={16} />
+					<span>HTML</span>
+				</button>
+				<button type="button" class="icon-button" onclick={downloadReportDoc}>
+					<FileText size={16} />
+					<span>DOC</span>
+				</button>
 			</div>
 			<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 			<div class="report-output">{@html data.reportHtml}</div>
@@ -231,7 +247,10 @@
 			{#if form?.pdfError}
 				<p class="error">{form.pdfError}</p>
 			{/if}
-			<button type="submit">Parse PDF</button>
+			<button type="submit" class="icon-button">
+				<FileUp size={18} />
+				<span>Parse PDF</span>
+			</button>
 		</form>
 
 		{#if data.aiVisibility}

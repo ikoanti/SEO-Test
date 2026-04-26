@@ -58,7 +58,7 @@ just dev-keep
 ```
 
 Notes:
-- local PocketBase bootstrap tooling lives at the repo root in `scripts/` and `pb_migrations/`
+- local PocketBase bootstrap tooling lives in `Infrastructure/pocketbase/` and `scripts/`
 - app code stays isolated in `App/`
 
 ## 🌐 Docker Deployment
@@ -78,7 +78,7 @@ This app is now designed to run as a single Docker Compose stack with:
 
 ### PocketBase behavior
 - PocketBase runs on `http://localhost:8090`
-- The migration in `Infrastructure/pocketbase/pb_migrations/1735689600_init_seo_tool.js` auto-creates:
+- The shared migration in `Infrastructure/pocketbase/pb_migrations/1735689600_init_seo_tool.js` auto-creates:
   - `users` auth collection
   - `runs`
   - `audits`

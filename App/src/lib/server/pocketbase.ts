@@ -1,4 +1,4 @@
-import PocketBase from 'pocketbase';
+import PocketBase, { cookieParse, getTokenPayload } from 'pocketbase';
 import { env } from '$env/dynamic/private';
 
 const AUTH_COOKIE = 'pb_auth';
@@ -9,6 +9,12 @@ const RUNS_COLLECTION = env.POCKETBASE_RUNS_COLLECTION || 'runs';
 const AUDITS_COLLECTION = env.POCKETBASE_AUDITS_COLLECTION || 'audits';
 const AUDIT_ITEMS_COLLECTION = env.POCKETBASE_AUDIT_ITEMS_COLLECTION || 'audit_items';
 const AUDIT_FINDINGS_COLLECTION = env.POCKETBASE_AUDIT_FINDINGS_COLLECTION || 'audit_findings';
+const AUTH_COOKIE_OPTIONS = {
+	httpOnly: true,
+	sameSite: 'lax' as const,
+	secure: false,
+	path: '/'
+};
 
 export type AppUser = {
 	id: string;
@@ -35,6 +41,33 @@ function createAuthedClient(token?: string) {
 
 export function getAuthCookieName() {
 	return AUTH_COOKIE;
+}
+
+export function readAuthTokenFromCookie(cookieHeader?: string | null) {
+	const pb = createClient();
+	pb.authStore.loadFromCookie(cookieHeader || '', AUTH_COOKIE);
+	return pb.authStore.token;
+}
+
+export function exportAuthCookie(token: string, record?: Record<string, unknown> | null) {
+	const pb = createClient();
+	pb.authStore.save(token, (record as never) || null);
+	return pb.authStore.exportToCookie(AUTH_COOKIE_OPTIONS, AUTH_COOKIE);
+}
+
+export function clearAuthCookieHeader() {
+	const pb = createClient();
+	pb.authStore.clear();
+	return pb.authStore.exportToCookie(AUTH_COOKIE_OPTIONS, AUTH_COOKIE);
+}
+
+export function getAuthCookieValue(token: string, record?: Record<string, unknown> | null) {
+	return cookieParse(exportAuthCookie(token, record))[AUTH_COOKIE] || '';
+}
+
+export function getAuthCookieExpires(token: string) {
+	const payload = getTokenPayload(token);
+	return payload.exp ? new Date(payload.exp * 1000) : undefined;
 }
 
 export function getCollectionNames() {
@@ -100,14 +133,19 @@ export async function authenticateToken(token: string) {
 	}
 }
 
-export async function listRuns(runId: string, token?: string) {
+function escapeFilterValue(value: string) {
+	return value.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
+}
+
+export async function listRuns(searchQuery: string, token?: string) {
 	const pb = createAuthedClient(token);
 	let filter = '';
-	if (runId) {
-		filter = `id = "${runId}"`;
+	if (searchQuery.trim()) {
+		const escaped = escapeFilterValue(searchQuery.trim());
+		filter = `url ~ "${escaped}" || name ~ "${escaped}" || status ~ "${escaped}"`;
 	}
 	return pb.collection(RUNS_COLLECTION).getFullList({
-		sort: '-created',
+		sort: '-queued_at',
 		...(filter ? { filter } : {})
 	});
 }
@@ -262,7 +300,7 @@ export async function listAuditItems(auditId: string, token?: string) {
 	const pb = createAuthedClient(token);
 	return pb.collection(AUDIT_ITEMS_COLLECTION).getFullList({
 		filter: `audit = "${auditId}"`,
-		sort: 'sort_order,created'
+		sort: 'sort_order'
 	});
 }
 
@@ -270,6 +308,6 @@ export async function listAuditFindings(auditId: string, token?: string) {
 	const pb = createAuthedClient(token);
 	return pb.collection(AUDIT_FINDINGS_COLLECTION).getFullList({
 		filter: `audit = "${auditId}"`,
-		sort: 'created'
+		sort: 'title'
 	});
 }

@@ -43,7 +43,7 @@ services:
   pocketbase:
     build:
       context: ..
-      dockerfile: Infrastructure/Dockerfile.pocketbase
+      dockerfile: Infrastructure/pocketbase/Dockerfile
       args:
         PB_VERSION: ${POCKETBASE_VERSION:-0.37.3}
     container_name: seo-mini-tool-pocketbase
