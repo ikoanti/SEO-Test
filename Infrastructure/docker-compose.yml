@@ -28,7 +28,7 @@ services:
       APP_AUTH_EMAIL: ${APP_AUTH_EMAIL:-}
       APP_AUTH_PASSWORD: ${APP_AUTH_PASSWORD:-}
       APP_AUTH_NAME: ${APP_AUTH_NAME:-}
-      AUDIT_CAPTURE_HEADFUL: ${AUDIT_CAPTURE_HEADFUL:-false}
+      AUDIT_CAPTURE_HEADFUL: ${AUDIT_CAPTURE_HEADFUL:-true}
     expose:
       - "3000"
     depends_on:

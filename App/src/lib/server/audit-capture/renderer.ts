@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -66,7 +67,7 @@ function resolveChromeExecutable() {
 }
 
 function shouldUseHeadfulCapture() {
-	return String(process.env.AUDIT_CAPTURE_HEADFUL || '').toLowerCase() === 'true';
+	return String(process.env.AUDIT_CAPTURE_HEADFUL || 'true').toLowerCase() !== 'false';
 }
 
 function delay(ms: number) {
@@ -79,6 +80,29 @@ async function terminateProcess(processRef: ReturnType<typeof spawn> | null) {
 	await Promise.race([new Promise((resolve) => processRef.once('exit', resolve)), delay(3000)]);
 	if (!processRef.killed) {
 		processRef.kill('SIGKILL');
+	}
+}
+
+async function runProcess(command: string, args: string[], env: NodeJS.ProcessEnv) {
+	const processRef = spawn(command, args, { env, stdio: 'ignore' });
+	const exitCode = await new Promise<number | null>((resolve, reject) => {
+		processRef.once('error', reject);
+		processRef.once('exit', resolve);
+	});
+	if (exitCode !== 0) {
+		throw new Error(`${command} exited with code ${exitCode ?? 'unknown'}`);
+	}
+}
+
+async function captureDesktop(display: string) {
+	const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), 'audit-capture-'));
+	const outputPath = path.join(outputDir, 'desktop.png');
+
+	try {
+		await runProcess('scrot', ['-z', '-u', '-b', outputPath], { ...process.env, DISPLAY: display });
+		return fs.readFileSync(outputPath);
+	} finally {
+		fs.rmSync(outputDir, { recursive: true, force: true });
 	}
 }
 
@@ -223,6 +247,7 @@ export async function captureAuditSidebarScreenshot({
 				'--disable-dev-shm-usage',
 				'--disable-gpu',
 				'--force-device-scale-factor=1',
+				'--window-position=0,0',
 				`--window-size=${WINDOW_WIDTH},${WINDOW_HEIGHT}`
 			],
 			env: display ? { ...process.env, DISPLAY: display } : process.env
@@ -235,7 +260,9 @@ export async function captureAuditSidebarScreenshot({
 			const urls = [pageUrl, ...fallbackPageUrls.filter((url) => url && url !== pageUrl)];
 			await openFirstAvailableUrl(page, urls);
 			await injectSidebar(page, sidebarData);
-			const image = await page.screenshot({ type: 'png', fullPage: false });
+			const image = display
+				? await captureDesktop(display)
+				: await page.screenshot({ type: 'png', fullPage: false });
 			return {
 				contentType: 'image/png',
 				imageBase64: image.toString('base64')
@@ -246,11 +273,7 @@ export async function captureAuditSidebarScreenshot({
 	};
 
 	if (shouldUseHeadfulCapture()) {
-		try {
-			return await withVirtualDesktop((display) => runCapture(display));
-		} catch {
-			return runCapture();
-		}
+		return withVirtualDesktop((display) => runCapture(display));
 	}
 
 	return runCapture();

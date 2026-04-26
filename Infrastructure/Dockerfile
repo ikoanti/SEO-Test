@@ -5,6 +5,7 @@ RUN apt-get update \
 		chromium \
 		xvfb \
 		openbox \
+		scrot \
 		ca-certificates \
 	&& rm -rf /var/lib/apt/lists/*
 

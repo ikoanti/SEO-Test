@@ -97,12 +97,15 @@
 	}
 
 	function screenshotFor(finding: AuditFindingView) {
+		const metaRecord = finding.meta && typeof finding.meta === 'object' ? finding.meta : null;
+		const nestedMeta =
+			metaRecord?.meta && typeof metaRecord.meta === 'object'
+				? (metaRecord.meta as Record<string, unknown>)
+				: null;
+		const screenshotSource = metaRecord?.screenshot || nestedMeta?.screenshot;
 		const screenshot =
-			finding.meta &&
-			typeof finding.meta === 'object' &&
-			finding.meta.screenshot &&
-			typeof finding.meta.screenshot === 'object'
-				? (finding.meta.screenshot as Record<string, unknown>)
+			screenshotSource && typeof screenshotSource === 'object'
+				? (screenshotSource as Record<string, unknown>)
 				: null;
 		const contentType = typeof screenshot?.contentType === 'string' ? screenshot.contentType : '';
 		const imageBase64 = typeof screenshot?.imageBase64 === 'string' ? screenshot.imageBase64 : '';
