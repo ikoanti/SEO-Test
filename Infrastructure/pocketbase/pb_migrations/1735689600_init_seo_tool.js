@@ -418,7 +418,7 @@ migrate(
               type: "file",
               required: true,
               maxSelect: 1,
-              maxSize: 5242880,
+              maxSize: 20971520,
               mimeTypes: ["image/png"],
             },
           ],

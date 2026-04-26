@@ -89,6 +89,12 @@ function formatAuditError(error: unknown) {
 	return error.message;
 }
 
+function formatPocketBaseError(error: unknown) {
+	if (!(error instanceof Error)) return String(error);
+	const response = (error as Error & { response?: unknown }).response;
+	return response ? `${error.message}: ${JSON.stringify(response)}` : error.message;
+}
+
 function getRecord(value: unknown): Record<string, unknown> | null {
 	return value && typeof value === 'object' && !Array.isArray(value)
 		? (value as Record<string, unknown>)
@@ -157,8 +163,9 @@ async function persistScreenshotIfPresent(
 			token
 		);
 	} catch (error) {
-		const message = error instanceof Error ? error.message : String(error);
-		console.warn(`[audit-runner] screenshot persistence skipped: ${message}`);
+		console.warn(
+			`[audit-runner] screenshot persistence skipped for ${input.title} (${input.screenshot.imageBase64.length} base64 chars): ${formatPocketBaseError(error)}`
+		);
 	}
 }
 
