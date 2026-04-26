@@ -25,10 +25,11 @@ export function getPocketBaseStatus() {
 		missing,
 		url: env.POCKETBASE_URL || 'http://127.0.0.1:8090',
 		authCollection: collections.auth,
-		runsCollection: collections.runs,
+		websitesCollection: collections.websites,
 		auditsCollection: collections.audits,
-		itemRunsCollection: collections.itemRuns,
-		auditItemsCollection: collections.auditItems,
+		workflowsCollection: collections.workflows,
+		runsCollection: collections.runs,
+		auditFindingTypesCollection: collections.auditFindingTypes,
 		auditFindingsCollection: collections.auditFindings
 	};
 }

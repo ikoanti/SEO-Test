@@ -2,23 +2,22 @@ import { runAudit } from '$lib/server/audit';
 import { buildNormalizedAuditItems } from '$lib/server/audit-normalize';
 import {
 	createAuditFindingRecord,
-	createAuditItemRunRecord,
-	createAuditItemRecord,
-	createAuditRecord,
-	getRun,
-	updateRunRecord
+	createRunRecord,
+	getOrCreateAuditFindingTypeRecord,
+	getWorkflow,
+	updateAuditRecord,
+	updateWorkflowRecord
 } from '$lib/server/pocketbase';
 
 type QueuePayload = {
-	runId: string;
+	workflowId: string;
+	auditId: string;
 	url: string;
-	name?: string;
-	createdBy?: string;
 	token?: string;
 };
 
 type AuditRunnerState = {
-	activeRuns: Set<string>;
+	activeWorkflows: Set<string>;
 };
 
 type AuditSummaryResult = {
@@ -29,18 +28,26 @@ type AuditSummaryResult = {
 	openPageRank?: unknown;
 };
 
-type RunRecordLike = {
+type WorkflowRecordLike = {
 	id?: string;
-	url?: string;
 	status?: string;
-	name?: string;
-	created_by?: string;
+	audit?: string;
+	expand?: {
+		audit?: {
+			id?: string;
+			expand?: {
+				website?: {
+					url?: string;
+				};
+			};
+		};
+	};
 };
 
 const state = ((
 	globalThis as typeof globalThis & { __auditRunnerState?: AuditRunnerState }
 ).__auditRunnerState ??= {
-	activeRuns: new Set<string>()
+	activeWorkflows: new Set<string>()
 });
 
 function timestamp() {
@@ -75,12 +82,12 @@ function formatAuditError(error: unknown) {
 	return error.message;
 }
 
-async function processAuditRun({ runId, url, name, createdBy, token }: QueuePayload) {
-	const existingRecord = await getRun(runId, token);
-	let runLog = appendLog(existingRecord.run_log, 'Run started.');
+async function processAuditWorkflow({ workflowId, auditId, url, token }: QueuePayload) {
+	const workflowRecord = await getWorkflow(workflowId, token);
+	let runLog = appendLog(workflowRecord.run_log, 'Workflow started.');
 
-	await updateRunRecord(
-		runId,
+	await updateWorkflowRecord(
+		workflowId,
 		{
 			status: 'running',
 			started_at: timestamp(),
@@ -89,77 +96,81 @@ async function processAuditRun({ runId, url, name, createdBy, token }: QueuePayl
 		},
 		token
 	);
+	await updateAuditRecord(auditId, { status: 'running' }, token);
 
 	try {
 		const audit = await runAudit(url);
-		runLog = appendLog(runLog, 'Run completed successfully.');
+		runLog = appendLog(runLog, 'Audit engine completed successfully.');
 		const completedAt = timestamp();
+		const normalizedItems = buildNormalizedAuditItems(audit);
 
-		await createAuditRecord(
+		for (const item of normalizedItems) {
+			const findingType = await getOrCreateAuditFindingTypeRecord(
+				{
+					key: item.key,
+					label: item.label,
+					sort_order: item.sort_order
+				},
+				token
+			);
+			const itemRunStartedAt = timestamp();
+			const itemRun = await createRunRecord(
+				{
+					workflow: workflowId,
+					audit_finding_type: findingType.id,
+					status: 'completed',
+					started_at: itemRunStartedAt,
+					completed_at: timestamp(),
+					run_log: appendLog('', `${item.label} run completed.`),
+					sort_order: item.sort_order
+				},
+				token
+			);
+
+			if (item.findings.length === 0) {
+				await createAuditFindingRecord(
+					{
+						audit: auditId,
+						audit_finding_type: findingType.id,
+						run: itemRun.id,
+						status: item.status,
+						title: item.label,
+						detail: item.summary,
+						meta_json: item.stats_json
+					},
+					token
+				);
+			}
+
+			for (const finding of item.findings) {
+				await createAuditFindingRecord(
+					{
+						audit: auditId,
+						audit_finding_type: findingType.id,
+						run: itemRun.id,
+						status: finding.status,
+						title: finding.title,
+						detail: finding.detail,
+						page_url: finding.page_url,
+						meta_json: finding.meta_json
+					},
+					token
+				);
+			}
+		}
+
+		await updateAuditRecord(
+			auditId,
 			{
-				run: runId,
-				name: name || existingRecord.name || existingRecord.url,
-				url,
-				created_by: createdBy || existingRecord.created_by,
+				status: 'completed',
 				audit_json: JSON.stringify(audit),
 				summary_json: JSON.stringify(buildSummary(audit)),
 				completed_at: completedAt
 			},
 			token
-		).then(async (auditRecord) => {
-			const normalizedItems = buildNormalizedAuditItems(audit);
-
-			for (const item of normalizedItems) {
-				const itemStartedAt = timestamp();
-				const itemCompletedAt = timestamp();
-				const itemRunRecord = await createAuditItemRunRecord(
-					{
-						audit: auditRecord.id,
-						run: runId,
-						key: item.key,
-						label: item.label,
-						status: 'completed',
-						started_at: itemStartedAt,
-						completed_at: itemCompletedAt,
-						run_log: appendLog('', `${item.label} item run completed.`),
-						sort_order: item.sort_order
-					},
-					token
-				);
-
-				const auditItemRecord = await createAuditItemRecord(
-					{
-						audit: auditRecord.id,
-						item_run: itemRunRecord.id,
-						key: item.key,
-						label: item.label,
-						status: item.status,
-						summary: item.summary,
-						stats_json: item.stats_json,
-						sort_order: item.sort_order
-					},
-					token
-				);
-
-				for (const finding of item.findings) {
-					await createAuditFindingRecord(
-						{
-							audit: auditRecord.id,
-							audit_item: auditItemRecord.id,
-							status: finding.status,
-							title: finding.title,
-							detail: finding.detail,
-							page_url: finding.page_url,
-							meta_json: finding.meta_json
-						},
-						token
-					);
-				}
-			}
-		});
-
-		await updateRunRecord(
-			runId,
+		);
+		await updateWorkflowRecord(
+			workflowId,
 			{
 				status: 'completed',
 				completed_at: completedAt,
@@ -170,10 +181,11 @@ async function processAuditRun({ runId, url, name, createdBy, token }: QueuePayl
 		);
 	} catch (error) {
 		const message = formatAuditError(error);
-		runLog = appendLog(runLog, `Run failed: ${message}`);
+		runLog = appendLog(runLog, `Workflow failed: ${message}`);
 
-		await updateRunRecord(
-			runId,
+		await updateAuditRecord(auditId, { status: 'failed' }, token);
+		await updateWorkflowRecord(
+			workflowId,
 			{
 				status: 'failed',
 				completed_at: timestamp(),
@@ -185,39 +197,40 @@ async function processAuditRun({ runId, url, name, createdBy, token }: QueuePayl
 	}
 }
 
-export function queueAuditRun(payload: QueuePayload) {
-	if (state.activeRuns.has(payload.runId)) {
+export function queueAuditWorkflow(payload: QueuePayload) {
+	if (state.activeWorkflows.has(payload.workflowId)) {
 		return;
 	}
 
-	state.activeRuns.add(payload.runId);
+	state.activeWorkflows.add(payload.workflowId);
 
-	void processAuditRun(payload)
+	void processAuditWorkflow(payload)
 		.catch((error) => {
 			console.error(
-				`[audit-runner] ${payload.runId} failed:`,
+				`[audit-runner] ${payload.workflowId} failed:`,
 				error instanceof Error ? error.message : error
 			);
 		})
 		.finally(() => {
-			state.activeRuns.delete(payload.runId);
+			state.activeWorkflows.delete(payload.workflowId);
 		});
 }
 
-export function ensureAuditRunProcessing(record: RunRecordLike, token?: string) {
-	if (!record?.id || !record?.url) {
+export function ensureAuditWorkflowProcessing(record: WorkflowRecordLike, token?: string) {
+	if (!record?.id || !['queued', 'running'].includes(String(record.status || ''))) {
 		return;
 	}
 
-	if (!['queued', 'running'].includes(String(record.status || ''))) {
+	const auditId = record.audit || record.expand?.audit?.id;
+	const url = record.expand?.audit?.expand?.website?.url;
+	if (!auditId || !url) {
 		return;
 	}
 
-	queueAuditRun({
-		runId: record.id,
-		url: record.url,
-		name: record.name,
-		createdBy: record.created_by,
+	queueAuditWorkflow({
+		workflowId: record.id,
+		auditId,
+		url,
 		token
 	});
 }

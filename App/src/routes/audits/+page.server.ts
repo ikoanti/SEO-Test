@@ -1,37 +1,44 @@
 import { fail, isRedirect, redirect } from '@sveltejs/kit';
-import { createRunRecord, getAuditByRunId, listRuns } from '$lib/server/pocketbase';
-import { ensureAuditRunProcessing, queueAuditRun } from '$lib/server/audit-runner';
+import {
+	createAuditRecord,
+	createWorkflowRecord,
+	getOrCreateWebsiteRecord,
+	getWorkflowByAuditId,
+	listAudits
+} from '$lib/server/pocketbase';
+import { ensureAuditWorkflowProcessing, queueAuditWorkflow } from '$lib/server/audit-runner';
+
+function getWebsiteUrl(audit: Record<string, unknown>) {
+	const website = (audit.expand as { website?: { url?: string } } | undefined)?.website;
+	return website?.url || '';
+}
 
 export const load = async ({ locals, url }) => {
 	const query = String(url.searchParams.get('q') || '').trim();
-	const runs = await listRuns(query, locals.pbToken);
-	runs.forEach((run) => ensureAuditRunProcessing(run, locals.pbToken));
+	const audits = await listAudits(query, locals.pbToken);
 
-	const audits = await Promise.all(
-		runs.map(async (run) => {
-			if (run.status !== 'completed') {
-				return {
-					...run,
-					targetHref: `/audits/${run.id}`
-				};
-			}
-
+	const hydratedAudits = await Promise.all(
+		audits.map(async (audit) => {
 			try {
-				const audit = await getAuditByRunId(run.id, locals.pbToken);
+				const workflow = await getWorkflowByAuditId(audit.id, locals.pbToken);
+				ensureAuditWorkflowProcessing(workflow, locals.pbToken);
 				return {
-					...run,
+					...audit,
+					url: getWebsiteUrl(audit),
+					status: workflow.status || audit.status,
 					targetHref: `/audits/${audit.id}`
 				};
 			} catch {
 				return {
-					...run,
-					targetHref: `/audits/${run.id}`
+					...audit,
+					url: getWebsiteUrl(audit),
+					targetHref: `/audits/${audit.id}`
 				};
 			}
 		})
 	);
 
-	return { audits, query };
+	return { audits: hydratedAudits, query };
 };
 
 export const actions = {
@@ -48,26 +55,32 @@ export const actions = {
 
 		try {
 			const createdBy = locals.user?.isSuperuser ? undefined : locals.user?.id;
-			const record = await createRunRecord(
+			const website = await getOrCreateWebsiteRecord(url, locals.pbToken);
+			const audit = await createAuditRecord(
 				{
-					name: url,
-					url,
+					website: website.id,
 					created_by: createdBy,
+					status: 'queued'
+				},
+				locals.pbToken
+			);
+			const workflow = await createWorkflowRecord(
+				{
+					audit: audit.id,
 					status: 'queued',
-					run_log: `[${new Date().toISOString()}] Run queued.`
+					run_log: `[${new Date().toISOString()}] Workflow queued.`
 				},
 				locals.pbToken
 			);
 
-			queueAuditRun({
-				runId: record.id,
-				url,
-				name: url,
-				createdBy,
+			queueAuditWorkflow({
+				workflowId: workflow.id,
+				auditId: audit.id,
+				url: website.url,
 				token: locals.pbToken
 			});
 
-			throw redirect(302, `/audits/${record.id}`);
+			throw redirect(302, `/audits/${audit.id}`);
 		} catch (error) {
 			if (isRedirect(error)) throw error;
 			return fail(500, {

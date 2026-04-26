@@ -28,7 +28,7 @@ type AuditResult = {
 	[key: string]: unknown;
 };
 
-type NormalizedAuditItem = {
+export type NormalizedAuditFindingType = {
 	key: string;
 	label: string;
 	status: 'ok' | 'warn' | 'err' | 'info';
@@ -71,6 +71,14 @@ const SECTION_LABELS: Array<[string, string]> = [
 	['lazyLoadImages', 'Lazy Load Images']
 ];
 
+function truncateText(value: string, maxLength: number) {
+	if (value.length <= maxLength) {
+		return value;
+	}
+
+	return `${value.slice(0, Math.max(0, maxLength - 1))}…`;
+}
+
 function deriveStatusFromCounts(items: AuditListItem[]): 'ok' | 'warn' | 'err' | 'info' {
 	const counts = items.reduce(
 		(accumulator, item) => {
@@ -95,9 +103,10 @@ function buildListSection(
 	label: string,
 	order: number,
 	section: AuditListSection
-): NormalizedAuditItem {
+): NormalizedAuditFindingType {
 	const findings = (section.items || []).map((item) => {
-		const title = String(item.title || item.detail || label);
+		const rawTitle = String(item.title || item.detail || label);
+		const title = truncateText(rawTitle, 255);
 		const detail = String(item.detail || '');
 		const pageUrlCandidate =
 			title.startsWith('http://') || title.startsWith('https://') ? title : detail;
@@ -138,7 +147,7 @@ function buildMetricSection(
 	summary: string,
 	stats: Record<string, unknown>,
 	status: 'ok' | 'warn' | 'err' | 'info' = 'info'
-): NormalizedAuditItem {
+): NormalizedAuditFindingType {
 	return {
 		key,
 		label,
@@ -150,8 +159,8 @@ function buildMetricSection(
 	};
 }
 
-export function buildNormalizedAuditItems(audit: AuditResult): NormalizedAuditItem[] {
-	const items: NormalizedAuditItem[] = [];
+export function buildNormalizedAuditItems(audit: AuditResult): NormalizedAuditFindingType[] {
+	const items: NormalizedAuditFindingType[] = [];
 	let order = 1;
 
 	for (const [key, label] of SECTION_LABELS) {

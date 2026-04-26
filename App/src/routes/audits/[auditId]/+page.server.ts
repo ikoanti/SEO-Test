@@ -1,91 +1,91 @@
-import { error, fail, redirect } from '@sveltejs/kit';
-import { ensureAuditRunProcessing } from '$lib/server/audit-runner';
+import { error, fail } from '@sveltejs/kit';
+import { ensureAuditWorkflowProcessing } from '$lib/server/audit-runner';
 import { generateReportHtml, parsePdfMetrics } from '$lib/server/legacy-api';
 import {
 	getAudit,
-	getAuditByRunId,
-	getRun,
+	getWorkflowByAuditId,
 	listAuditFindings,
-	listAuditItemRuns,
-	listAuditItems,
+	listRunsByWorkflow,
 	updateAuditRecord
 } from '$lib/server/pocketbase';
 
+function getWebsite(auditRecord: Record<string, unknown>) {
+	return (auditRecord.expand as { website?: { url?: string; domain?: string } } | undefined)
+		?.website;
+}
+
 export const load = async ({ params, locals }) => {
+	const auditRecord = await getAudit(params.auditId, locals.pbToken);
+	const workflowRecord = await getWorkflowByAuditId(auditRecord.id, locals.pbToken);
+	ensureAuditWorkflowProcessing(workflowRecord, locals.pbToken);
+
 	try {
-		const auditRecord = await getAudit(params.auditId, locals.pbToken);
-		const runRecord = await getRun(auditRecord.run, locals.pbToken);
-
-		try {
-			const audit = auditRecord.audit_json ? JSON.parse(auditRecord.audit_json) : null;
-			const summary = auditRecord.summary_json ? JSON.parse(auditRecord.summary_json) : null;
-			const aiVisibility = auditRecord.ai_visibility_json
-				? JSON.parse(auditRecord.ai_visibility_json)
-				: null;
-			const [auditItems, auditFindings, itemRuns] = await Promise.all([
-				listAuditItems(auditRecord.id, locals.pbToken),
-				listAuditFindings(auditRecord.id, locals.pbToken),
-				listAuditItemRuns(auditRecord.id, locals.pbToken)
-			]);
-			const findingsByItemId = new Map<string, typeof auditFindings>();
-			for (const finding of auditFindings) {
-				const auditItemId = String(finding.audit_item || '');
-				const current = findingsByItemId.get(auditItemId) || [];
-				current.push(finding);
-				findingsByItemId.set(auditItemId, current);
-			}
-			const itemRunsById = new Map(itemRuns.map((itemRun) => [itemRun.id, itemRun]));
-
-			return {
-				runRecord,
-				auditRecord,
-				audit,
-				summary,
-				reportHtml: auditRecord?.report_html || '',
-				aiVisibility,
-				normalizedItems: auditItems.map((item) => ({
-					...item,
-					itemRun: itemRunsById.get(String(item.item_run || '')) || null,
-					stats: item.stats_json ? JSON.parse(item.stats_json) : null,
-					findings: (findingsByItemId.get(item.id) || []).map((finding) => ({
-						...finding,
-						meta: finding.meta_json ? JSON.parse(finding.meta_json) : null
-					}))
-				})),
-				isPendingRun: false
-			};
-		} catch {
-			throw error(500, 'Stored audit JSON is invalid.');
-		}
-	} catch {
-		const runRecord = await getRun(params.auditId, locals.pbToken);
-		ensureAuditRunProcessing(runRecord, locals.pbToken);
-
-		if (runRecord.status === 'completed') {
-			const auditRecord = await getAuditByRunId(runRecord.id, locals.pbToken);
-			throw redirect(302, `/audits/${auditRecord.id}`);
+		const audit = auditRecord.audit_json ? JSON.parse(auditRecord.audit_json) : null;
+		const summary = auditRecord.summary_json ? JSON.parse(auditRecord.summary_json) : null;
+		const aiVisibility = auditRecord.ai_visibility_json
+			? JSON.parse(auditRecord.ai_visibility_json)
+			: null;
+		const [runs, auditFindings] = await Promise.all([
+			listRunsByWorkflow(workflowRecord.id, locals.pbToken),
+			listAuditFindings(auditRecord.id, locals.pbToken)
+		]);
+		const findingsByRunId = new Map<string, typeof auditFindings>();
+		for (const finding of auditFindings) {
+			const runId = String(finding.run || '');
+			const current = findingsByRunId.get(runId) || [];
+			current.push(finding);
+			findingsByRunId.set(runId, current);
 		}
 
 		return {
-			runRecord,
-			auditRecord: null,
-			audit: null,
-			summary: null,
-			reportHtml: '',
-			aiVisibility: null,
-			isPendingRun: true
+			workflowRecord,
+			runRecord: {
+				status: workflowRecord.status,
+				url: getWebsite(auditRecord)?.url,
+				name: getWebsite(auditRecord)?.domain || getWebsite(auditRecord)?.url,
+				error_message: workflowRecord.error_message,
+				run_log: workflowRecord.run_log
+			},
+			auditRecord: {
+				...auditRecord,
+				url: getWebsite(auditRecord)?.url,
+				name: getWebsite(auditRecord)?.domain || getWebsite(auditRecord)?.url
+			},
+			audit,
+			summary,
+			reportHtml: auditRecord?.report_html || '',
+			aiVisibility,
+			normalizedItems: runs.map((run) => {
+				const findingType = (run.expand as { audit_finding_type?: { label?: string } } | undefined)
+					?.audit_finding_type;
+				return {
+					id: run.id,
+					label: findingType?.label || 'Audit check',
+					status: run.status,
+					summary: run.run_log || '',
+					itemRun: run,
+					stats: null,
+					findings: (findingsByRunId.get(run.id) || []).map((finding) => ({
+						...finding,
+						meta: finding.meta_json ? JSON.parse(finding.meta_json) : null
+					}))
+				};
+			}),
+			isPendingRun: ['queued', 'running'].includes(String(workflowRecord.status || ''))
 		};
+	} catch {
+		throw error(500, 'Stored audit JSON is invalid.');
 	}
 };
 
 export const actions = {
 	generateReport: async ({ params, locals }) => {
 		const auditRecord = await getAudit(params.auditId, locals.pbToken);
-		const runRecord = await getRun(auditRecord.run, locals.pbToken);
 		const audit = JSON.parse(auditRecord.audit_json || '{}');
+		const website = getWebsite(auditRecord);
 
 		try {
-			const reportHtml = await generateReportHtml(audit.domain || runRecord.url, audit);
+			const reportHtml = await generateReportHtml(audit.domain || website?.url || '', audit);
 			await updateAuditRecord(auditRecord.id, { report_html: reportHtml }, locals.pbToken);
 			return { reportSuccess: true };
 		} catch (err) {

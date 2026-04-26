@@ -5,10 +5,12 @@ const AUTH_COOKIE = 'pb_auth';
 const PB_URL = env.POCKETBASE_URL || 'http://127.0.0.1:8090';
 const AUTH_COLLECTION = env.POCKETBASE_AUTH_COLLECTION || 'users';
 const SUPERUSER_COLLECTION = '_superusers';
-const RUNS_COLLECTION = env.POCKETBASE_RUNS_COLLECTION || 'runs';
+const WEBSITES_COLLECTION = env.POCKETBASE_WEBSITES_COLLECTION || 'websites';
 const AUDITS_COLLECTION = env.POCKETBASE_AUDITS_COLLECTION || 'audits';
-const ITEM_RUNS_COLLECTION = env.POCKETBASE_ITEM_RUNS_COLLECTION || 'item_runs';
-const AUDIT_ITEMS_COLLECTION = env.POCKETBASE_AUDIT_ITEMS_COLLECTION || 'audit_items';
+const WORKFLOWS_COLLECTION = env.POCKETBASE_WORKFLOWS_COLLECTION || 'workflows';
+const RUNS_COLLECTION = env.POCKETBASE_RUNS_COLLECTION || 'runs';
+const AUDIT_FINDING_TYPES_COLLECTION =
+	env.POCKETBASE_AUDIT_FINDING_TYPES_COLLECTION || 'audit_finding_types';
 const AUDIT_FINDINGS_COLLECTION = env.POCKETBASE_AUDIT_FINDINGS_COLLECTION || 'audit_findings';
 const AUTH_COOKIE_OPTIONS = {
 	httpOnly: true,
@@ -38,6 +40,24 @@ function createAuthedClient(token?: string) {
 		pb.authStore.save(token);
 	}
 	return pb;
+}
+
+function escapeFilterValue(value: string) {
+	return value.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
+}
+
+function truncateText(value: string, maxLength: number) {
+	if (value.length <= maxLength) return value;
+	return `${value.slice(0, Math.max(0, maxLength - 1))}…`;
+}
+
+function normalizeUrl(input: string) {
+	const value = input.trim();
+	const url = new URL(
+		value.startsWith('http://') || value.startsWith('https://') ? value : `https://${value}`
+	);
+	url.hash = '';
+	return url.href;
 }
 
 export function getAuthCookieName() {
@@ -75,10 +95,11 @@ export function getCollectionNames() {
 	return {
 		auth: AUTH_COLLECTION,
 		superusers: SUPERUSER_COLLECTION,
-		runs: RUNS_COLLECTION,
+		websites: WEBSITES_COLLECTION,
 		audits: AUDITS_COLLECTION,
-		itemRuns: ITEM_RUNS_COLLECTION,
-		auditItems: AUDIT_ITEMS_COLLECTION,
+		workflows: WORKFLOWS_COLLECTION,
+		runs: RUNS_COLLECTION,
+		auditFindingTypes: AUDIT_FINDING_TYPES_COLLECTION,
 		auditFindings: AUDIT_FINDINGS_COLLECTION
 	};
 }
@@ -135,79 +156,29 @@ export async function authenticateToken(token: string) {
 	}
 }
 
-function escapeFilterValue(value: string) {
-	return value.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
-}
-
-export async function listRuns(searchQuery: string, token?: string) {
+export async function getOrCreateWebsiteRecord(url: string, token?: string) {
 	const pb = createAuthedClient(token);
-	let filter = '';
-	if (searchQuery.trim()) {
-		const escaped = escapeFilterValue(searchQuery.trim());
-		filter = `url ~ "${escaped}" || name ~ "${escaped}" || status ~ "${escaped}"`;
+	const normalizedUrl = normalizeUrl(url);
+
+	try {
+		return await pb
+			.collection(WEBSITES_COLLECTION)
+			.getFirstListItem(`url = "${escapeFilterValue(normalizedUrl)}"`);
+	} catch {
+		return pb.collection(WEBSITES_COLLECTION).create({
+			url: normalizedUrl,
+			domain: new URL(normalizedUrl).hostname
+		});
 	}
-	return pb.collection(RUNS_COLLECTION).getFullList({
-		sort: '-queued_at',
-		...(filter ? { filter } : {})
-	});
-}
-
-export async function getRun(runId: string, token?: string) {
-	const pb = createAuthedClient(token);
-	return pb.collection(RUNS_COLLECTION).getOne(runId);
-}
-
-export async function createRunRecord(
-	input: {
-		name: string;
-		url: string;
-		created_by?: string;
-		status?: string;
-		error_message?: string;
-		run_log?: string;
-		queued_at?: string;
-		started_at?: string;
-		completed_at?: string;
-	},
-	token?: string
-) {
-	const pb = createAuthedClient(token);
-	return pb.collection(RUNS_COLLECTION).create({
-		name: input.name,
-		url: input.url,
-		...(input.created_by ? { created_by: input.created_by } : {}),
-		status: input.status || 'queued',
-		error_message: input.error_message || '',
-		run_log: input.run_log || '',
-		queued_at: input.queued_at || new Date().toISOString(),
-		...(input.started_at ? { started_at: input.started_at } : {}),
-		...(input.completed_at ? { completed_at: input.completed_at } : {})
-	});
-}
-
-export async function updateRunRecord(
-	runId: string,
-	input: {
-		status?: string;
-		error_message?: string;
-		run_log?: string;
-		started_at?: string;
-		completed_at?: string;
-	},
-	token?: string
-) {
-	const pb = createAuthedClient(token);
-	return pb.collection(RUNS_COLLECTION).update(runId, input);
 }
 
 export async function createAuditRecord(
 	input: {
-		run: string;
-		name: string;
-		url: string;
+		website: string;
 		created_by?: string;
-		audit_json: string;
-		summary_json: string;
+		status?: string;
+		audit_json?: string;
+		summary_json?: string;
 		completed_at?: string;
 		report_html?: string;
 		ai_visibility_json?: string;
@@ -216,31 +187,43 @@ export async function createAuditRecord(
 ) {
 	const pb = createAuthedClient(token);
 	return pb.collection(AUDITS_COLLECTION).create({
-		run: input.run,
-		name: input.name,
-		url: input.url,
+		website: input.website,
 		...(input.created_by ? { created_by: input.created_by } : {}),
-		audit_json: input.audit_json,
-		summary_json: input.summary_json,
-		completed_at: input.completed_at || new Date().toISOString(),
+		status: input.status || 'queued',
+		audit_json: input.audit_json || '',
+		summary_json: input.summary_json || '',
+		...(input.completed_at ? { completed_at: input.completed_at } : {}),
 		report_html: input.report_html || '',
 		ai_visibility_json: input.ai_visibility_json || ''
 	});
 }
 
-export async function getAuditByRunId(runId: string, token?: string) {
+export async function listAudits(searchQuery: string, token?: string) {
 	const pb = createAuthedClient(token);
-	return pb.collection(AUDITS_COLLECTION).getFirstListItem(`run = "${runId}"`);
+	let filter = '';
+	if (searchQuery.trim()) {
+		const escaped = escapeFilterValue(searchQuery.trim());
+		filter = `website.url ~ "${escaped}" || website.domain ~ "${escaped}" || status ~ "${escaped}"`;
+	}
+	return pb.collection(AUDITS_COLLECTION).getFullList({
+		sort: '-created',
+		expand: 'website',
+		...(filter ? { filter } : {})
+	});
 }
 
 export async function getAudit(auditId: string, token?: string) {
 	const pb = createAuthedClient(token);
-	return pb.collection(AUDITS_COLLECTION).getOne(auditId);
+	return pb.collection(AUDITS_COLLECTION).getOne(auditId, { expand: 'website' });
 }
 
 export async function updateAuditRecord(
 	auditId: string,
 	input: {
+		status?: string;
+		audit_json?: string;
+		summary_json?: string;
+		completed_at?: string;
 		report_html?: string;
 		ai_visibility_json?: string;
 	},
@@ -250,12 +233,84 @@ export async function updateAuditRecord(
 	return pb.collection(AUDITS_COLLECTION).update(auditId, input);
 }
 
-export async function createAuditItemRunRecord(
+export async function createWorkflowRecord(
 	input: {
 		audit: string;
-		run: string;
+		status?: string;
+		queued_at?: string;
+		started_at?: string;
+		completed_at?: string;
+		error_message?: string;
+		run_log?: string;
+	},
+	token?: string
+) {
+	const pb = createAuthedClient(token);
+	return pb.collection(WORKFLOWS_COLLECTION).create({
+		audit: input.audit,
+		status: input.status || 'queued',
+		queued_at: input.queued_at || new Date().toISOString(),
+		...(input.started_at ? { started_at: input.started_at } : {}),
+		...(input.completed_at ? { completed_at: input.completed_at } : {}),
+		error_message: input.error_message || '',
+		run_log: input.run_log || ''
+	});
+}
+
+export async function getWorkflow(workflowId: string, token?: string) {
+	const pb = createAuthedClient(token);
+	return pb.collection(WORKFLOWS_COLLECTION).getOne(workflowId);
+}
+
+export async function getWorkflowByAuditId(auditId: string, token?: string) {
+	const pb = createAuthedClient(token);
+	return pb.collection(WORKFLOWS_COLLECTION).getFirstListItem(`audit = "${auditId}"`, {
+		expand: 'audit.website'
+	});
+}
+
+export async function updateWorkflowRecord(
+	workflowId: string,
+	input: {
+		status?: string;
+		started_at?: string;
+		completed_at?: string;
+		error_message?: string;
+		run_log?: string;
+	},
+	token?: string
+) {
+	const pb = createAuthedClient(token);
+	return pb.collection(WORKFLOWS_COLLECTION).update(workflowId, input);
+}
+
+export async function getOrCreateAuditFindingTypeRecord(
+	input: {
 		key: string;
 		label: string;
+		sort_order: number;
+	},
+	token?: string
+) {
+	const pb = createAuthedClient(token);
+
+	try {
+		return await pb
+			.collection(AUDIT_FINDING_TYPES_COLLECTION)
+			.getFirstListItem(`key = "${escapeFilterValue(input.key)}"`);
+	} catch {
+		return pb.collection(AUDIT_FINDING_TYPES_COLLECTION).create({
+			key: input.key,
+			label: input.label,
+			sort_order: Number.isFinite(input.sort_order) && input.sort_order > 0 ? input.sort_order : 1
+		});
+	}
+}
+
+export async function createRunRecord(
+	input: {
+		workflow: string;
+		audit_finding_type: string;
 		status: string;
 		started_at: string;
 		completed_at?: string;
@@ -266,56 +321,32 @@ export async function createAuditItemRunRecord(
 	token?: string
 ) {
 	const pb = createAuthedClient(token);
-	const sortOrder =
-		Number.isFinite(input.sort_order) && input.sort_order > 0 ? input.sort_order : 1;
-
-	return pb.collection(ITEM_RUNS_COLLECTION).create({
-		audit: input.audit,
-		run: input.run,
-		key: input.key,
-		label: input.label,
+	return pb.collection(RUNS_COLLECTION).create({
+		workflow: input.workflow,
+		audit_finding_type: input.audit_finding_type,
 		status: input.status,
 		started_at: input.started_at,
 		...(input.completed_at ? { completed_at: input.completed_at } : {}),
 		error_message: input.error_message || '',
 		run_log: input.run_log || '',
-		sort_order: sortOrder
+		sort_order: Number.isFinite(input.sort_order) && input.sort_order > 0 ? input.sort_order : 1
 	});
 }
 
-export async function createAuditItemRecord(
-	input: {
-		audit: string;
-		item_run?: string;
-		key: string;
-		label: string;
-		status: string;
-		summary: string;
-		stats_json?: string;
-		sort_order: number;
-	},
-	token?: string
-) {
+export async function listRunsByWorkflow(workflowId: string, token?: string) {
 	const pb = createAuthedClient(token);
-	const sortOrder =
-		Number.isFinite(input.sort_order) && input.sort_order > 0 ? input.sort_order : 1;
-
-	return pb.collection(AUDIT_ITEMS_COLLECTION).create({
-		audit: input.audit,
-		...(input.item_run ? { item_run: input.item_run } : {}),
-		key: input.key,
-		label: input.label,
-		status: input.status,
-		summary: input.summary,
-		stats_json: input.stats_json || '',
-		sort_order: sortOrder
+	return pb.collection(RUNS_COLLECTION).getFullList({
+		filter: `workflow = "${workflowId}"`,
+		sort: 'sort_order',
+		expand: 'audit_finding_type'
 	});
 }
 
 export async function createAuditFindingRecord(
 	input: {
 		audit: string;
-		audit_item: string;
+		audit_finding_type: string;
+		run?: string;
 		status: string;
 		title: string;
 		detail: string;
@@ -340,28 +371,13 @@ export async function createAuditFindingRecord(
 
 	return pb.collection(AUDIT_FINDINGS_COLLECTION).create({
 		audit: input.audit,
-		audit_item: input.audit_item,
+		audit_finding_type: input.audit_finding_type,
+		...(input.run ? { run: input.run } : {}),
 		status: input.status,
-		title: input.title,
+		title: truncateText(input.title || input.detail || 'Finding', 255),
 		detail: input.detail,
 		...(pageUrl ? { page_url: pageUrl } : {}),
 		meta_json: input.meta_json || ''
-	});
-}
-
-export async function listAuditItems(auditId: string, token?: string) {
-	const pb = createAuthedClient(token);
-	return pb.collection(AUDIT_ITEMS_COLLECTION).getFullList({
-		filter: `audit = "${auditId}"`,
-		sort: 'sort_order'
-	});
-}
-
-export async function listAuditItemRuns(auditId: string, token?: string) {
-	const pb = createAuthedClient(token);
-	return pb.collection(ITEM_RUNS_COLLECTION).getFullList({
-		filter: `audit = "${auditId}"`,
-		sort: 'sort_order'
 	});
 }
 
@@ -369,6 +385,7 @@ export async function listAuditFindings(auditId: string, token?: string) {
 	const pb = createAuthedClient(token);
 	return pb.collection(AUDIT_FINDINGS_COLLECTION).getFullList({
 		filter: `audit = "${auditId}"`,
-		sort: 'title'
+		sort: 'title',
+		expand: 'audit_finding_type,run'
 	});
 }

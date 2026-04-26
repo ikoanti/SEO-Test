@@ -80,14 +80,15 @@ This app is now designed to run as a single Docker Compose stack with:
 - PocketBase runs on `http://localhost:8090`
 - The shared migration in `Infrastructure/pocketbase/pb_migrations/1735689600_init_seo_tool.js` auto-creates:
   - `users` auth collection
-  - `runs`
+  - `websites`
   - `audits`
-  - `item_runs`
-  - `audit_items`
+  - `workflows`
+  - `runs`
+  - `audit_finding_types`
   - `audit_findings`
   - `audit_reports`
-- The Express app authenticates users against PocketBase and protects the `/api/*` routes with bearer-token validation.
-- The Express app saves audit payloads and generated HTML reports into PocketBase when the PocketBase env vars are configured.
+- The SvelteKit app authenticates users against PocketBase and protects audit routes through server-side session validation.
+- The SvelteKit app saves websites, audits, workflows, runs, findings, and generated HTML reports into PocketBase.
 - You can seed the initial login with `APP_AUTH_EMAIL`, `APP_AUTH_PASSWORD`, and `APP_AUTH_NAME` in `Infrastructure/.env`.
 
 ### Useful endpoints
