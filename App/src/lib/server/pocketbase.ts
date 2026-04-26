@@ -227,7 +227,7 @@ export async function updateAuditRecord(
 		status?: string;
 		audit_json?: string;
 		summary_json?: string;
-		completed_at?: string;
+		completed_at?: string | null;
 		report_html?: string;
 		ai_visibility_json?: string;
 	},
@@ -277,8 +277,8 @@ export async function updateWorkflowRecord(
 	workflowId: string,
 	input: {
 		status?: string;
-		started_at?: string;
-		completed_at?: string;
+		started_at?: string | null;
+		completed_at?: string | null;
 		error_message?: string;
 		run_log?: string;
 	},
@@ -367,8 +367,8 @@ export async function updateRunRecord(
 	runId: string,
 	input: {
 		status?: string;
-		started_at?: string;
-		completed_at?: string;
+		started_at?: string | null;
+		completed_at?: string | null;
 		error_message?: string;
 		run_log?: string;
 		sort_order?: number;

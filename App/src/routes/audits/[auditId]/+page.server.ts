@@ -27,6 +27,7 @@ export const actions = {
 		const auditRecord = await getAudit(params.auditId, locals.pbToken);
 		const workflowRecord = await getWorkflowByAuditId(params.auditId, locals.pbToken);
 		const website = (auditRecord.expand as { website?: { url?: string } } | undefined)?.website;
+		const queuedAt = new Date().toISOString();
 
 		if (!website?.url) {
 			return fail(500, { restartError: 'Audit website URL is missing.' });
@@ -44,10 +45,10 @@ export const actions = {
 				run.id,
 				{
 					status: 'queued',
-					started_at: '',
-					completed_at: '',
+					started_at: queuedAt,
+					completed_at: null,
 					error_message: '',
-					run_log: `[${new Date().toISOString()}] ${
+					run_log: `[${queuedAt}] ${
 						(run.expand as { audit_finding_type?: { label?: string } } | undefined)
 							?.audit_finding_type?.label || 'Audit check'
 					} queued.`
@@ -62,7 +63,7 @@ export const actions = {
 				status: 'queued',
 				audit_json: '',
 				summary_json: '',
-				completed_at: '',
+				completed_at: null,
 				report_html: '',
 				ai_visibility_json: ''
 			},
@@ -72,10 +73,10 @@ export const actions = {
 			workflowRecord.id,
 			{
 				status: 'queued',
-				started_at: '',
-				completed_at: '',
+				started_at: null,
+				completed_at: null,
 				error_message: '',
-				run_log: `[${new Date().toISOString()}] Workflow queued.`
+				run_log: `[${queuedAt}] Workflow queued.`
 			},
 			locals.pbToken
 		);
