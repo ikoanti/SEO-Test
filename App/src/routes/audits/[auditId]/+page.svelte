@@ -317,7 +317,13 @@
 			"<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Mini SEO Audit</title><style>body { font-family: Arial, sans-serif; }</style></head><body>" +
 			pageData.reportHtml +
 			'</body></html>';
-		const blob = await htmlToDocxBlob(fullHtml);
+		const docxResult = await htmlToDocxBlob(fullHtml);
+		const blob =
+			docxResult instanceof Blob
+				? docxResult
+				: new Blob([docxResult], {
+						type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+					});
 		const link = document.createElement('a');
 		link.download = `Mini-SEO-Audit-${filename}.docx`;
 		link.href = URL.createObjectURL(blob);
