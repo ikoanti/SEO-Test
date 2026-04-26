@@ -451,8 +451,14 @@ function analyzeHomePage(urlObj, $, summary, logger) {
 	addItem(
 		summary,
 		lazyLoadImages,
-		totalImages === 0 || lazyImages > 0 ? 'pass' : 'warn',
-		totalImages === 0 || lazyImages > 0 ? 'Lazy loading present' : 'No lazy loading detected',
+		totalImages === 0 || lazyImages === totalImages ? 'pass' : 'warn',
+		totalImages === 0
+			? 'No Images Found'
+			: lazyImages === totalImages
+				? 'Images Use Lazy Loading'
+				: lazyImages > 0
+					? 'Partial Lazy Loading'
+					: 'Lazy Loading Missing',
 		{ title: `${lazyImages}/${totalImages} images use loading="lazy"` }
 	);
 
