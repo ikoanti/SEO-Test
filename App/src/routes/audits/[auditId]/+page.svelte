@@ -139,6 +139,7 @@
 	const runStatus = () => pageData.runRecord.status || 'queued';
 	const isPending = () => pendingStatuses.has(runStatus());
 	const isFailed = () => runStatus() === 'failed';
+	const canGenerateReport = () => runStatus() === 'completed';
 	const pageTitle = () =>
 		pageData.auditRecord?.name ||
 		pageData.runRecord?.name ||
@@ -370,13 +371,26 @@
 			<p class="subtitle">
 				Generate a professional Mini Technical SEO Audit document using Claude AI
 			</p>
+			{#if !canGenerateReport()}
+				<p class="muted report-status-note">
+					{#if isPending()}
+						Report generation unlocks when the audit finishes.
+					{:else if isFailed()}
+						Report generation is unavailable because the audit run failed.
+					{:else}
+						Report generation is unavailable until the audit is completed.
+					{/if}
+				</p>
+			{/if}
 			<form method="POST" action="?/generateReport" class="stack">
 				{#if form?.reportError}
 					<p class="report-error">{form.reportError}</p>
 				{/if}
-				<button type="submit" class="report-generate-btn">
+				<button type="submit" class="report-generate-btn" disabled={!canGenerateReport()}>
 					<Sparkles size={18} />
-					<span>Generate Mini SEO Audit Report</span>
+					<span>
+						{canGenerateReport() ? 'Generate Mini SEO Audit Report' : 'Audit completion required'}
+					</span>
 				</button>
 			</form>
 
@@ -491,6 +505,10 @@
 	.report-error {
 		margin: 0.75rem 0;
 		color: #fca5a5;
+	}
+
+	.report-status-note {
+		margin: 0 0 1rem;
 	}
 
 	.report-actions {

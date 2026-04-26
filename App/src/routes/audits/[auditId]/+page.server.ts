@@ -92,8 +92,15 @@ export const actions = {
 	},
 	generateReport: async ({ params, locals }) => {
 		const auditRecord = await getAudit(params.auditId, locals.pbToken);
+		const workflowRecord = await getWorkflowByAuditId(params.auditId, locals.pbToken);
 		const audit = JSON.parse(auditRecord.audit_json || '{}');
 		const website = (auditRecord.expand as { website?: { url?: string } } | undefined)?.website;
+
+		if (String(workflowRecord.status || '') !== 'completed') {
+			return fail(400, {
+				reportError: 'Report generation is available only after the audit run completes.'
+			});
+		}
 
 		try {
 			const reportHtml = await generateReportHtml(audit.domain || website?.url || '', audit);
