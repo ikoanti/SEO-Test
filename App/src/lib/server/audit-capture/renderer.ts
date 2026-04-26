@@ -259,6 +259,9 @@ export async function captureAuditSidebarScreenshot({
 	sidebarData: Record<string, unknown>;
 	fallbackPageUrls?: string[];
 }) {
+	const startedAt = Date.now();
+	const panel = typeof sidebarData.activeTab === 'string' ? sidebarData.activeTab : 'unknown-panel';
+	console.info(`[audit-capture] ${panel} capture started for ${pageUrl}`);
 	const runCapture = async (display?: string) => {
 		const browser = await chromium.launch({
 			executablePath: resolveChromeExecutable(),
@@ -298,8 +301,16 @@ export async function captureAuditSidebarScreenshot({
 	};
 
 	if (shouldUseHeadfulCapture()) {
-		return withVirtualDesktop((display) => runCapture(display));
+		try {
+			return await withVirtualDesktop((display) => runCapture(display));
+		} finally {
+			console.info(`[audit-capture] ${panel} capture finished in ${Date.now() - startedAt}ms`);
+		}
 	}
 
-	return runCapture();
+	try {
+		return await runCapture();
+	} finally {
+		console.info(`[audit-capture] ${panel} capture finished in ${Date.now() - startedAt}ms`);
+	}
 }

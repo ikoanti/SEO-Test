@@ -143,18 +143,23 @@ async function persistScreenshotIfPresent(
 ) {
 	if (!input.screenshot?.contentType || !input.screenshot.imageBase64) return;
 
-	await createAuditScreenshotRecord(
-		{
-			audit: input.auditId,
-			audit_finding_type: input.findingTypeId,
-			run: input.runId,
-			title: input.title,
-			page_url: input.page_url,
-			content_type: input.screenshot.contentType,
-			image_base64: input.screenshot.imageBase64
-		},
-		token
-	);
+	try {
+		await createAuditScreenshotRecord(
+			{
+				audit: input.auditId,
+				audit_finding_type: input.findingTypeId,
+				run: input.runId,
+				title: input.title,
+				page_url: input.page_url,
+				content_type: input.screenshot.contentType,
+				image_base64: input.screenshot.imageBase64
+			},
+			token
+		);
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		console.warn(`[audit-runner] screenshot persistence skipped: ${message}`);
+	}
 }
 
 const STEP_KEYS: Record<string, string[]> = {
