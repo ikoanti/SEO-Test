@@ -10,11 +10,13 @@ install:
 
 dev:
 	{{compose}} down -v --remove-orphans
+	docker rm -f seo-mini-tool-app seo-mini-tool-pocketbase seo-mini-tool-caddy 2>/dev/null || true
 	docker volume rm -f seo-mini-tool_pocketbase_data infrastructure_pocketbase_data 2>/dev/null || true
 	{{compose}} up --build
 
 dev-reset:
 	{{compose}} down -v --remove-orphans
+	docker rm -f seo-mini-tool-app seo-mini-tool-pocketbase seo-mini-tool-caddy 2>/dev/null || true
 	docker volume rm -f seo-mini-tool_pocketbase_data infrastructure_pocketbase_data 2>/dev/null || true
 	{{compose}} up --build
 
@@ -23,3 +25,4 @@ dev-keep:
 
 down:
 	{{compose}} down --remove-orphans
+	docker rm -f seo-mini-tool-app seo-mini-tool-pocketbase seo-mini-tool-caddy 2>/dev/null || true
