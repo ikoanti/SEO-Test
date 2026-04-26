@@ -96,6 +96,17 @@ function truncateText(value: string, maxLength: number) {
 	return `${value.slice(0, Math.max(0, maxLength - 1))}…`;
 }
 
+function extractFirstHttpUrl(value: string) {
+	const match = value.match(/https?:\/\/[^\s)]+/);
+	if (!match) return '';
+
+	try {
+		return new URL(match[0]).href;
+	} catch {
+		return '';
+	}
+}
+
 function deriveStatusFromCounts(items: AuditListItem[]): AuditFindingStatus {
 	const counts = items.reduce(
 		(accumulator, item) => {
@@ -138,17 +149,7 @@ function buildListSection(
 		const rawTitle = String(item.title || item.detail || label);
 		const title = truncateText(rawTitle, 255);
 		const detail = String(item.detail || '');
-		const pageUrlCandidate =
-			title.startsWith('http://') || title.startsWith('https://') ? title : detail;
-		let page_url: string;
-
-		try {
-			const parsedUrl = new URL(pageUrlCandidate);
-			page_url =
-				parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:' ? parsedUrl.href : '';
-		} catch {
-			page_url = '';
-		}
+		const page_url = extractFirstHttpUrl(title) || extractFirstHttpUrl(detail);
 
 		return {
 			status: (item.status || 'info') as AuditFindingStatus,

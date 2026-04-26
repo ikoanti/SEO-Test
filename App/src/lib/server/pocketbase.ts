@@ -3,6 +3,7 @@ import { env } from '$env/dynamic/private';
 
 const AUTH_COOKIE = 'pb_auth';
 const PB_URL = env.POCKETBASE_URL || 'http://127.0.0.1:8090';
+const PB_PUBLIC_URL = env.POCKETBASE_PUBLIC_URL || env.PUBLIC_POCKETBASE_URL || PB_URL;
 const AUTH_COLLECTION = env.POCKETBASE_AUTH_COLLECTION || 'users';
 const SUPERUSER_COLLECTION = '_superusers';
 const WEBSITES_COLLECTION = env.POCKETBASE_WEBSITES_COLLECTION || 'websites';
@@ -60,6 +61,19 @@ function normalizeUrl(input: string) {
 	);
 	url.hash = '';
 	return url.href;
+}
+
+function publicPocketBaseFileUrl(
+	pb: PocketBase,
+	record: Record<string, unknown>,
+	filename: string
+) {
+	const internalUrl = pb.files.getURL(record, filename);
+	const internalOrigin = PB_URL.replace(/\/$/, '');
+	const publicOrigin = PB_PUBLIC_URL.replace(/\/$/, '');
+	return internalUrl.startsWith(internalOrigin)
+		? `${publicOrigin}${internalUrl.slice(internalOrigin.length)}`
+		: internalUrl;
 }
 
 export function getAuthCookieName() {
@@ -520,7 +534,7 @@ export async function listAuditScreenshots(auditId: string, token?: string) {
 		...(screenshot as Record<string, unknown>),
 		image_url:
 			typeof screenshot.image === 'string' && screenshot.image
-				? pb.files.getURL(screenshot, screenshot.image)
+				? publicPocketBaseFileUrl(pb, screenshot as Record<string, unknown>, screenshot.image)
 				: ''
 	}));
 }

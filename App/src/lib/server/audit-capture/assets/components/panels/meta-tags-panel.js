@@ -53,7 +53,7 @@ class MetaTagsPanel extends HTMLElement {
 		const { escapeHtml } = window.AutomagicHtml;
 		if (!Array.isArray(pages) || pages.length === 0) return '';
 		return `
-      <ul class="meta-value">
+      <ul class="meta-value-list">
         ${pages.map((page) => `<li>${escapeHtml(page)}</li>`).join('')}
       </ul>
     `;
@@ -66,7 +66,7 @@ class MetaTagsPanel extends HTMLElement {
 		return `
       <div>
         <p class="meta-label">${escapeHtml(label)}</p>
-        <p class="meta-value">${escapeHtml(entry.value)}</p>
+        <p class="meta-value meta-value-strong">${escapeHtml(entry.value)}</p>
       </div>
     `;
 	}

@@ -47,11 +47,11 @@ class ImageAltsPanel extends HTMLElement {
         <div class="list">
           ${entries
 						.map(
-							(entry, index) => `
+							(entry) => `
                 <article class="card">
                   <div class="card-head">
                     <div class="badge">×</div>
-                    <p class="card-title">Missing alt #${index + 1}</p>
+                    <p class="card-title">${escapeHtml(entry.issue ?? 'Image missing alt text')}</p>
                   </div>
                   <div class="meta">
                     <div>

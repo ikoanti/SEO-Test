@@ -51,9 +51,17 @@ class OpenGraphPanel extends HTMLElement {
                 <article class="card">
                   <div class="card-head">
                     <div class="badge">×</div>
-                    <p class="card-title">${escapeHtml(entry.property ?? entry.issue ?? 'OpenGraph tag missing')}</p>
+                    <p class="card-title">${escapeHtml(entry.issue ?? 'OpenGraph tag missing')}</p>
                   </div>
                   <div class="meta">
+                    ${
+											entry.property
+												? `<div>
+                      <p class="meta-label">Property</p>
+                      <p class="meta-value meta-value-strong">${escapeHtml(entry.property)}</p>
+                    </div>`
+												: ''
+										}
                     <div>
                       <p class="meta-label">Page</p>
                       <p class="meta-value">${escapeHtml(entry.page ?? '')}</p>

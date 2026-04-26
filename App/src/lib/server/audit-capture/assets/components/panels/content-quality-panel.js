@@ -51,7 +51,7 @@ class ContentQualityPanel extends HTMLElement {
                 <article class="card">
                   <div class="card-head">
                     <div class="badge">×</div>
-                    <p class="card-title">Thin content detected</p>
+                    <p class="card-title">${escapeHtml(entry.issue ?? 'Thin content detected')}</p>
                   </div>
                   <div class="meta">
                     <div>
