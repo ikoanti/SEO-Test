@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import AuditFindingCard from '$lib/components/AuditFindingCard.svelte';
 	import { ArrowLeft, Copy, Download, FileText, FileUp, Sparkles } from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import type { ActionData } from './$types';
@@ -151,16 +152,6 @@
 	const nestedRecord = (record: Record<string, unknown>, key: string) => getRecord(record[key]);
 	const displayValue = (value: unknown, fallback = '-') =>
 		value === undefined || value === null || value === '' ? fallback : String(value);
-	const statusIcon = (status?: string) =>
-		status === 'ok' ? '✅' : status === 'warn' ? '⚠️' : status === 'err' ? '❌' : 'ℹ️';
-	const statusClass = (status?: string) =>
-		status === 'ok'
-			? 'icon-ok'
-			: status === 'warn'
-				? 'icon-warn'
-				: status === 'err'
-					? 'icon-err'
-					: 'icon-info';
 	const openPageRank = () => auditSection('openPageRank');
 	const pageSpeed = () => auditSection('pageSpeed');
 
@@ -192,31 +183,6 @@
 		const passedPct = (passed / total) * 100;
 		const warnPct = (warnings / total) * 100;
 		return `background: linear-gradient(to right, var(--success) 0%, var(--success) ${passedPct}%, var(--warning) ${passedPct}%, var(--warning) ${passedPct + warnPct}%, var(--danger) ${passedPct + warnPct}%, var(--danger) 100%)`;
-	}
-
-	function statsText(item?: AuditItemView) {
-		const metaStats = item?.findings?.find((finding) => finding.meta)?.meta;
-		const stats = getRecord(metaStats).stats;
-		return typeof stats === 'string' ? stats : item?.summary || '';
-	}
-
-	function statPills(item?: AuditItemView) {
-		const findings = item?.findings || [];
-		return {
-			good: findings.filter((finding) => finding.status === 'ok').length,
-			warn: findings.filter((finding) => finding.status === 'warn').length,
-			bad: findings.filter((finding) => finding.status === 'err').length
-		};
-	}
-
-	function linkLabel(url: string) {
-		try {
-			const parsed = new URL(url);
-			const label = `${parsed.pathname}${parsed.search}` || '/';
-			return label.length > 55 ? `${label.slice(0, 55)}…` : label;
-		} catch {
-			return url.length > 55 ? `${url.slice(0, 55)}…` : url;
-		}
 	}
 
 	async function copyReport() {
@@ -409,69 +375,7 @@
 		</div>
 
 		{#each legacySections as section (section.key)}
-			{@const item = itemByKey(section.key)}
-			{@const pills = statPills(item)}
-			<div class="card legacy-card" id={`card-${section.key}`}>
-				<h3>{section.title}</h3>
-				{#if section.subtitle || statsText(item)}
-					<p class="subtitle">{statsText(item) || section.subtitle}</p>
-				{/if}
-				{#if section.mini}
-					<div class="scan-stats">
-						<div class="scan-stat good">{pills.good} ✅ Good</div>
-						<div class="scan-stat warn">{pills.warn} ⚠️ Issues</div>
-						<div class="scan-stat bad">{pills.bad} ❌ Missing</div>
-					</div>
-				{/if}
-				{#if section.key === 'internalLinks'}
-					<div class="links-summary">
-						<div class="stat"><span>{pills.good + pills.warn + pills.bad}</span> Total</div>
-						<div class="stat"><span class="error">{pills.bad}</span> Broken</div>
-					</div>
-				{/if}
-				<ul class={`check-list ${section.mini ? 'mini-list' : ''}`}>
-					{#if item?.findings?.length}
-						{#each item.findings as finding, index (`${item.id}-${index}`)}
-							<li>
-								<div class="check-status">
-									<span class={statusClass(finding.status)}>{statusIcon(finding.status)}</span>
-									{finding.title || finding.status || 'Finding'}
-								</div>
-								{#if finding.detail}
-									<div class="check-detail">{finding.detail}</div>
-								{/if}
-								{#if finding.page_url}
-									<div class="check-detail">
-										<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
-										<a class="check-link" href={finding.page_url} target="_blank" rel="noopener">
-											{linkLabel(finding.page_url)}
-										</a>
-									</div>
-								{/if}
-								{#if typeof finding.meta?.codeSnippet === 'string' && finding.meta.codeSnippet}
-									<div class="code-snippet-container">
-										<pre><code>{finding.meta.codeSnippet}</code></pre>
-									</div>
-								{/if}
-							</li>
-						{/each}
-					{:else if item}
-						<li>
-							<div class="check-status">
-								<span class={statusClass(item.status)}>{statusIcon(item.status)}</span>
-								{item.summary || 'No findings.'}
-							</div>
-						</li>
-					{:else}
-						<li>
-							<div class="check-status">
-								<span class="icon-info">ℹ️</span>
-								No persisted result for this check.
-							</div>
-						</li>
-					{/if}
-				</ul>
-			</div>
+			<AuditFindingCard {section} item={itemByKey(section.key)} />
 		{/each}
 
 		<div class="card legacy-card card-aiv" id="card-ai-visibility">
@@ -701,7 +605,7 @@
 		font-weight: 600;
 	}
 
-	.legacy-card .subtitle {
+	.subtitle {
 		margin: -0.5rem 0 1rem;
 		color: var(--text-muted);
 		font-size: 0.85rem;
@@ -827,42 +731,11 @@
 		font-weight: 600;
 	}
 
-	.scan-stats,
-	.links-summary,
 	.file-upload-container {
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.75rem;
 		margin-bottom: 1rem;
-	}
-
-	.scan-stat,
-	.links-summary .stat {
-		padding: 0.35rem 0.7rem;
-		border-radius: 999px;
-		background: rgba(0, 0, 0, 0.2);
-		font-size: 0.8rem;
-		font-weight: 600;
-	}
-
-	.scan-stat.good {
-		background: rgba(16, 185, 129, 0.12);
-		color: var(--success);
-	}
-
-	.scan-stat.warn {
-		background: rgba(245, 158, 11, 0.12);
-		color: var(--warning);
-	}
-
-	.scan-stat.bad {
-		background: rgba(239, 68, 68, 0.12);
-		color: var(--danger);
-	}
-
-	.links-summary .stat span {
-		font-size: 1.1rem;
-		font-weight: 700;
 	}
 
 	.check-list {
@@ -875,7 +748,6 @@
 	}
 
 	.check-list li {
-		position: relative;
 		display: flex;
 		flex-direction: column;
 		gap: 0.25rem;
@@ -892,54 +764,8 @@
 		font-weight: 500;
 	}
 
-	.check-detail {
-		color: var(--text-muted);
-		font-size: 0.85rem;
-		word-break: break-word;
-	}
-
-	.check-link {
-		color: #60a5fa;
-		text-decoration: none;
-		word-break: break-all;
-	}
-
-	.check-link:hover {
-		text-decoration: underline;
-	}
-
-	.icon-ok {
-		color: var(--success);
-	}
-
-	.icon-warn {
-		color: var(--warning);
-	}
-
-	.icon-err {
-		color: var(--danger);
-	}
-
 	.icon-info {
 		color: #60a5fa;
-	}
-
-	.code-snippet-container {
-		margin-top: 0.75rem;
-		padding: 0.75rem 1rem;
-		overflow-x: auto;
-		border: 1px solid var(--border);
-		border-radius: 0.5rem;
-		background: #0f172a;
-		box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
-	}
-
-	.code-snippet-container pre {
-		margin: 0;
-		padding: 0;
-		background: transparent;
-		color: #e2e8f0;
-		font-size: 0.85rem;
 	}
 
 	.report-generate-btn,
