@@ -337,6 +337,48 @@ export async function createRunRecord(
 	});
 }
 
+export async function getOrCreateRunRecord(
+	input: {
+		workflow: string;
+		audit_finding_type: string;
+		status: string;
+		started_at: string;
+		completed_at?: string;
+		error_message?: string;
+		run_log?: string;
+		sort_order: number;
+	},
+	token?: string
+) {
+	const pb = createAuthedClient(token);
+
+	try {
+		return await pb
+			.collection(RUNS_COLLECTION)
+			.getFirstListItem(
+				`workflow = "${escapeFilterValue(input.workflow)}" && audit_finding_type = "${escapeFilterValue(input.audit_finding_type)}"`
+			);
+	} catch {
+		return createRunRecord(input, token);
+	}
+}
+
+export async function updateRunRecord(
+	runId: string,
+	input: {
+		status?: string;
+		started_at?: string;
+		completed_at?: string;
+		error_message?: string;
+		run_log?: string;
+		sort_order?: number;
+	},
+	token?: string
+) {
+	const pb = createAuthedClient(token);
+	return pb.collection(RUNS_COLLECTION).update(runId, input);
+}
+
 export async function listRunsByWorkflow(workflowId: string, token?: string) {
 	const pb = createAuthedClient(token);
 	return pb.collection(RUNS_COLLECTION).getFullList({
@@ -392,4 +434,15 @@ export async function listAuditFindings(auditId: string, token?: string) {
 		sort: 'title',
 		expand: 'audit_finding_type,run'
 	});
+}
+
+export async function deleteAuditFindingsByRunId(runId: string, token?: string) {
+	const pb = createAuthedClient(token);
+	const findings = await pb.collection(AUDIT_FINDINGS_COLLECTION).getFullList({
+		filter: `run = "${escapeFilterValue(runId)}"`
+	});
+
+	await Promise.all(
+		findings.map((finding) => pb.collection(AUDIT_FINDINGS_COLLECTION).delete(finding.id))
+	);
 }

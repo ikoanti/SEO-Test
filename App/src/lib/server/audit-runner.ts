@@ -1,11 +1,17 @@
 import { runAudit } from '$lib/server/audit';
-import { buildNormalizedAuditItems } from '$lib/server/audit-normalize';
+import {
+	buildNormalizedAuditItems,
+	getNormalizedSectionDefinitions,
+	type AuditResult
+} from '$lib/server/audit-normalize';
 import {
 	createAuditFindingRecord,
-	createRunRecord,
+	deleteAuditFindingsByRunId,
 	getOrCreateAuditFindingTypeRecord,
+	getOrCreateRunRecord,
 	getWorkflow,
 	updateAuditRecord,
+	updateRunRecord,
 	updateWorkflowRecord
 } from '$lib/server/pocketbase';
 
@@ -20,13 +26,7 @@ type AuditRunnerState = {
 	activeWorkflows: Set<string>;
 };
 
-type AuditSummaryResult = {
-	domain?: string;
-	auditedAt?: string;
-	summary?: unknown;
-	pageSpeed?: unknown;
-	openPageRank?: unknown;
-};
+type AuditSummaryResult = AuditResult;
 
 type WorkflowRecordLike = {
 	id?: string;
@@ -82,9 +82,181 @@ function formatAuditError(error: unknown) {
 	return error.message;
 }
 
+const STEP_KEYS: Record<string, string[]> = {
+	crawl: [],
+	homepage: [
+		'structuredData',
+		'webIcons',
+		'ssl',
+		'mobileUsability',
+		'flash',
+		'charset',
+		'loremIpsum',
+		'openGraph',
+		'internationalDomains',
+		'trustSignals',
+		'lazyLoadImages'
+	],
+	robots: ['robotsTxt'],
+	sitemap: ['sitemap'],
+	'page-analysis': [
+		'h1Tags',
+		'metaTitles',
+		'imageAltTags',
+		'canonicalUrls',
+		'internalLinks',
+		'contentQuality',
+		'shopifyUrls'
+	],
+	pagespeed: ['pageSpeed'],
+	openpagerank: ['openPageRank']
+};
+
+type RunRegistry = Map<
+	string,
+	{
+		runId: string;
+		findingTypeId: string;
+		label: string;
+		sortOrder: number;
+	}
+>;
+
+async function bootstrapRuns(workflowId: string, token?: string) {
+	const registry: RunRegistry = new Map();
+
+	for (const definition of getNormalizedSectionDefinitions()) {
+		const findingType = await getOrCreateAuditFindingTypeRecord(definition, token);
+		const run = await getOrCreateRunRecord(
+			{
+				workflow: workflowId,
+				audit_finding_type: findingType.id,
+				status: 'queued',
+				started_at: timestamp(),
+				run_log: appendLog('', `${definition.label} queued.`),
+				sort_order: definition.sort_order
+			},
+			token
+		);
+		registry.set(definition.key, {
+			runId: run.id,
+			findingTypeId: findingType.id,
+			label: definition.label,
+			sortOrder: definition.sort_order
+		});
+	}
+
+	return registry;
+}
+
+async function markStepRunning(runRegistry: RunRegistry, stepLabel: string, token?: string) {
+	for (const key of STEP_KEYS[stepLabel] || []) {
+		const entry = runRegistry.get(key);
+		if (!entry) continue;
+		await updateRunRecord(
+			entry.runId,
+			{
+				status: 'running',
+				started_at: timestamp(),
+				error_message: '',
+				run_log: appendLog('', `${entry.label} running.`)
+			},
+			token
+		);
+	}
+}
+
+async function syncProgressSnapshot(
+	auditId: string,
+	partialAudit: AuditSummaryResult,
+	runRegistry: RunRegistry,
+	token?: string
+) {
+	const normalizedItems = buildNormalizedAuditItems(partialAudit);
+	for (const item of normalizedItems) {
+		const run = runRegistry.get(item.key);
+		if (!run) continue;
+
+		await deleteAuditFindingsByRunId(run.runId, token);
+
+		if (item.findings.length === 0) {
+			await createAuditFindingRecord(
+				{
+					audit: auditId,
+					audit_finding_type: run.findingTypeId,
+					run: run.runId,
+					status: item.status,
+					title: item.label,
+					detail: item.summary,
+					meta_json: item.stats_json
+				},
+				token
+			);
+		} else {
+			for (const finding of item.findings) {
+				await createAuditFindingRecord(
+					{
+						audit: auditId,
+						audit_finding_type: run.findingTypeId,
+						run: run.runId,
+						status: finding.status,
+						title: finding.title,
+						detail: finding.detail,
+						page_url: finding.page_url,
+						meta_json: finding.meta_json
+					},
+					token
+				);
+			}
+		}
+
+		await updateRunRecord(
+			run.runId,
+			{
+				status: 'completed',
+				completed_at: timestamp(),
+				error_message: '',
+				run_log: item.summary
+			},
+			token
+		);
+	}
+
+	await updateAuditRecord(
+		auditId,
+		{
+			audit_json: JSON.stringify(partialAudit),
+			summary_json: JSON.stringify(buildSummary(partialAudit))
+		},
+		token
+	);
+}
+
+async function finalizeUnsyncedRuns(
+	runRegistry: RunRegistry,
+	partialAudit: AuditSummaryResult,
+	token?: string
+) {
+	const completedKeys = new Set(buildNormalizedAuditItems(partialAudit).map((item) => item.key));
+	for (const [key, run] of runRegistry.entries()) {
+		if (completedKeys.has(key)) continue;
+		await updateRunRecord(
+			run.runId,
+			{
+				status: 'completed',
+				completed_at: timestamp(),
+				error_message: '',
+				run_log: `${run.label} did not produce persisted results in the current engine.`
+			},
+			token
+		);
+	}
+}
+
 async function processAuditWorkflow({ workflowId, auditId, url, token }: QueuePayload) {
 	const workflowRecord = await getWorkflow(workflowId, token);
 	let runLog = appendLog(workflowRecord.run_log, 'Workflow started.');
+	const runRegistry = await bootstrapRuns(workflowId, token);
 
 	await updateWorkflowRecord(
 		workflowId,
@@ -99,65 +271,22 @@ async function processAuditWorkflow({ workflowId, auditId, url, token }: QueuePa
 	await updateAuditRecord(auditId, { status: 'running' }, token);
 
 	try {
-		const audit = await runAudit(url);
+		const audit = await runAudit(url, {
+			onStepStart: async (stepLabel: string) => {
+				runLog = appendLog(runLog, `${stepLabel} started.`);
+				await updateWorkflowRecord(workflowId, { run_log: runLog }, token);
+				await markStepRunning(runRegistry, stepLabel, token);
+			},
+			onStepComplete: async (stepLabel: string, partialAudit: AuditSummaryResult) => {
+				runLog = appendLog(runLog, `${stepLabel} completed.`);
+				await updateWorkflowRecord(workflowId, { run_log: runLog }, token);
+				await syncProgressSnapshot(auditId, partialAudit, runRegistry, token);
+			}
+		});
 		runLog = appendLog(runLog, 'Audit engine completed successfully.');
 		const completedAt = timestamp();
-		const normalizedItems = buildNormalizedAuditItems(audit);
-
-		for (const item of normalizedItems) {
-			const findingType = await getOrCreateAuditFindingTypeRecord(
-				{
-					key: item.key,
-					label: item.label,
-					sort_order: item.sort_order
-				},
-				token
-			);
-			const itemRunStartedAt = timestamp();
-			const itemRun = await createRunRecord(
-				{
-					workflow: workflowId,
-					audit_finding_type: findingType.id,
-					status: 'completed',
-					started_at: itemRunStartedAt,
-					completed_at: timestamp(),
-					run_log: appendLog('', `${item.label} run completed.`),
-					sort_order: item.sort_order
-				},
-				token
-			);
-
-			if (item.findings.length === 0) {
-				await createAuditFindingRecord(
-					{
-						audit: auditId,
-						audit_finding_type: findingType.id,
-						run: itemRun.id,
-						status: item.status,
-						title: item.label,
-						detail: item.summary,
-						meta_json: item.stats_json
-					},
-					token
-				);
-			}
-
-			for (const finding of item.findings) {
-				await createAuditFindingRecord(
-					{
-						audit: auditId,
-						audit_finding_type: findingType.id,
-						run: itemRun.id,
-						status: finding.status,
-						title: finding.title,
-						detail: finding.detail,
-						page_url: finding.page_url,
-						meta_json: finding.meta_json
-					},
-					token
-				);
-			}
-		}
+		await syncProgressSnapshot(auditId, audit, runRegistry, token);
+		await finalizeUnsyncedRuns(runRegistry, audit, token);
 
 		await updateAuditRecord(
 			auditId,

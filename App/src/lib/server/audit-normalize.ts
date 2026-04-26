@@ -9,7 +9,7 @@ type AuditListSection = {
 	stats?: string;
 };
 
-type AuditResult = {
+export type AuditResult = {
 	domain?: string;
 	auditedAt?: string;
 	summary?: {
@@ -44,7 +44,7 @@ export type NormalizedAuditFindingType = {
 	}>;
 };
 
-const SECTION_LABELS: Array<[string, string]> = [
+export const SECTION_LABELS: Array<[string, string]> = [
 	['pageSpeed', 'Page Speed'],
 	['openPageRank', 'Open PageRank'],
 	['h1Tags', 'H1 Tags'],
@@ -75,6 +75,14 @@ const SECTION_LABELS: Array<[string, string]> = [
 	['lazyLoadImages', 'Lazy Load Images'],
 	['aiVisibility', 'AI Visibility']
 ];
+
+export function getNormalizedSectionDefinitions() {
+	return SECTION_LABELS.map(([key, label], index) => ({
+		key,
+		label,
+		sort_order: index + 1
+	}));
+}
 
 function truncateText(value: string, maxLength: number) {
 	if (value.length <= maxLength) {

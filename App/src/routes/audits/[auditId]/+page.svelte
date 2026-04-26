@@ -33,6 +33,7 @@
 	};
 
 	type AuditPageViewData = {
+		auditId: string;
 		runRecord: {
 			status?: string;
 			url?: string;
@@ -125,23 +126,28 @@
 	];
 
 	let { data, form }: { data: AuditPageViewData; form?: ActionData } = $props();
+	let liveData = $state<AuditPageViewData | null>(null);
+	const pageData = $derived(liveData ?? data);
 	let copyState = $state('Copy');
 
 	const pageSpeedStrategies = ['mobile', 'desktop'] as const;
 	const pendingStatuses = new Set(['queued', 'running']);
-	const runStatus = () => data.runRecord.status || 'queued';
+	const runStatus = () => pageData.runRecord.status || 'queued';
 	const isPending = () => pendingStatuses.has(runStatus());
 	const isFailed = () => runStatus() === 'failed';
 	const pageTitle = () =>
-		data.auditRecord?.name || data.runRecord?.name || data.auditRecord?.url || data.runRecord?.url;
-	const pageUrl = () => data.auditRecord?.url || data.runRecord?.url || '';
+		pageData.auditRecord?.name ||
+		pageData.runRecord?.name ||
+		pageData.auditRecord?.url ||
+		pageData.runRecord?.url;
+	const pageUrl = () => pageData.auditRecord?.url || pageData.runRecord?.url || '';
 
-	const itemByKey = (key: string) => data.normalizedItems?.find((item) => item.key === key);
+	const itemByKey = (key: string) => pageData.normalizedItems?.find((item) => item.key === key);
 	const getRecord = (value: unknown): Record<string, unknown> =>
 		value && typeof value === 'object' && !Array.isArray(value)
 			? (value as Record<string, unknown>)
 			: {};
-	const auditSection = (key: string) => getRecord(data.audit?.[key]);
+	const auditSection = (key: string) => getRecord(pageData.audit?.[key]);
 	const nestedRecord = (record: Record<string, unknown>, key: string) => getRecord(record[key]);
 	const displayValue = (value: unknown, fallback = '-') =>
 		value === undefined || value === null || value === '' ? fallback : String(value);
@@ -178,9 +184,9 @@
 	}
 
 	function summaryBarStyle() {
-		const passed = data.summary?.summary?.passed ?? 0;
-		const warnings = data.summary?.summary?.warnings ?? 0;
-		const failed = data.summary?.summary?.failed ?? 0;
+		const passed = pageData.summary?.summary?.passed ?? 0;
+		const warnings = pageData.summary?.summary?.warnings ?? 0;
+		const failed = pageData.summary?.summary?.failed ?? 0;
 		const total = passed + warnings + failed;
 		if (!total) return '';
 		const passedPct = (passed / total) * 100;
@@ -214,10 +220,10 @@
 	}
 
 	async function copyReport() {
-		if (!data.reportHtml) return;
+		if (!pageData.reportHtml) return;
 
 		const container = document.createElement('div');
-		container.innerHTML = data.reportHtml;
+		container.innerHTML = pageData.reportHtml;
 		const text = container.innerText || container.textContent || '';
 		await navigator.clipboard.writeText(text);
 		copyState = 'Copied';
@@ -227,7 +233,7 @@
 	}
 
 	function resolvedFilename() {
-		const raw = data.runRecord.url || data.summary?.domain || 'audit';
+		const raw = pageData.runRecord.url || pageData.summary?.domain || 'audit';
 		try {
 			return new URL(raw.startsWith('http') ? raw : `https://${raw}`).hostname;
 		} catch {
@@ -236,10 +242,10 @@
 	}
 
 	function downloadReportHtml() {
-		if (!data.reportHtml) return;
+		if (!pageData.reportHtml) return;
 
 		const filename = resolvedFilename();
-		const fullHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Mini SEO Audit - ${filename}</title></head><body style="background:#ffffff;color:#333333;margin:0;padding:2rem;font-family:'Segoe UI',sans-serif;">${data.reportHtml}</body></html>`;
+		const fullHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Mini SEO Audit - ${filename}</title></head><body style="background:#ffffff;color:#333333;margin:0;padding:2rem;font-family:'Segoe UI',sans-serif;">${pageData.reportHtml}</body></html>`;
 		const blob = new Blob([fullHtml], { type: 'text/html' });
 		const link = document.createElement('a');
 		link.download = `Mini-SEO-Audit-${filename}.html`;
@@ -249,13 +255,13 @@
 	}
 
 	function downloadReportDoc() {
-		if (!data.reportHtml) return;
+		if (!pageData.reportHtml) return;
 
 		const filename = resolvedFilename();
 		const header =
 			"<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Mini SEO Audit</title><style>body { font-family: Arial, sans-serif; }</style></head><body>";
 		const footer = '</body></html>';
-		const blob = new Blob(['\ufeff', header + data.reportHtml + footer], {
+		const blob = new Blob(['\ufeff', header + pageData.reportHtml + footer], {
 			type: 'application/msword'
 		});
 		const link = document.createElement('a');
@@ -268,13 +274,43 @@
 	}
 
 	onMount(() => {
-		if (!pendingStatuses.has(data.runRecord.status || '')) return;
+		let fallbackInterval: number | undefined;
+		let stream: EventSource | undefined;
 
-		const interval = window.setInterval(() => {
-			void invalidateAll();
-		}, 5000);
+		const startFallbackPolling = () => {
+			if (fallbackInterval || !pendingStatuses.has(pageData.runRecord.status || '')) return;
+			fallbackInterval = window.setInterval(() => {
+				void invalidateAll();
+			}, 1000);
+		};
 
-		return () => window.clearInterval(interval);
+		if (pendingStatuses.has(pageData.runRecord.status || '')) {
+			stream = new EventSource(`/api/audits/${pageData.auditId}/stream`);
+			stream.onmessage = (event) => {
+				const next = JSON.parse(event.data) as AuditPageViewData;
+				liveData = next;
+				if (!pendingStatuses.has(next.runRecord.status || '')) {
+					stream?.close();
+					stream = undefined;
+					if (fallbackInterval) {
+						window.clearInterval(fallbackInterval);
+						fallbackInterval = undefined;
+					}
+				}
+			};
+			stream.onerror = () => {
+				if (stream?.readyState === EventSource.CLOSED) {
+					startFallbackPolling();
+				}
+			};
+		}
+
+		return () => {
+			stream?.close();
+			if (fallbackInterval) {
+				window.clearInterval(fallbackInterval);
+			}
+		};
 	});
 </script>
 
@@ -293,28 +329,27 @@
 {#if isPending()}
 	<section class="card legacy-card">
 		<h2>Run in progress</h2>
-		<p class="muted">
-			This audit is processing in the background. This page refreshes every 5 seconds and will show
-			the full result when ready.
-		</p>
+		<p class="muted">This audit is processing live. Cards update as each audit item completes.</p>
 	</section>
 {:else if isFailed()}
 	<section class="card legacy-card">
 		<h2>Run failed</h2>
-		<p class="error">{data.runRecord.error_message || 'The audit run failed.'}</p>
+		<p class="error">{pageData.runRecord.error_message || 'The audit run failed.'}</p>
 	</section>
-{:else if data.summary && data.audit}
+{/if}
+
+{#if pageData.auditRecord}
 	<section class="summary-bar">
 		<div class="summary-item">
-			<span class="summary-count">{data.summary.summary?.passed ?? 0}</span>
+			<span class="summary-count">{pageData.summary?.summary?.passed ?? 0}</span>
 			<span class="summary-label">✅ Passed</span>
 		</div>
 		<div class="summary-item">
-			<span class="summary-count warn">{data.summary.summary?.warnings ?? 0}</span>
+			<span class="summary-count warn">{pageData.summary?.summary?.warnings ?? 0}</span>
 			<span class="summary-label">⚠️ Warnings</span>
 		</div>
 		<div class="summary-item">
-			<span class="summary-count fail">{data.summary.summary?.failed ?? 0}</span>
+			<span class="summary-count fail">{pageData.summary?.summary?.failed ?? 0}</span>
 			<span class="summary-label">❌ Failed</span>
 		</div>
 		<div class="summary-score-bar-wrap">
@@ -470,50 +505,53 @@
 				<p class="report-error">{form.pdfError}</p>
 			{/if}
 
-			{#if data.aiVisibility}
+			{#if pageData.aiVisibility}
 				<div class="ahrefs-metrics ai-visibility-results">
 					<div class="metric-item">
 						<span class="metric-label">AI Visibility</span>
 						<span class="metric-value highlight-yellow"
-							>{data.aiVisibility.aiVisibility ?? '-'}</span
+							>{pageData.aiVisibility.aiVisibility ?? '-'}</span
 						>
 					</div>
 					<div class="metric-item">
 						<span class="metric-label">Monthly Audience</span>
 						<span class="metric-value highlight-green"
-							>{data.aiVisibility.monthlyAudience ?? '-'}</span
+							>{pageData.aiVisibility.monthlyAudience ?? '-'}</span
 						>
 					</div>
 					<div class="metric-item">
 						<span class="metric-label">Mentions</span>
-						<span class="metric-value highlight-green">{data.aiVisibility.mentions ?? '-'}</span>
+						<span class="metric-value highlight-green">{pageData.aiVisibility.mentions ?? '-'}</span
+						>
 					</div>
 					<div class="metric-item">
 						<span class="metric-label">Cited Pages</span>
-						<span class="metric-value highlight-green">{data.aiVisibility.citedPages ?? '-'}</span>
+						<span class="metric-value highlight-green"
+							>{pageData.aiVisibility.citedPages ?? '-'}</span
+						>
 					</div>
 					<div class="metric-item">
 						<span class="metric-label">Perf. Topics</span>
 						<span class="metric-value highlight-yellow"
-							>{data.aiVisibility.performingTopics ?? '-'}</span
+							>{pageData.aiVisibility.performingTopics ?? '-'}</span
 						>
 					</div>
 					<div class="metric-item">
 						<span class="metric-label">Topic Opps</span>
 						<span class="metric-value highlight-yellow"
-							>{data.aiVisibility.topicOpportunities ?? '-'}</span
+							>{pageData.aiVisibility.topicOpportunities ?? '-'}</span
 						>
 					</div>
 					<div class="metric-item">
 						<span class="metric-label">Cited Sources</span>
 						<span class="metric-value highlight-yellow"
-							>{data.aiVisibility.citedSources ?? '-'}</span
+							>{pageData.aiVisibility.citedSources ?? '-'}</span
 						>
 					</div>
 					<div class="metric-item">
 						<span class="metric-label">Source Opps</span>
 						<span class="metric-value highlight-yellow"
-							>{data.aiVisibility.sourceOpportunities ?? '-'}</span
+							>{pageData.aiVisibility.sourceOpportunities ?? '-'}</span
 						>
 					</div>
 				</div>
@@ -535,7 +573,7 @@
 				</button>
 			</form>
 
-			{#if data.reportHtml}
+			{#if pageData.reportHtml}
 				<div class="report-actions">
 					<button
 						type="button"
@@ -566,7 +604,7 @@
 					</button>
 				</div>
 				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-				<div class="report-output">{@html data.reportHtml}</div>
+				<div class="report-output">{@html pageData.reportHtml}</div>
 			{:else}
 				<p class="muted">No generated report yet.</p>
 			{/if}
@@ -574,10 +612,10 @@
 	</section>
 {/if}
 
-{#if data.runRecord.run_log}
+{#if pageData.runRecord.run_log}
 	<section class="card legacy-card run-log-card">
 		<h2>Run log</h2>
-		<pre>{data.runRecord.run_log}</pre>
+		<pre>{pageData.runRecord.run_log}</pre>
 	</section>
 {/if}
 
