@@ -262,10 +262,16 @@
 </script>
 
 <section class="page-head audit-page-head">
-	<div>
-		<h1>{pageTitle()}</h1>
-		<p class="muted">{pageUrl()}</p>
-		<p class="muted">Run status: {runStatus()}</p>
+	<div class="page-head-main">
+		<a class="back-link icon-link" href={resolve('/audits')}>
+			<ArrowLeft size={16} />
+			<span>Back to audits</span>
+		</a>
+		<div>
+			<h1>{pageTitle()}</h1>
+			<p class="muted">{pageUrl()}</p>
+			<p class="muted">Run status: {runStatus()}</p>
+		</div>
 	</div>
 	<div class="page-head-actions">
 		<form method="POST" action="?/restart">
@@ -274,10 +280,6 @@
 				<span>Restart audit</span>
 			</button>
 		</form>
-		<a class="back-link icon-link" href={resolve('/audits')}>
-			<ArrowLeft size={16} />
-			<span>Back to audits</span>
-		</a>
 	</div>
 </section>
 
@@ -467,7 +469,13 @@
 
 <style>
 	.audit-page-head h1 {
-		font-size: clamp(1.8rem, 3vw, 2.7rem);
+		font-size: clamp(1.4rem, 2.4vw, 2rem);
+	}
+
+	.page-head-main {
+		display: flex;
+		align-items: flex-start;
+		gap: 1rem;
 	}
 
 	.page-head-actions {
@@ -684,6 +692,11 @@
 	}
 
 	@media (max-width: 760px) {
+		.page-head-main {
+			flex-direction: column;
+			gap: 0.75rem;
+		}
+
 		.page-head-actions {
 			justify-content: flex-start;
 		}
