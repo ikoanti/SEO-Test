@@ -6,12 +6,49 @@ import {
 	listRunsByWorkflow
 } from '$lib/server/pocketbase';
 
+type BuildAuditPageDataOptions = {
+	includeScreenshots?: boolean;
+	includeReportHtml?: boolean;
+};
+
 function getWebsite(auditRecord: Record<string, unknown>) {
 	return (auditRecord.expand as { website?: { url?: string; domain?: string } } | undefined)
 		?.website;
 }
 
-export async function buildAuditPageData(auditId: string, token?: string) {
+function stripScreenshot(value: unknown): unknown {
+	if (!value || typeof value !== 'object') return value;
+	if (Array.isArray(value)) return value.map((item) => stripScreenshot(item));
+
+	const source = value as Record<string, unknown>;
+	const target: Record<string, unknown> = {};
+	for (const [key, nestedValue] of Object.entries(source)) {
+		if (key === 'screenshot') continue;
+		target[key] = stripScreenshot(nestedValue);
+	}
+	return target;
+}
+
+function compactAuditRecord(auditRecord: Record<string, unknown>) {
+	return {
+		id: typeof auditRecord.id === 'string' ? auditRecord.id : undefined,
+		status: typeof auditRecord.status === 'string' ? auditRecord.status : undefined,
+		report_status:
+			typeof auditRecord.report_status === 'string' ? auditRecord.report_status : undefined,
+		created: typeof auditRecord.created === 'string' ? auditRecord.created : undefined,
+		updated: typeof auditRecord.updated === 'string' ? auditRecord.updated : undefined,
+		url: getWebsite(auditRecord)?.url,
+		name: getWebsite(auditRecord)?.domain || getWebsite(auditRecord)?.url
+	};
+}
+
+export async function buildAuditPageData(
+	auditId: string,
+	token?: string,
+	options: BuildAuditPageDataOptions = {}
+) {
+	const includeScreenshots = options.includeScreenshots ?? true;
+	const includeReportHtml = options.includeReportHtml ?? true;
 	const auditRecord = await getAudit(auditId, token);
 	const workflowRecord = await getWorkflowByAuditId(auditRecord.id, token);
 
@@ -42,11 +79,7 @@ export async function buildAuditPageData(auditId: string, token?: string) {
 			error_message: workflowRecord.error_message,
 			run_log: workflowRecord.run_log
 		},
-		auditRecord: {
-			...auditRecord,
-			url: getWebsite(auditRecord)?.url,
-			name: getWebsite(auditRecord)?.domain || getWebsite(auditRecord)?.url
-		},
+		auditRecord: compactAuditRecord(auditRecord),
 		reportRecord: {
 			status: String(auditRecord.report_status || 'idle'),
 			error_message: String(auditRecord.report_error || ''),
@@ -55,7 +88,7 @@ export async function buildAuditPageData(auditId: string, token?: string) {
 		},
 		audit,
 		summary,
-		reportHtml: auditRecord?.report_html || '',
+		reportHtml: includeReportHtml ? auditRecord?.report_html || '' : '',
 		aiVisibility,
 		normalizedItems: runs.map((run) => {
 			const findingType = (
@@ -71,7 +104,11 @@ export async function buildAuditPageData(auditId: string, token?: string) {
 			)?.audit_finding_type;
 			const findings = (findingsByRunId.get(run.id) || []).map((finding) => ({
 				...finding,
-				meta: finding.meta_json ? JSON.parse(finding.meta_json) : null
+				meta: finding.meta_json
+					? includeScreenshots
+						? JSON.parse(finding.meta_json)
+						: stripScreenshot(JSON.parse(finding.meta_json))
+					: null
 			})) as Array<Record<string, unknown> & { status?: AuditFindingStatus }>;
 			const displaySummary =
 				typeof findings[0]?.detail === 'string' && findings[0].detail.trim()

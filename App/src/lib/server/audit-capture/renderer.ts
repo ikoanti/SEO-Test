@@ -76,18 +76,34 @@ function delay(ms: number) {
 
 async function terminateProcess(processRef: ReturnType<typeof spawn> | null) {
 	if (!processRef || processRef.killed) return;
+	let exited = processRef.exitCode !== null || processRef.signalCode !== null;
+	processRef.once('exit', () => {
+		exited = true;
+	});
 	processRef.kill('SIGTERM');
 	await Promise.race([new Promise((resolve) => processRef.once('exit', resolve)), delay(3000)]);
-	if (!processRef.killed) {
+	if (!exited) {
 		processRef.kill('SIGKILL');
 	}
 }
 
-async function runProcess(command: string, args: string[], env: NodeJS.ProcessEnv) {
+async function runProcess(
+	command: string,
+	args: string[],
+	env: NodeJS.ProcessEnv,
+	timeoutMs = 10000
+) {
 	const processRef = spawn(command, args, { env, stdio: 'ignore' });
 	const exitCode = await new Promise<number | null>((resolve, reject) => {
+		const timeout = setTimeout(() => {
+			processRef.kill('SIGKILL');
+			reject(new Error(`${command} timed out after ${timeoutMs}ms`));
+		}, timeoutMs);
 		processRef.once('error', reject);
-		processRef.once('exit', resolve);
+		processRef.once('exit', (code) => {
+			clearTimeout(timeout);
+			resolve(code);
+		});
 	});
 	if (exitCode !== 0) {
 		throw new Error(`${command} exited with code ${exitCode ?? 'unknown'}`);
@@ -107,7 +123,7 @@ async function captureDesktop(display: string) {
 }
 
 async function withVirtualDesktop<T>(fn: (display: string) => Promise<T>) {
-	const display = process.env.DISPLAY || ':99';
+	const display = process.env.DISPLAY || `:${90 + Math.floor(Math.random() * 1000)}`;
 	const screen = `${DISPLAY_WIDTH}x${DISPLAY_HEIGHT}x24`;
 	const xvfb = spawn('Xvfb', [display, '-screen', '0', screen], {
 		stdio: 'ignore'

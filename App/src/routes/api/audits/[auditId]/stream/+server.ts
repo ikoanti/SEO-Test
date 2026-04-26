@@ -31,8 +31,15 @@ export const GET = async ({ params, locals, request }) => {
 
 			while (!closed) {
 				try {
-					const payload = await buildAuditPageData(params.auditId, locals.pbToken);
-					ensureAuditWorkflowProcessing(payload.workflowRecord, locals.pbToken);
+					const slimPayload = await buildAuditPageData(params.auditId, locals.pbToken, {
+						includeScreenshots: false,
+						includeReportHtml: false
+					});
+					ensureAuditWorkflowProcessing(slimPayload.workflowRecord, locals.pbToken);
+					const shouldClose = !slimPayload.isPendingRun && !slimPayload.isPendingReport;
+					const payload = shouldClose
+						? await buildAuditPageData(params.auditId, locals.pbToken)
+						: slimPayload;
 					const serialized = JSON.stringify(payload);
 
 					if (!closed && serialized !== lastPayload) {
@@ -40,7 +47,7 @@ export const GET = async ({ params, locals, request }) => {
 						lastPayload = serialized;
 					}
 
-					if (!payload.isPendingRun) {
+					if (shouldClose) {
 						close();
 						request.signal.removeEventListener('abort', handleAbort);
 						return;
