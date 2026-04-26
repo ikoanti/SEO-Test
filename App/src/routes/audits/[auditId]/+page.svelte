@@ -281,12 +281,7 @@
 	</div>
 </section>
 
-{#if isPending()}
-	<section class="card legacy-card">
-		<h2>Run in progress</h2>
-		<p class="muted">This audit is processing live. Cards update as each audit item completes.</p>
-	</section>
-{:else if isFailed()}
+{#if isFailed()}
 	<section class="card legacy-card">
 		<h2>Run failed</h2>
 		<p class="error">{pageData.runRecord.error_message || 'The audit run failed.'}</p>
