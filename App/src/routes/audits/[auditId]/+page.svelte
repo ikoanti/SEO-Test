@@ -663,7 +663,7 @@
 	}
 
 	.highlight-yellow {
-		color: var(--accent);
+		color: var(--goldenweb-primary);
 	}
 
 	.highlight-green {
