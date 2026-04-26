@@ -81,6 +81,9 @@
 		return findingsByStatus.fail.slice(0, previewLimit);
 	});
 	const isFailSectionExpandable = $derived.by(() => findingsByStatus.fail.length > previewLimit);
+	const hiddenFailCount = $derived.by(() =>
+		Math.max(findingsByStatus.fail.length - visibleFailFindings.length, 0)
+	);
 	const visibleWarnFindings = $derived.by(() => {
 		if (selectedStatus === 'warn' || showAllWarnFindings) {
 			return findingsByStatus.warn;
@@ -89,6 +92,9 @@
 		return findingsByStatus.warn.slice(0, previewLimit);
 	});
 	const isWarnSectionExpandable = $derived.by(() => findingsByStatus.warn.length > previewLimit);
+	const hiddenWarnCount = $derived.by(() =>
+		Math.max(findingsByStatus.warn.length - visibleWarnFindings.length, 0)
+	);
 	const visibleInfoFindings = $derived.by(() => {
 		if (showAllInfoFindings) {
 			return findingsByStatus.info;
@@ -97,14 +103,20 @@
 		return findingsByStatus.info.slice(0, previewLimit);
 	});
 	const isInfoSectionExpandable = $derived.by(() => findingsByStatus.info.length > previewLimit);
+	const hiddenInfoCount = $derived.by(() =>
+		Math.max(findingsByStatus.info.length - visibleInfoFindings.length, 0)
+	);
 	const visiblePassFindings = $derived.by(() => {
-		if (selectedStatus === 'pass' || showPassedFindings || findingsByStatus.pass.length <= 1) {
+		if (selectedStatus === 'pass' || showPassedFindings) {
 			return findingsByStatus.pass;
 		}
 
-		return [];
+		return findingsByStatus.pass.slice(0, previewLimit);
 	});
-	const showPassSectionHeader = $derived.by(() => findingsByStatus.pass.length > 1);
+	const isPassSectionExpandable = $derived.by(() => findingsByStatus.pass.length > previewLimit);
+	const hiddenPassCount = $derived.by(() =>
+		Math.max(findingsByStatus.pass.length - visiblePassFindings.length, 0)
+	);
 	const hasVisibleFindings = $derived.by(
 		() =>
 			findingsByStatus.fail.length > 0 ||
@@ -130,45 +142,29 @@
 	{/if}
 	<ul class={`check-list ${section.mini ? 'mini-list' : ''}`}>
 		{#if hasVisibleFindings}
-			{#if findingsByStatus.fail.length > 0}
-				<AuditFindingRow
-					status="fail"
-					title={`${findingsByStatus.fail.length} ${findingsByStatus.fail.length === 1 ? 'fail' : 'fails'}`}
-					clickable={isFailSectionExpandable}
-					expanded={showAllFailFindings}
-					sectionHeader={true}
-					onactivate={isFailSectionExpandable
-						? () => {
-								showAllFailFindings = !showAllFailFindings;
-							}
-						: undefined}
-				/>
-			{/if}
 			{#each visibleFailFindings as finding, index (`${item?.id || section.key}-fail-${index}`)}
 				<AuditFindingRow
 					status={finding.status || 'info'}
 					title={finding.title || finding.status || 'Finding'}
 					detail={finding.detail}
 					href={finding.page_url}
-					indented={true}
 					codeSnippet={typeof finding.meta?.codeSnippet === 'string'
 						? finding.meta.codeSnippet
 						: undefined}
 				/>
 			{/each}
-			{#if findingsByStatus.warn.length > 0}
-				<AuditFindingRow
-					status="warn"
-					title={`${findingsByStatus.warn.length} ${findingsByStatus.warn.length === 1 ? 'issue' : 'issues'}`}
-					clickable={isWarnSectionExpandable}
-					expanded={showAllWarnFindings}
-					sectionHeader={true}
-					onactivate={isWarnSectionExpandable
-						? () => {
-								showAllWarnFindings = !showAllWarnFindings;
-							}
-						: undefined}
-				/>
+			{#if isFailSectionExpandable}
+				<li class="group-toggle-item">
+					<button
+						type="button"
+						class="group-toggle group-toggle-fail"
+						onclick={() => {
+							showAllFailFindings = !showAllFailFindings;
+						}}
+					>
+						{showAllFailFindings ? 'Show less' : `${hiddenFailCount} more fails`}
+					</button>
+				</li>
 			{/if}
 			{#each visibleWarnFindings as finding, index (`${item?.id || section.key}-warn-${index}`)}
 				<AuditFindingRow
@@ -176,25 +172,23 @@
 					title={finding.title || finding.status || 'Finding'}
 					detail={finding.detail}
 					href={finding.page_url}
-					indented={true}
 					codeSnippet={typeof finding.meta?.codeSnippet === 'string'
 						? finding.meta.codeSnippet
 						: undefined}
 				/>
 			{/each}
-			{#if findingsByStatus.info.length > 0}
-				<AuditFindingRow
-					status="info"
-					title={`${findingsByStatus.info.length} ${findingsByStatus.info.length === 1 ? 'item' : 'items'}`}
-					clickable={isInfoSectionExpandable}
-					expanded={showAllInfoFindings}
-					sectionHeader={true}
-					onactivate={isInfoSectionExpandable
-						? () => {
-								showAllInfoFindings = !showAllInfoFindings;
-							}
-						: undefined}
-				/>
+			{#if isWarnSectionExpandable}
+				<li class="group-toggle-item">
+					<button
+						type="button"
+						class="group-toggle group-toggle-warn"
+						onclick={() => {
+							showAllWarnFindings = !showAllWarnFindings;
+						}}
+					>
+						{showAllWarnFindings ? 'Show less' : `${hiddenWarnCount} more issues`}
+					</button>
+				</li>
 			{/if}
 			{#each visibleInfoFindings as finding, index (`${item?.id || section.key}-info-${index}`)}
 				<AuditFindingRow
@@ -202,23 +196,23 @@
 					title={finding.title || finding.status || 'Finding'}
 					detail={finding.detail}
 					href={finding.page_url}
-					indented={true}
 					codeSnippet={typeof finding.meta?.codeSnippet === 'string'
 						? finding.meta.codeSnippet
 						: undefined}
 				/>
 			{/each}
-			{#if showPassSectionHeader}
-				<AuditFindingRow
-					status="pass"
-					title={`${findingsByStatus.pass.length} passed`}
-					clickable={true}
-					expanded={showPassedFindings}
-					sectionHeader={true}
-					onactivate={() => {
-						showPassedFindings = !showPassedFindings;
-					}}
-				/>
+			{#if isInfoSectionExpandable}
+				<li class="group-toggle-item">
+					<button
+						type="button"
+						class="group-toggle group-toggle-info"
+						onclick={() => {
+							showAllInfoFindings = !showAllInfoFindings;
+						}}
+					>
+						{showAllInfoFindings ? 'Show less' : `${hiddenInfoCount} more items`}
+					</button>
+				</li>
 			{/if}
 			{#each visiblePassFindings as finding, index (`${item?.id || section.key}-pass-${index}`)}
 				<AuditFindingRow
@@ -226,12 +220,24 @@
 					title={finding.title || finding.status || 'Finding'}
 					detail={finding.detail}
 					href={finding.page_url}
-					indented={showPassSectionHeader}
 					codeSnippet={typeof finding.meta?.codeSnippet === 'string'
 						? finding.meta.codeSnippet
 						: undefined}
 				/>
 			{/each}
+			{#if isPassSectionExpandable}
+				<li class="group-toggle-item">
+					<button
+						type="button"
+						class="group-toggle group-toggle-pass"
+						onclick={() => {
+							showPassedFindings = !showPassedFindings;
+						}}
+					>
+						{showPassedFindings ? 'Show less' : `${hiddenPassCount} more passes`}
+					</button>
+				</li>
+			{/if}
 		{:else if summaryItem}
 			<AuditFindingRow
 				status={summaryItem.status || 'info'}
@@ -239,17 +245,18 @@
 			/>
 		{:else if showEmptyRow}
 			<AuditFindingRow status="info" title="No persisted result for this check." />
-		{:else if showPassSectionHeader}
-			<AuditFindingRow
-				status="pass"
-				title={`${findingsByStatus.pass.length} passed`}
-				clickable={true}
-				expanded={showPassedFindings}
-				sectionHeader={true}
-				onactivate={() => {
-					showPassedFindings = !showPassedFindings;
-				}}
-			/>
+		{:else if isPassSectionExpandable}
+			<li class="group-toggle-item">
+				<button
+					type="button"
+					class="group-toggle group-toggle-pass"
+					onclick={() => {
+						showPassedFindings = !showPassedFindings;
+					}}
+				>
+					{showPassedFindings ? 'Show less' : `${hiddenPassCount} more passes`}
+				</button>
+			</li>
 		{/if}
 	</ul>
 </div>
@@ -280,5 +287,38 @@
 		padding: 0;
 		margin: 0;
 		list-style: none;
+	}
+
+	.group-toggle-item {
+		padding: 0;
+		margin: -0.1rem 0 0.15rem;
+		list-style: none;
+	}
+
+	.group-toggle {
+		padding: 0;
+		border: 0;
+		background: transparent;
+		font: inherit;
+		font-size: 0.9rem;
+		font-weight: 600;
+		text-align: left;
+		cursor: pointer;
+	}
+
+	.group-toggle-pass {
+		color: var(--status-pass);
+	}
+
+	.group-toggle-warn {
+		color: var(--status-warn);
+	}
+
+	.group-toggle-fail {
+		color: var(--status-fail);
+	}
+
+	.group-toggle-info {
+		color: var(--status-info);
 	}
 </style>
