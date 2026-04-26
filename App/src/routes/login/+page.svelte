@@ -35,7 +35,6 @@
 		background: var(--card-bg);
 		border: 1px solid var(--border);
 		border-radius: 18px;
-		box-shadow: var(--card-shadow);
 	}
 
 	.auth-card h1 {

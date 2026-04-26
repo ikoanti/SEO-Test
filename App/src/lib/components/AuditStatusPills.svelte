@@ -82,9 +82,7 @@
 		background: rgba(0, 0, 0, 0.2);
 		font-size: 0.8rem;
 		font-weight: 600;
-		transition:
-			border-color 0.16s ease,
-			box-shadow 0.16s ease;
+		transition: border-color 0.16s ease;
 	}
 
 	.scan-stat.is-selectable {
@@ -93,7 +91,6 @@
 
 	.scan-stat.is-active {
 		border-color: currentColor;
-		box-shadow: inset 0 0 0 1px currentColor;
 	}
 
 	.scan-stat.pass {

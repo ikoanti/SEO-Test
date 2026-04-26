@@ -172,7 +172,6 @@
 		border: 0;
 		background: transparent;
 		color: inherit;
-		box-shadow: none;
 		text-align: left;
 	}
 
@@ -226,7 +225,6 @@
 		border: 1px solid var(--border);
 		border-radius: 0.5rem;
 		background: #0f172a;
-		box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
 	}
 
 	.code-snippet-container pre {

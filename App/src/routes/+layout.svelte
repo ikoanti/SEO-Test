@@ -180,7 +180,6 @@
 		border: 1px solid var(--border);
 		border-radius: 16px;
 		background: var(--card-bg);
-		box-shadow: var(--card-shadow);
 	}
 
 	.profile-meta {

@@ -495,7 +495,6 @@
 		border: 1px solid var(--border);
 		border-radius: 1rem;
 		background: var(--card-bg);
-		box-shadow: var(--card-shadow);
 	}
 
 	.summary-item {
@@ -535,7 +534,6 @@
 		background: rgba(0, 0, 0, 0.4);
 		border-radius: 6px;
 		overflow: hidden;
-		box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
 	}
 
 	.summary-score-bar {
@@ -633,7 +631,6 @@
 		padding: 0.75rem 1rem;
 		border: 1px solid var(--border);
 		background: rgba(15, 23, 42, 0.9);
-		box-shadow: none;
 	}
 
 	.report-error {
