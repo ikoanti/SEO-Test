@@ -3,26 +3,16 @@
 
 	type StatusFilter = 'good' | 'warn' | 'bad';
 
-	type StatusMeta = {
-		key: StatusFilter;
-		count: number;
-		label: string;
-	};
-
 	let {
 		good,
 		warn,
 		bad,
-		statuses = ['good', 'warn', 'bad'] as StatusFilter[],
-		labels = {},
 		selectable = true,
 		selectedStatus = $bindable<StatusFilter | null>(null)
 	}: {
 		good: number;
 		warn: number;
 		bad: number;
-		statuses?: StatusFilter[];
-		labels?: Partial<Record<StatusFilter, string>>;
 		selectable?: boolean;
 		selectedStatus?: StatusFilter | null;
 	} = $props();
@@ -31,39 +21,48 @@
 		if (!selectable) return;
 		selectedStatus = selectedStatus === status ? null : status;
 	}
-
-	const statusMeta = $derived.by<StatusMeta[]>(() =>
-		statuses.map((status) => ({
-			key: status,
-			count: status === 'good' ? good : status === 'warn' ? warn : bad,
-			label:
-				labels[status] ?? (status === 'good' ? 'Good' : status === 'warn' ? 'Issues' : 'Missing')
-		}))
-	);
 </script>
 
 <div class="scan-stats">
-	{#each statusMeta as status (status.key)}
-		<svelte:element
-			this={selectable ? 'button' : 'div'}
-			type={selectable ? 'button' : undefined}
-			class={`scan-stat ${status.key} ${selectedStatus === status.key ? 'is-active' : ''} ${selectable ? 'is-selectable' : 'is-static'}`}
-			aria-pressed={selectable ? selectedStatus === status.key : undefined}
-			role={selectable ? undefined : 'status'}
-			tabindex={selectable ? 0 : undefined}
-			onclick={() => toggleSelection(status.key)}
-		>
-			{#if status.key === 'good'}
-				<CheckCircle2 size={16} strokeWidth={2.25} />
-			{:else if status.key === 'warn'}
-				<AlertTriangle size={16} strokeWidth={2.25} />
-			{:else}
-				<CircleX size={16} strokeWidth={2.25} />
-			{/if}
-			<span>{status.count}</span>
-			<span>{status.label}</span>
-		</svelte:element>
-	{/each}
+	<svelte:element
+		this={selectable ? 'button' : 'div'}
+		type={selectable ? 'button' : undefined}
+		class={`scan-stat good ${selectedStatus === 'good' ? 'is-active' : ''} ${selectable ? 'is-selectable' : 'is-static'}`}
+		aria-pressed={selectable ? selectedStatus === 'good' : undefined}
+		role={selectable ? undefined : 'status'}
+		tabindex={selectable ? 0 : undefined}
+		onclick={() => toggleSelection('good')}
+	>
+		<CheckCircle2 size={16} strokeWidth={2.25} />
+		<span>{good}</span>
+		<span>Good</span>
+	</svelte:element>
+	<svelte:element
+		this={selectable ? 'button' : 'div'}
+		type={selectable ? 'button' : undefined}
+		class={`scan-stat warn ${selectedStatus === 'warn' ? 'is-active' : ''} ${selectable ? 'is-selectable' : 'is-static'}`}
+		aria-pressed={selectable ? selectedStatus === 'warn' : undefined}
+		role={selectable ? undefined : 'status'}
+		tabindex={selectable ? 0 : undefined}
+		onclick={() => toggleSelection('warn')}
+	>
+		<AlertTriangle size={16} strokeWidth={2.25} />
+		<span>{warn}</span>
+		<span>Issues</span>
+	</svelte:element>
+	<svelte:element
+		this={selectable ? 'button' : 'div'}
+		type={selectable ? 'button' : undefined}
+		class={`scan-stat bad ${selectedStatus === 'bad' ? 'is-active' : ''} ${selectable ? 'is-selectable' : 'is-static'}`}
+		aria-pressed={selectable ? selectedStatus === 'bad' : undefined}
+		role={selectable ? undefined : 'status'}
+		tabindex={selectable ? 0 : undefined}
+		onclick={() => toggleSelection('bad')}
+	>
+		<CircleX size={16} strokeWidth={2.25} />
+		<span>{bad}</span>
+		<span>Missing</span>
+	</svelte:element>
 </div>
 
 <style>
