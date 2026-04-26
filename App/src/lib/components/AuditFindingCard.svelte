@@ -146,12 +146,6 @@
 	{#if section.mini}
 		<AuditStatusPills pass={pills.pass} warn={pills.warn} fail={pills.fail} bind:selectedStatus />
 	{/if}
-	{#if section.key === 'internalLinks'}
-		<div class="links-summary">
-			<div class="stat"><span>{pills.pass + pills.warn + pills.fail}</span> Total</div>
-			<div class="stat"><span class="error">{pills.fail}</span> Broken</div>
-		</div>
-	{/if}
 	<ul class={`check-list ${section.mini ? 'mini-list' : ''}`}>
 		{#if visibleFindings.length}
 			{#each visibleFindings as finding, index (`${item?.id || section.key}-${index}`)}
@@ -231,30 +225,6 @@
 		margin: -0.5rem 0 1rem;
 		color: var(--text-muted);
 		font-size: 0.85rem;
-	}
-
-	.links-summary {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.75rem;
-		margin-bottom: 1rem;
-	}
-
-	.links-summary .stat {
-		padding: 0.35rem 0.7rem;
-		border-radius: 999px;
-		background: rgba(0, 0, 0, 0.2);
-		font-size: 0.8rem;
-		font-weight: 600;
-	}
-
-	.links-summary .stat span {
-		font-size: 1.1rem;
-		font-weight: 700;
-	}
-
-	.error {
-		color: #fca5a5;
 	}
 
 	.check-list {
