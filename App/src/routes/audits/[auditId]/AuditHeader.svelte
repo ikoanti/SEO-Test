@@ -21,16 +21,18 @@
 		</a>
 		<div class="heading-copy">
 			<h1>{title}</h1>
-			<span class="run-status">Run status: {status || 'queued'}</span>
 		</div>
 	</div>
 	<div class="page-head-actions">
-		<form method="POST" action="?/restart">
-			<button type="submit" class="icon-button restart-button" disabled={isPending}>
-				<RotateCcw size={16} />
-				<span>Restart audit</span>
-			</button>
-		</form>
+		<div class="action-capsule">
+			<span class="run-status">{status || 'queued'}</span>
+			<form method="POST" action="?/restart">
+				<button type="submit" class="icon-button restart-button" disabled={isPending}>
+					<RotateCcw size={16} />
+					<span>Restart audit</span>
+				</button>
+			</form>
+		</div>
 	</div>
 </section>
 
@@ -71,12 +73,10 @@
 	.run-status {
 		display: inline-flex;
 		align-items: center;
-		padding: 0.35rem 0.7rem;
-		border: 1px solid rgba(255, 255, 255, 0.08);
-		border-radius: 9999px;
-		background: var(--surface-soft);
+		justify-content: center;
+		padding: 10px 14px;
 		color: var(--text-muted);
-		font-size: 0.82rem;
+		font-size: 0.9rem;
 		font-weight: 600;
 		text-transform: capitalize;
 		white-space: nowrap;
@@ -90,8 +90,25 @@
 		flex-wrap: wrap;
 	}
 
+	.action-capsule {
+		display: inline-flex;
+		align-items: stretch;
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		border-radius: 9999px;
+		background: var(--surface-soft);
+		overflow: hidden;
+	}
+
+	.action-capsule form {
+		display: contents;
+	}
+
 	.restart-button {
 		padding: 10px 14px;
+		border-radius: 0;
+		border: 0;
+		border-left: 1px solid rgba(255, 255, 255, 0.08);
+		background: transparent;
 	}
 
 	.restart-button:disabled {
