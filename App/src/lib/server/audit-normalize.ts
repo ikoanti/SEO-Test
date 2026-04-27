@@ -140,10 +140,18 @@ function buildListSection(
 				? (meta.meta as Record<string, unknown>)
 				: null;
 		const screenshot = meta.screenshot || nestedMeta?.screenshot;
+		const screenshotRequest = meta.screenshotRequest || nestedMeta?.screenshotRequest;
 		if (screenshot) {
 			meta.screenshot = screenshot;
 			if (nestedMeta) {
 				delete nestedMeta.screenshot;
+				meta.meta = nestedMeta;
+			}
+		}
+		if (screenshotRequest) {
+			meta.screenshotRequest = screenshotRequest;
+			if (nestedMeta) {
+				delete nestedMeta.screenshotRequest;
 				meta.meta = nestedMeta;
 			}
 		}

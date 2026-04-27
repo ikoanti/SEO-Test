@@ -409,9 +409,10 @@
 			<OpenPageRankCard
 				pageRank={displayValue(openPageRank().pageRank)}
 				globalRank={displayValue(openPageRank().globalRank)}
+				screenshot={itemByKey('openPageRank')?.screenshot}
 			/>
 
-			<PageSpeedCard pageSpeedData={pageSpeed()} />
+			<PageSpeedCard pageSpeedData={pageSpeed()} screenshot={itemByKey('pageSpeed')?.screenshot} />
 
 			{#each legacySections as section (section.key)}
 				<AuditFindingCard {section} item={itemByKey(section.key)} />

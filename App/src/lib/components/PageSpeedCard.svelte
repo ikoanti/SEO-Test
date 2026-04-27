@@ -2,9 +2,14 @@
 	import { Monitor, Smartphone } from 'lucide-svelte';
 
 	let {
-		pageSpeedData = {}
+		pageSpeedData = {},
+		screenshot = null
 	}: {
 		pageSpeedData?: Record<string, unknown>;
+		screenshot?: {
+			title?: string;
+			image_url?: string;
+		} | null;
 	} = $props();
 
 	const pageSpeedStrategies = ['mobile', 'desktop'] as const;
@@ -39,6 +44,15 @@
 
 <div class="card page-speed-card" id="card-speed">
 	<h3>PageSpeed Insights</h3>
+	{#if screenshot?.image_url}
+		<div class="card-image-proof">
+			<img
+				src={screenshot.image_url}
+				alt={screenshot.title || 'PageSpeed Insights evidence screenshot'}
+				loading="lazy"
+			/>
+		</div>
+	{/if}
 	<div class="speed-container">
 		{#each pageSpeedStrategies as strategy (strategy)}
 			{@const strategyData = getRecord(pageSpeedData[strategy])}
@@ -87,6 +101,20 @@
 		border-bottom: 1px solid var(--border);
 		font-size: 1.25rem;
 		font-weight: 600;
+	}
+
+	.card-image-proof {
+		margin: 0 0 1rem;
+		overflow: hidden;
+		border: 1px solid var(--border);
+		border-radius: 0.9rem;
+		background: rgba(15, 23, 42, 0.72);
+	}
+
+	.card-image-proof img {
+		display: block;
+		width: 100%;
+		height: auto;
 	}
 
 	.speed-container {

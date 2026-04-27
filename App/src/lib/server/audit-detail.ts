@@ -7,7 +7,8 @@ import {
 	listRunsByWorkflow
 } from '$lib/server/pocketbase';
 import { appendReportScreenshotsIfMissing } from '$lib/server/report-screenshots';
-import { hasPendingScreenshotJobs } from '$lib/server/audit-runner';
+import { enqueueScreenshotRequest, hasPendingScreenshotJobs } from '$lib/server/audit-runner';
+import type { AuditCaptureRequest } from '$lib/server/audit-capture';
 
 type BuildAuditPageDataOptions = {
 	includeReportHtml?: boolean;
@@ -39,6 +40,19 @@ function parseStoredJson(value: unknown) {
 	} catch {
 		return null;
 	}
+}
+
+function getRecord(value: unknown): Record<string, unknown> | null {
+	return value && typeof value === 'object' && !Array.isArray(value)
+		? (value as Record<string, unknown>)
+		: null;
+}
+
+function getScreenshotRequest(value: unknown) {
+	const meta = getRecord(value);
+	const request =
+		getRecord(meta?.screenshotRequest) || getRecord(getRecord(meta?.meta)?.screenshotRequest);
+	return request?.kind ? (request as AuditCaptureRequest) : null;
 }
 
 export async function buildAuditPageData(
@@ -116,6 +130,31 @@ export async function buildAuditPageData(
 		const screenshotRecord = screenshot as
 			| (Record<string, unknown> & { image_url?: string })
 			| null;
+		if (!screenshotRecord && findingType?.key) {
+			const screenshotRequest = findings
+				.map((finding) => getScreenshotRequest(finding.meta))
+				.find((request): request is AuditCaptureRequest => Boolean(request));
+			if (screenshotRequest) {
+				const sourceFinding = findings.find((finding) => getScreenshotRequest(finding.meta));
+				enqueueScreenshotRequest(
+					{
+						auditId: auditRecord.id,
+						findingTypeId: String(run.audit_finding_type || ''),
+						runId: run.id,
+						title:
+							typeof sourceFinding?.detail === 'string' && sourceFinding.detail
+								? sourceFinding.detail
+								: typeof sourceFinding?.title === 'string' && sourceFinding.title
+									? sourceFinding.title
+									: findingType.label || 'Audit screenshot',
+						page_url:
+							typeof sourceFinding?.page_url === 'string' ? sourceFinding.page_url : undefined,
+						request: screenshotRequest
+					},
+					token
+				);
+			}
+		}
 		return {
 			id: run.id,
 			key: findingType?.key || run.id,

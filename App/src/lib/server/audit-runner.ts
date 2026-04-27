@@ -144,17 +144,30 @@ function extractScreenshotFromMeta(metaJson: string) {
 
 	try {
 		const meta = JSON.parse(metaJson) as Record<string, unknown>;
+		const nestedMeta = getRecord(meta.meta);
 		const directScreenshot = getRecord(meta.screenshot);
+		const nestedScreenshot = getRecord(nestedMeta?.screenshot);
 		const directScreenshotRequest = getRecord(meta.screenshotRequest);
-		const screenshot = directScreenshot as ScreenshotPayload | null;
-		const screenshotRequest = directScreenshotRequest as AuditCaptureRequest | null;
+		const nestedScreenshotRequest = getRecord(nestedMeta?.screenshotRequest);
+		const screenshotSource = directScreenshot || nestedScreenshot;
+		const screenshotRequestSource = directScreenshotRequest || nestedScreenshotRequest;
+		const screenshot = screenshotSource as ScreenshotPayload | null;
+		const screenshotRequest = screenshotRequestSource as AuditCaptureRequest | null;
 
 		if (directScreenshot) {
 			delete meta.screenshot;
 		}
+		if (nestedScreenshot && nestedMeta) {
+			delete nestedMeta.screenshot;
+			meta.meta = nestedMeta;
+		}
 
 		if (directScreenshotRequest) {
 			delete meta.screenshotRequest;
+		}
+		if (nestedScreenshotRequest && nestedMeta) {
+			delete nestedMeta.screenshotRequest;
+			meta.meta = nestedMeta;
 		}
 
 		return {
@@ -210,7 +223,7 @@ async function persistScreenshotIfPresent(
 	}
 }
 
-function enqueueScreenshotRequest(
+export function enqueueScreenshotRequest(
 	input: {
 		auditId: string;
 		findingTypeId: string;
