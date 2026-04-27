@@ -131,7 +131,12 @@ export async function buildAuditPageData(
 						title: typeof screenshotRecord.title === 'string' ? screenshotRecord.title : undefined,
 						page_url:
 							typeof screenshotRecord.page_url === 'string' ? screenshotRecord.page_url : undefined,
-						image_url: screenshotRecord.image_url || ''
+						image_url:
+							typeof screenshotRecord.id === 'string'
+								? `/api/audits/${encodeURIComponent(auditRecord.id)}/screenshots/${encodeURIComponent(
+										screenshotRecord.id
+									)}/image`
+								: screenshotRecord.image_url || ''
 					}
 				: null,
 			findings
