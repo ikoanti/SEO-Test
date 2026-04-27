@@ -1,5 +1,80 @@
 import { captureAuditSidebarScreenshot } from './renderer';
 
+export type AuditCaptureRequest =
+	| {
+			kind: 'headings';
+			domain: string;
+			entries: Array<{ page: string; issue: string }>;
+			count: number;
+	  }
+	| {
+			kind: 'image-alts';
+			domain: string;
+			entries: Array<{ page: string; image: string; issue?: string }>;
+			count: number;
+	  }
+	| {
+			kind: 'meta-tags';
+			domain: string;
+			entries: Array<{ page: string; issue: string; value?: string }>;
+			count: number;
+	  }
+	| {
+			kind: 'canonicals';
+			domain: string;
+			entries: Array<{ page: string; issue: string; value?: string }>;
+			count: number;
+	  }
+	| {
+			kind: 'internal-links';
+			domain: string;
+			entries: Array<{ page: string; issue: string; count?: number }>;
+			count: number;
+	  }
+	| {
+			kind: 'lazy-loading';
+			domain: string;
+			entries: Array<{ page: string; issue: string; image?: string }>;
+			count: number;
+	  }
+	| {
+			kind: 'open-graph';
+			domain: string;
+			entries: Array<{ page: string; issue: string; property?: string }>;
+			count: number;
+	  }
+	| {
+			kind: 'content-quality';
+			domain: string;
+			entries: Array<{ page: string; issue: string; wordCount?: number }>;
+			count: number;
+	  }
+	| {
+			kind: 'shopify-urls';
+			domain: string;
+			entries: Array<{ page: string; issue: string; pattern?: string }>;
+			count: number;
+	  }
+	| {
+			kind: 'pagespeed';
+			domain: string;
+			pageUrl: string;
+			pageSpeed: Record<string, unknown>;
+	  }
+	| {
+			kind: 'open-page-rank';
+			domain: string;
+			pageUrl: string;
+			openPageRank: Record<string, unknown>;
+	  }
+	| {
+			kind: 'robots';
+			domain: string;
+			robotsUrl: string;
+			storefrontUrl: string;
+			foundAgents: string[];
+	  };
+
 type SidebarTab = {
 	id: string;
 	label: string;
@@ -287,4 +362,33 @@ export async function captureRobotsEvidence({
 			foundAgents
 		})
 	});
+}
+
+export async function runAuditCaptureRequest(request: AuditCaptureRequest) {
+	switch (request.kind) {
+		case 'headings':
+			return captureHeadingEvidence(request.domain, request.entries, request.count);
+		case 'image-alts':
+			return captureImageAltEvidence(request.domain, request.entries, request.count);
+		case 'meta-tags':
+			return captureMetaEvidence(request.domain, request.entries, request.count);
+		case 'canonicals':
+			return captureCanonicalEvidence(request.domain, request.entries, request.count);
+		case 'internal-links':
+			return captureInternalLinksEvidence(request.domain, request.entries, request.count);
+		case 'lazy-loading':
+			return captureLazyLoadingEvidence(request.domain, request.entries, request.count);
+		case 'open-graph':
+			return captureOpenGraphEvidence(request.domain, request.entries, request.count);
+		case 'content-quality':
+			return captureContentQualityEvidence(request.domain, request.entries, request.count);
+		case 'shopify-urls':
+			return captureShopifyUrlEvidence(request.domain, request.entries, request.count);
+		case 'pagespeed':
+			return capturePageSpeedEvidence(request.domain, request.pageUrl, request.pageSpeed);
+		case 'open-page-rank':
+			return captureOpenPageRankEvidence(request.domain, request.pageUrl, request.openPageRank);
+		case 'robots':
+			return captureRobotsEvidence(request);
+	}
 }

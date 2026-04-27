@@ -30,9 +30,13 @@ const WINDOW_HEIGHT = 900;
 const WINDOW_WIDTH = 1365;
 const DISPLAY_WIDTH = 1600;
 const DISPLAY_HEIGHT = 1200;
+const SESSION_IDLE_TIMEOUT_MS = Number(process.env.AUDIT_CAPTURE_IDLE_TIMEOUT_MS || 30000);
+const MAX_SESSION_CAPTURES = Number(process.env.AUDIT_CAPTURE_MAX_SESSION_CAPTURES || 50);
 
 const assetCache = new Map<string, string>();
 let captureQueue = Promise.resolve();
+let sessionIdleTimer: NodeJS.Timeout | null = null;
+let sessionCaptureCount = 0;
 
 type CaptureSession = {
 	display?: string;
@@ -142,7 +146,14 @@ function chromeLaunchArgs() {
 		'--disable-breakpad',
 		'--disable-crash-reporter',
 		'--disable-crashpad',
+		'--disable-background-networking',
+		'--disable-component-update',
+		'--disable-default-apps',
+		'--disable-extensions',
+		'--disable-site-isolation-trials',
 		'--force-device-scale-factor=1',
+		'--mute-audio',
+		'--renderer-process-limit=2',
 		'--window-position=0,0',
 		`--window-size=${WINDOW_WIDTH},${WINDOW_HEIGHT}`
 	];
@@ -182,16 +193,35 @@ async function createHeadfulSession(): Promise<CaptureSession> {
 }
 
 async function getHeadfulSession() {
+	if (sessionIdleTimer) {
+		clearTimeout(sessionIdleTimer);
+		sessionIdleTimer = null;
+	}
+	if (sessionCaptureCount >= MAX_SESSION_CAPTURES) {
+		await closeCaptureSession();
+	}
 	headfulSessionPromise ??= createHeadfulSession();
 	return headfulSessionPromise;
 }
 
 async function getHeadlessBrowser() {
+	if (sessionIdleTimer) {
+		clearTimeout(sessionIdleTimer);
+		sessionIdleTimer = null;
+	}
+	if (sessionCaptureCount >= MAX_SESSION_CAPTURES) {
+		await closeCaptureSession();
+	}
 	headlessBrowserPromise ??= launchBrowser();
 	return headlessBrowserPromise;
 }
 
 async function closeCaptureSession() {
+	if (sessionIdleTimer) {
+		clearTimeout(sessionIdleTimer);
+		sessionIdleTimer = null;
+	}
+	sessionCaptureCount = 0;
 	const headfulSession = await headfulSessionPromise?.catch(() => null);
 	headfulSessionPromise = null;
 	if (headfulSession) {
@@ -203,6 +233,15 @@ async function closeCaptureSession() {
 	const headlessBrowser = await headlessBrowserPromise?.catch(() => null);
 	headlessBrowserPromise = null;
 	await headlessBrowser?.close().catch(() => undefined);
+}
+
+function scheduleCaptureSessionCleanup() {
+	if (SESSION_IDLE_TIMEOUT_MS <= 0) return;
+	if (sessionIdleTimer) clearTimeout(sessionIdleTimer);
+	sessionIdleTimer = setTimeout(() => {
+		void closeCaptureSession();
+	}, SESSION_IDLE_TIMEOUT_MS);
+	sessionIdleTimer.unref?.();
 }
 
 process.once('beforeExit', () => {
@@ -371,15 +410,21 @@ export async function captureAuditSidebarScreenshot({
 		if (shouldUseHeadfulCapture()) {
 			try {
 				const session = await getHeadfulSession();
-				return await runCapture({ browser: session.browser, display: session.display });
+				const result = await runCapture({ browser: session.browser, display: session.display });
+				sessionCaptureCount += 1;
+				return result;
 			} finally {
+				scheduleCaptureSessionCleanup();
 				console.info(`[audit-capture] ${panel} capture finished in ${Date.now() - startedAt}ms`);
 			}
 		}
 
 		try {
-			return await runCapture({ browser: await getHeadlessBrowser() });
+			const result = await runCapture({ browser: await getHeadlessBrowser() });
+			sessionCaptureCount += 1;
+			return result;
 		} finally {
+			scheduleCaptureSessionCleanup();
 			console.info(`[audit-capture] ${panel} capture finished in ${Date.now() - startedAt}ms`);
 		}
 	});

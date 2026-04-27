@@ -254,7 +254,13 @@ export function buildNormalizedAuditItems(audit: AuditResult): NormalizedAuditFi
 	return items;
 }
 
-export async function attachMetricScreenshots(audit: AuditResult, pageUrl: string) {
+export async function attachMetricScreenshots(
+	audit: AuditResult,
+	pageUrl: string,
+	keys: Iterable<string> = ['pageSpeed', 'openPageRank'],
+	cache: Map<string, unknown> = new Map()
+) {
+	const requestedKeys = new Set(keys);
 	const domain =
 		audit.domain ||
 		(() => {
@@ -265,24 +271,42 @@ export async function attachMetricScreenshots(audit: AuditResult, pageUrl: strin
 			}
 		})();
 
-	if (audit.pageSpeed && typeof audit.pageSpeed === 'object') {
+	if (requestedKeys.has('pageSpeed') && audit.pageSpeed && typeof audit.pageSpeed === 'object') {
 		const pageSpeed = audit.pageSpeed as Record<string, unknown>;
 		if (!pageSpeed.screenshot) {
-			try {
-				pageSpeed.screenshot = await capturePageSpeedEvidence(domain, pageUrl, pageSpeed);
-			} catch {
-				void 0;
+			if (cache.has('pageSpeed')) {
+				pageSpeed.screenshot = cache.get('pageSpeed');
+			} else {
+				try {
+					pageSpeed.screenshot = await capturePageSpeedEvidence(domain, pageUrl, pageSpeed);
+					cache.set('pageSpeed', pageSpeed.screenshot);
+				} catch {
+					void 0;
+				}
 			}
 		}
 	}
 
-	if (audit.openPageRank && typeof audit.openPageRank === 'object') {
+	if (
+		requestedKeys.has('openPageRank') &&
+		audit.openPageRank &&
+		typeof audit.openPageRank === 'object'
+	) {
 		const openPageRank = audit.openPageRank as Record<string, unknown>;
 		if (!openPageRank.screenshot) {
-			try {
-				openPageRank.screenshot = await captureOpenPageRankEvidence(domain, pageUrl, openPageRank);
-			} catch {
-				void 0;
+			if (cache.has('openPageRank')) {
+				openPageRank.screenshot = cache.get('openPageRank');
+			} else {
+				try {
+					openPageRank.screenshot = await captureOpenPageRankEvidence(
+						domain,
+						pageUrl,
+						openPageRank
+					);
+					cache.set('openPageRank', openPageRank.screenshot);
+				} catch {
+					void 0;
+				}
 			}
 		}
 	}

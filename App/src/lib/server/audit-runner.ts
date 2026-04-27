@@ -30,6 +30,7 @@ type AuditRunnerState = {
 };
 
 type AuditSummaryResult = AuditResult;
+type MetricScreenshotCache = Map<string, unknown>;
 
 type ScreenshotPayload = {
 	contentType?: string;
@@ -276,10 +277,20 @@ async function syncProgressSnapshot(
 	url: string,
 	partialAudit: AuditSummaryResult,
 	runRegistry: RunRegistry,
+	metricScreenshotCache: MetricScreenshotCache,
+	keysToSync?: Iterable<string>,
 	token?: string
 ) {
-	await attachMetricScreenshots(partialAudit, url);
-	const normalizedItems = buildNormalizedAuditItems(partialAudit);
+	const keySet = keysToSync ? new Set(keysToSync) : null;
+	await attachMetricScreenshots(
+		partialAudit,
+		url,
+		keySet || ['pageSpeed', 'openPageRank'],
+		metricScreenshotCache
+	);
+	const normalizedItems = buildNormalizedAuditItems(partialAudit).filter(
+		(item) => !keySet || keySet.has(item.key)
+	);
 	for (const item of normalizedItems) {
 		const run = runRegistry.get(item.key);
 		if (!run) continue;
@@ -388,6 +399,7 @@ async function processAuditWorkflow({ workflowId, auditId, url, token }: QueuePa
 	const workflowRecord = await getWorkflow(workflowId, token);
 	let runLog = appendLog(workflowRecord.run_log, 'Workflow started.');
 	const runRegistry = await bootstrapRuns(workflowId, token);
+	const metricScreenshotCache: MetricScreenshotCache = new Map();
 
 	await updateWorkflowRecord(
 		workflowId,
@@ -411,12 +423,28 @@ async function processAuditWorkflow({ workflowId, auditId, url, token }: QueuePa
 			onStepComplete: async (stepLabel: string, partialAudit: AuditSummaryResult) => {
 				runLog = appendLog(runLog, `${stepLabel} completed.`);
 				await updateWorkflowRecord(workflowId, { run_log: runLog }, token);
-				await syncProgressSnapshot(auditId, url, partialAudit, runRegistry, token);
+				await syncProgressSnapshot(
+					auditId,
+					url,
+					partialAudit,
+					runRegistry,
+					metricScreenshotCache,
+					STEP_KEYS[stepLabel] || [],
+					token
+				);
 			}
 		});
 		runLog = appendLog(runLog, 'Audit engine completed successfully.');
 		const completedAt = timestamp();
-		await syncProgressSnapshot(auditId, url, audit, runRegistry, token);
+		await syncProgressSnapshot(
+			auditId,
+			url,
+			audit,
+			runRegistry,
+			metricScreenshotCache,
+			undefined,
+			token
+		);
 		await finalizeUnsyncedRuns(runRegistry, audit, token);
 
 		await updateAuditRecord(
