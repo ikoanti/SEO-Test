@@ -23,9 +23,10 @@
 	<form method="POST" action="?/create" class="audit-create-form audit-create-inline">
 		<input
 			name="url"
-			type="url"
+			type="text"
+			inputmode="url"
 			value={form?.url ?? ''}
-			placeholder="https://example.com"
+			placeholder="example.com"
 			aria-label="Audit URL"
 			required
 		/>

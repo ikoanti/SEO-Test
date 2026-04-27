@@ -83,7 +83,7 @@ export const actions = {
 			throw redirect(302, `/audits/${audit.id}`);
 		} catch (error) {
 			if (isRedirect(error)) throw error;
-			return fail(500, {
+			return fail(400, {
 				createError: error instanceof Error ? error.message : 'Failed to create audit.',
 				url
 			});

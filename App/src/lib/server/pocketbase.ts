@@ -55,10 +55,15 @@ function truncateText(value: string, maxLength: number) {
 }
 
 function normalizeUrl(input: string) {
-	const value = input.trim();
-	const url = new URL(
-		value.startsWith('http://') || value.startsWith('https://') ? value : `https://${value}`
-	);
+	const value = input.trim().replace(/\s+/g, '');
+	if (!value) throw new Error('Website URL is required.');
+
+	const normalized = /^https?:\/\//i.test(value) ? value : `https://${value}`;
+	const url = new URL(normalized);
+	if (!['http:', 'https:'].includes(url.protocol)) {
+		throw new Error('Website URL must use HTTP or HTTPS.');
+	}
+
 	url.hash = '';
 	return url.href;
 }
