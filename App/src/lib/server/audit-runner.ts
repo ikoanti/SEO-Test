@@ -36,6 +36,15 @@ type ScreenshotPayload = {
 	imageBase64?: string;
 };
 
+type ScreenshotJob = {
+	auditId: string;
+	findingTypeId: string;
+	runId: string;
+	title: string;
+	page_url?: string;
+	request: AuditCaptureRequest;
+};
+
 type ScreenshotQueueState = {
 	chain: Promise<void>;
 	queuedKeys: Set<string>;
@@ -237,18 +246,12 @@ async function persistScreenshotIfPresent(
 	}
 }
 
-export function enqueueScreenshotRequest(
-	input: {
-		auditId: string;
-		findingTypeId: string;
-		runId: string;
-		title: string;
-		page_url?: string;
-		request: AuditCaptureRequest;
-	},
-	token?: string
-) {
-	const key = `${input.auditId}:${input.findingTypeId}:${input.runId}`;
+function screenshotJobKey(input: Pick<ScreenshotJob, 'auditId' | 'findingTypeId' | 'runId'>) {
+	return `${input.auditId}:${input.findingTypeId}:${input.runId}`;
+}
+
+async function processScreenshotJob(input: ScreenshotJob, token?: string) {
+	const key = screenshotJobKey(input);
 	if (
 		screenshotQueueState.queuedKeys.has(key) ||
 		screenshotQueueState.activeKeys.has(key) ||
@@ -257,36 +260,30 @@ export function enqueueScreenshotRequest(
 		return;
 	}
 
-	screenshotQueueState.queuedKeys.add(key);
-	screenshotQueueState.chain = screenshotQueueState.chain
-		.catch(() => undefined)
-		.then(async () => {
-			screenshotQueueState.queuedKeys.delete(key);
-			screenshotQueueState.activeKeys.add(key);
-			try {
-				const screenshot = await runAuditCaptureRequest(input.request);
-				const persisted = await persistScreenshotIfPresent(
-					{
-						auditId: input.auditId,
-						findingTypeId: input.findingTypeId,
-						runId: input.runId,
-						title: input.title,
-						page_url: input.page_url,
-						screenshot
-					},
-					token
-				);
-				if (persisted) {
-					screenshotQueueState.completedKeys.add(key);
-				}
-			} catch (error) {
-				console.warn(
-					`[audit-runner] screenshot job failed for ${input.title}: ${formatPocketBaseError(error)}`
-				);
-			} finally {
-				screenshotQueueState.activeKeys.delete(key);
-			}
-		});
+	screenshotQueueState.activeKeys.add(key);
+	try {
+		const screenshot = await runAuditCaptureRequest(input.request);
+		const persisted = await persistScreenshotIfPresent(
+			{
+				auditId: input.auditId,
+				findingTypeId: input.findingTypeId,
+				runId: input.runId,
+				title: input.title,
+				page_url: input.page_url,
+				screenshot
+			},
+			token
+		);
+		if (persisted) {
+			screenshotQueueState.completedKeys.add(key);
+		}
+	} catch (error) {
+		console.warn(
+			`[audit-runner] screenshot job failed for ${input.title}: ${formatPocketBaseError(error)}`
+		);
+	} finally {
+		screenshotQueueState.activeKeys.delete(key);
+	}
 }
 
 export function hasPendingScreenshotJobs(auditId?: string) {
@@ -414,9 +411,7 @@ async function syncProgressSnapshot(
 		await deleteAuditFindingsByRunId(run.runId, token);
 
 		if (item.findings.length === 0) {
-			const { meta_json, screenshot, screenshotRequest } = extractScreenshotFromMeta(
-				item.stats_json
-			);
+			const { meta_json, screenshot } = extractScreenshotFromMeta(item.stats_json);
 			await persistScreenshotIfPresent(
 				{
 					auditId,
@@ -427,18 +422,6 @@ async function syncProgressSnapshot(
 				},
 				token
 			);
-			if (screenshotRequest) {
-				enqueueScreenshotRequest(
-					{
-						auditId,
-						findingTypeId: run.findingTypeId,
-						runId: run.runId,
-						title: item.label,
-						request: screenshotRequest
-					},
-					token
-				);
-			}
 			await createAuditFindingRecord(
 				{
 					audit: auditId,
@@ -453,9 +436,7 @@ async function syncProgressSnapshot(
 			);
 		} else {
 			for (const finding of item.findings) {
-				const { meta_json, screenshot, screenshotRequest } = extractScreenshotFromMeta(
-					finding.meta_json
-				);
+				const { meta_json, screenshot } = extractScreenshotFromMeta(finding.meta_json);
 				await persistScreenshotIfPresent(
 					{
 						auditId,
@@ -467,19 +448,6 @@ async function syncProgressSnapshot(
 					},
 					token
 				);
-				if (screenshotRequest) {
-					enqueueScreenshotRequest(
-						{
-							auditId,
-							findingTypeId: run.findingTypeId,
-							runId: run.runId,
-							title: finding.detail || finding.title || item.label,
-							page_url: finding.page_url,
-							request: screenshotRequest
-						},
-						token
-					);
-				}
 				await createAuditFindingRecord(
 					{
 						audit: auditId,
@@ -516,6 +484,69 @@ async function syncProgressSnapshot(
 		},
 		token
 	);
+}
+
+function collectScreenshotJobs(
+	auditId: string,
+	url: string,
+	audit: AuditSummaryResult,
+	runRegistry: RunRegistry
+) {
+	attachMetricScreenshots(audit, url, ['pageSpeed', 'openPageRank']);
+
+	const jobs: ScreenshotJob[] = [];
+	const seen = new Set<string>();
+	const normalizedItems = buildNormalizedAuditItems(audit);
+
+	for (const item of normalizedItems) {
+		const run = runRegistry.get(item.key);
+		if (!run) continue;
+
+		const addJob = (request: AuditCaptureRequest | null, title: string, page_url?: string) => {
+			if (!request) return;
+			const key = screenshotJobKey({
+				auditId,
+				findingTypeId: run.findingTypeId,
+				runId: run.runId
+			});
+			if (seen.has(key)) return;
+			seen.add(key);
+			jobs.push({
+				auditId,
+				findingTypeId: run.findingTypeId,
+				runId: run.runId,
+				title,
+				page_url,
+				request
+			});
+		};
+
+		if (item.findings.length === 0) {
+			const { screenshotRequest } = extractScreenshotFromMeta(item.stats_json);
+			addJob(screenshotRequest, item.label);
+			continue;
+		}
+
+		for (const finding of item.findings) {
+			const { screenshotRequest } = extractScreenshotFromMeta(finding.meta_json);
+			addJob(screenshotRequest, finding.detail || finding.title || item.label, finding.page_url);
+		}
+	}
+
+	return jobs;
+}
+
+async function processAuditScreenshots(
+	auditId: string,
+	url: string,
+	audit: AuditSummaryResult,
+	runRegistry: RunRegistry,
+	token?: string
+) {
+	const jobs = collectScreenshotJobs(auditId, url, audit, runRegistry);
+	for (const job of jobs) {
+		await processScreenshotJob(job, token);
+	}
 }
 
 async function finalizeUnsyncedRuns(
@@ -580,6 +611,10 @@ async function processAuditWorkflow({ workflowId, auditId, url, token }: QueuePa
 		const completedAt = timestamp();
 		await syncProgressSnapshot(auditId, url, audit, runRegistry, undefined, token);
 		await finalizeUnsyncedRuns(runRegistry, audit, token);
+		runLog = appendLog(runLog, 'Screenshot generation started.');
+		await updateWorkflowRecord(workflowId, { run_log: runLog }, token);
+		await processAuditScreenshots(auditId, url, audit, runRegistry, token);
+		runLog = appendLog(runLog, 'Screenshot generation completed.');
 
 		await updateAuditRecord(
 			auditId,
