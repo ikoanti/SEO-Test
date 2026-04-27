@@ -112,6 +112,12 @@ class AuditSidebar extends HTMLElement {
 			return el;
 		}
 
+		if (panel.kind === 'shopify-urls') {
+			const el = document.createElement('shopify-urls-panel');
+			el.panel = panel;
+			return el;
+		}
+
 		const el = document.createElement('placeholder-panel');
 		el.panel = panel;
 		return el;

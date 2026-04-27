@@ -14,6 +14,7 @@ const SIDEBAR_TABS: SidebarTab[] = [
 	{ id: 'lazy-loading', label: 'Unoptimized Lazy Loading' },
 	{ id: 'open-graph', label: 'Unoptimized OpenGraph' },
 	{ id: 'content-quality', label: 'Thin Content' },
+	{ id: 'shopify-urls', label: 'Unoptimized Shopify URLs' },
 	{ id: 'bad-google-index', label: 'Bad Google Index' },
 	{ id: 'broken-links', label: 'Broken Links' },
 	{ id: 'headings', label: 'Unoptimized Heading Tags' }
@@ -199,6 +200,26 @@ export async function captureContentQualityEvidence(
 			title: 'Thin Content',
 			description:
 				'Pages with limited body copy can struggle to communicate topical depth and satisfy search intent.',
+			domain,
+			count,
+			entries
+		})
+	});
+}
+
+export async function captureShopifyUrlEvidence(
+	domain: string,
+	entries: Array<{ page: string; issue: string; pattern?: string }>,
+	count = entries.length
+) {
+	if (!entries.length) return null;
+	return captureAuditSidebarScreenshot({
+		pageUrl: screenshotPageUrl(entries),
+		sidebarData: buildSidebarData('shopify-urls', {
+			kind: 'shopify-urls',
+			title: 'Unoptimized Shopify URL Structure',
+			description:
+				'Duplicate Shopify collection/product URL paths can split ranking signals and create avoidable crawl duplication.',
 			domain,
 			count,
 			entries

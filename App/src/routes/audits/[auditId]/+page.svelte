@@ -140,7 +140,7 @@
 		{ key: 'charset', title: 'Character Encoding' },
 		{ key: 'loremIpsum', title: 'Lorem Ipsum Test' },
 		{ key: 'openGraph', title: 'OpenGraph Tags' },
-		{ key: 'shopifyUrls', title: 'Shopify URL Structure' },
+		{ key: 'shopifyUrls', title: 'Shopify URL Structure', mini: true },
 		{ key: 'internationalDomains', title: 'International Domains & Hreflang' },
 		{ key: 'trailingSlash', title: 'Trailing Slash Consistency' },
 		{ key: 'wwwResolve', title: 'WWW vs Non-WWW Resolution' },
