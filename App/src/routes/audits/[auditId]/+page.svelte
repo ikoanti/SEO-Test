@@ -75,6 +75,7 @@
 		aiVisibility: Record<string, unknown> | null;
 		normalizedItems: AuditItemView[];
 		isPendingReport?: boolean;
+		isPendingScreenshots?: boolean;
 	};
 
 	type LegacySection = {
@@ -167,7 +168,8 @@
 	const isReportFailed = () => reportStatus() === 'failed';
 	const canGenerateReport = () => runStatus() === 'completed' && !isReportPending();
 	const hasReport = () => Boolean(pageData.reportHtml);
-	const needsLiveUpdates = () => isPending() || isReportPending();
+	const needsLiveUpdates = () =>
+		isPending() || isReportPending() || Boolean(pageData.isPendingScreenshots);
 	const tabs: { key: AuditTab; label: string }[] = [
 		{ key: 'findings', label: 'Findings' },
 		{ key: 'ai-visibility', label: 'AI Visibility' },
@@ -253,7 +255,8 @@
 			liveData = next;
 			if (
 				!pendingStatuses.has(next.runRecord.status || '') &&
-				!reportPendingStatuses.has(next.reportRecord?.status || '')
+				!reportPendingStatuses.has(next.reportRecord?.status || '') &&
+				!next.isPendingScreenshots
 			) {
 				stopLiveUpdates();
 			}

@@ -255,6 +255,17 @@ function enqueueScreenshotRequest(
 		});
 }
 
+export function hasPendingScreenshotJobs(auditId?: string) {
+	const matchesAudit = (key: string) => !auditId || key.startsWith(`${auditId}:`);
+	for (const key of screenshotQueueState.queuedKeys) {
+		if (matchesAudit(key)) return true;
+	}
+	for (const key of screenshotQueueState.activeKeys) {
+		if (matchesAudit(key)) return true;
+	}
+	return false;
+}
+
 const STEP_KEYS: Record<string, string[]> = {
 	crawl: [],
 	homepage: [

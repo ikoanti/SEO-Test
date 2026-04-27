@@ -7,6 +7,7 @@ import {
 	listRunsByWorkflow
 } from '$lib/server/pocketbase';
 import { appendReportScreenshotsIfMissing } from '$lib/server/report-screenshots';
+import { hasPendingScreenshotJobs } from '$lib/server/audit-runner';
 
 type BuildAuditPageDataOptions = {
 	includeReportHtml?: boolean;
@@ -174,6 +175,7 @@ export async function buildAuditPageData(
 		aiVisibility,
 		normalizedItems,
 		isPendingRun: ['queued', 'running'].includes(String(workflowRecord.status || '')),
-		isPendingReport: ['queued', 'running'].includes(String(auditRecord.report_status || ''))
+		isPendingReport: ['queued', 'running'].includes(String(auditRecord.report_status || '')),
+		isPendingScreenshots: hasPendingScreenshotJobs(auditRecord.id)
 	};
 }
