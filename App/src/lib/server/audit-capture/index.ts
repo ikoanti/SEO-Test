@@ -10,6 +10,7 @@ const SIDEBAR_TABS: SidebarTab[] = [
 	{ id: 'image-alts', label: 'Unoptimized Alt Tags' },
 	{ id: 'meta-tags', label: 'Unoptimized Meta Tags' },
 	{ id: 'canonicals', label: 'Unoptimized Canonicals' },
+	{ id: 'internal-links', label: 'Unoptimized Internal Links' },
 	{ id: 'lazy-loading', label: 'Unoptimized Lazy Loading' },
 	{ id: 'open-graph', label: 'Unoptimized OpenGraph' },
 	{ id: 'content-quality', label: 'Thin Content' },
@@ -45,7 +46,8 @@ function screenshotPageUrl(entries: Array<{ page: string }>) {
 
 export async function captureHeadingEvidence(
 	domain: string,
-	entries: Array<{ page: string; issue: string }>
+	entries: Array<{ page: string; issue: string }>,
+	count = entries.length
 ) {
 	if (!entries.length) return null;
 	return captureAuditSidebarScreenshot({
@@ -56,7 +58,7 @@ export async function captureHeadingEvidence(
 			description:
 				'Important pages are missing strong heading structure, which weakens topical clarity and makes page hierarchy less obvious to search engines.',
 			domain,
-			count: entries.length,
+			count,
 			entries
 		})
 	});
@@ -64,7 +66,8 @@ export async function captureHeadingEvidence(
 
 export async function captureImageAltEvidence(
 	domain: string,
-	entries: Array<{ page: string; image: string }>
+	entries: Array<{ page: string; image: string; issue?: string }>,
+	count = entries.length
 ) {
 	if (!entries.length) return null;
 	return captureAuditSidebarScreenshot({
@@ -75,7 +78,7 @@ export async function captureImageAltEvidence(
 			description:
 				'Important product and collection images are missing descriptive alt text, reducing image search discoverability and weakening crawler context.',
 			domain,
-			count: entries.length,
+			count,
 			entries
 		})
 	});
@@ -83,7 +86,8 @@ export async function captureImageAltEvidence(
 
 export async function captureMetaEvidence(
 	domain: string,
-	entries: Array<{ page: string; issue: string; value?: string }>
+	entries: Array<{ page: string; issue: string; value?: string }>,
+	count = entries.length
 ) {
 	if (!entries.length) return null;
 	const pageUrl = screenshotPageUrl(entries);
@@ -95,7 +99,7 @@ export async function captureMetaEvidence(
 			description:
 				'Important pages have missing, duplicated, or oversized metadata, which can weaken search result relevance and click-through clarity.',
 			domain,
-			count: entries.length,
+			count,
 			activePageUrl: pageUrl,
 			entries
 		})
@@ -104,7 +108,8 @@ export async function captureMetaEvidence(
 
 export async function captureCanonicalEvidence(
 	domain: string,
-	entries: Array<{ page: string; issue: string; value?: string }>
+	entries: Array<{ page: string; issue: string; value?: string }>,
+	count = entries.length
 ) {
 	if (!entries.length) return null;
 	return captureAuditSidebarScreenshot({
@@ -115,7 +120,27 @@ export async function captureCanonicalEvidence(
 			description:
 				'Canonical tags help consolidate ranking signals and clarify the preferred URL for indexed pages.',
 			domain,
-			count: entries.length,
+			count,
+			entries
+		})
+	});
+}
+
+export async function captureInternalLinksEvidence(
+	domain: string,
+	entries: Array<{ page: string; issue: string; count?: number }>,
+	count = entries.length
+) {
+	if (!entries.length) return null;
+	return captureAuditSidebarScreenshot({
+		pageUrl: screenshotPageUrl(entries),
+		sidebarData: buildSidebarData('internal-links', {
+			kind: 'internal-links',
+			title: 'Unoptimized Internal Links',
+			description:
+				'Pages with no crawlable internal links create dead ends for users and search crawlers.',
+			domain,
+			count,
 			entries
 		})
 	});
@@ -123,7 +148,8 @@ export async function captureCanonicalEvidence(
 
 export async function captureLazyLoadingEvidence(
 	domain: string,
-	entries: Array<{ page: string; issue: string; image?: string }>
+	entries: Array<{ page: string; issue: string; image?: string }>,
+	count = entries.length
 ) {
 	if (!entries.length) return null;
 	return captureAuditSidebarScreenshot({
@@ -134,7 +160,7 @@ export async function captureLazyLoadingEvidence(
 			description:
 				'Images without native lazy loading can increase initial page weight and delay rendering on image-heavy pages.',
 			domain,
-			count: entries.length,
+			count,
 			entries
 		})
 	});
@@ -142,7 +168,8 @@ export async function captureLazyLoadingEvidence(
 
 export async function captureOpenGraphEvidence(
 	domain: string,
-	entries: Array<{ page: string; issue: string; property?: string }>
+	entries: Array<{ page: string; issue: string; property?: string }>,
+	count = entries.length
 ) {
 	if (!entries.length) return null;
 	return captureAuditSidebarScreenshot({
@@ -153,7 +180,7 @@ export async function captureOpenGraphEvidence(
 			description:
 				'OpenGraph tags control how pages appear when shared and help AI and social surfaces understand page context.',
 			domain,
-			count: entries.length,
+			count,
 			entries
 		})
 	});
@@ -161,7 +188,8 @@ export async function captureOpenGraphEvidence(
 
 export async function captureContentQualityEvidence(
 	domain: string,
-	entries: Array<{ page: string; issue: string; wordCount?: number }>
+	entries: Array<{ page: string; issue: string; wordCount?: number }>,
+	count = entries.length
 ) {
 	if (!entries.length) return null;
 	return captureAuditSidebarScreenshot({
@@ -172,7 +200,7 @@ export async function captureContentQualityEvidence(
 			description:
 				'Pages with limited body copy can struggle to communicate topical depth and satisfy search intent.',
 			domain,
-			count: entries.length,
+			count,
 			entries
 		})
 	});

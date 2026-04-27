@@ -4,6 +4,7 @@ import {
 	captureContentQualityEvidence,
 	captureHeadingEvidence,
 	captureImageAltEvidence,
+	captureInternalLinksEvidence,
 	captureMetaEvidence
 } from '$lib/server/audit-capture';
 import {
@@ -31,9 +32,10 @@ export async function analyzeMetaAndHeadings(
 	const titleMap = new Map();
 	const descriptionMap = new Map();
 	const headingEvidence: Array<{ page: string; issue: string }> = [];
-	const imageAltEvidence: Array<{ page: string; image: string }> = [];
+	const imageAltEvidence: Array<{ page: string; image: string; issue?: string }> = [];
 	const metaEvidence: Array<{ page: string; issue: string; value?: string }> = [];
 	const canonicalEvidence: Array<{ page: string; issue: string; value?: string }> = [];
+	const internalLinksEvidence: Array<{ page: string; issue: string; count?: number }> = [];
 	const contentQualityEvidence: Array<{ page: string; issue: string; wordCount?: number }> = [];
 	const maxEvidenceItems = 5;
 	const domain = (() => {
@@ -125,22 +127,23 @@ export async function analyzeMetaAndHeadings(
 			}
 
 			if (missingAlt > 0) {
-				if (imageAltEvidence.length < maxEvidenceItems) {
-					$('img').each((_: number, element: AnyNode) => {
-						if (imageAltEvidence.length >= maxEvidenceItems) return;
-						if ($(element).attr('alt')?.trim()) return;
-						const src = $(element).attr('src')?.trim();
-						if (!src) return;
-						try {
-							imageAltEvidence.push({ page, image: new URL(src, page).href });
-						} catch {
-							return;
-						}
-					});
-				}
+				$('img').each((_: number, element: AnyNode) => {
+					if ($(element).attr('alt')?.trim()) return;
+					const src = $(element).attr('src')?.trim();
+					if (!src) return;
 
-				addItem(summary, imageAltTags, 'warn', 'Images missing alt text', {
-					title: `${page} (${missingAlt} images)`
+					try {
+						const image = new URL(src, page).href;
+						if (imageAltEvidence.length < maxEvidenceItems) {
+							imageAltEvidence.push({ page, image, issue: 'Image missing alt text' });
+						}
+						addItem(summary, imageAltTags, 'warn', 'Image missing alt text', {
+							title: image,
+							page_url: page
+						});
+					} catch {
+						return;
+					}
 				});
 			} else {
 				addItem(summary, imageAltTags, 'pass', 'All images include alt text', { title: page });
@@ -158,6 +161,13 @@ export async function analyzeMetaAndHeadings(
 			}
 
 			const sameOriginLinks = extractInternalLinks($, page, new URL(page).origin);
+			if (sameOriginLinks.length === 0 && internalLinksEvidence.length < maxEvidenceItems) {
+				internalLinksEvidence.push({
+					page,
+					issue: 'No crawlable internal links found',
+					count: sameOriginLinks.length
+				});
+			}
 			addItem(
 				summary,
 				internalLinks,
@@ -252,7 +262,10 @@ export async function analyzeMetaAndHeadings(
 
 	if (headingEvidence.length > 0) {
 		try {
-			const capture = await captureHeadingEvidence(domain, headingEvidence);
+			const issueCount = h1Tags.items.filter(
+				(item) => item.status === 'warn' || item.status === 'fail'
+			).length;
+			const capture = await captureHeadingEvidence(domain, headingEvidence, issueCount);
 			const firstIssue = h1Tags.items.find(
 				(item) => item.status === 'warn' || item.status === 'fail'
 			);
@@ -270,7 +283,10 @@ export async function analyzeMetaAndHeadings(
 
 	if (imageAltEvidence.length > 0) {
 		try {
-			const capture = await captureImageAltEvidence(domain, imageAltEvidence);
+			const issueCount = imageAltTags.items.filter(
+				(item) => item.status === 'warn' || item.status === 'fail'
+			).length;
+			const capture = await captureImageAltEvidence(domain, imageAltEvidence, issueCount);
 			const firstIssue = imageAltTags.items.find(
 				(item) => item.status === 'warn' || item.status === 'fail'
 			);
@@ -288,7 +304,10 @@ export async function analyzeMetaAndHeadings(
 
 	if (metaEvidence.length > 0) {
 		try {
-			const capture = await captureMetaEvidence(domain, metaEvidence);
+			const issueCount = metaTitles.items.filter(
+				(item) => item.status === 'warn' || item.status === 'fail'
+			).length;
+			const capture = await captureMetaEvidence(domain, metaEvidence, issueCount);
 			const firstIssue = metaTitles.items.find(
 				(item) => item.status === 'warn' || item.status === 'fail'
 			);
@@ -306,7 +325,10 @@ export async function analyzeMetaAndHeadings(
 
 	if (canonicalEvidence.length > 0) {
 		try {
-			const capture = await captureCanonicalEvidence(domain, canonicalEvidence);
+			const issueCount = canonicalUrls.items.filter(
+				(item) => item.status === 'warn' || item.status === 'fail'
+			).length;
+			const capture = await captureCanonicalEvidence(domain, canonicalEvidence, issueCount);
 			const firstIssue = canonicalUrls.items.find(
 				(item) => item.status === 'warn' || item.status === 'fail'
 			);
@@ -322,9 +344,37 @@ export async function analyzeMetaAndHeadings(
 		}
 	}
 
+	if (internalLinksEvidence.length > 0) {
+		try {
+			const issueCount = internalLinks.items.filter(
+				(item) => item.status === 'warn' || item.status === 'fail'
+			).length;
+			const capture = await captureInternalLinksEvidence(domain, internalLinksEvidence, issueCount);
+			const firstIssue = internalLinks.items.find(
+				(item) => item.status === 'warn' || item.status === 'fail'
+			);
+			if (capture && firstIssue) {
+				firstIssue.meta = {
+					...((firstIssue.meta as Record<string, unknown> | undefined) || {}),
+					screenshot: capture
+				};
+			}
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			logger.warn(`page-analysis: internal links evidence capture failed (${message})`);
+		}
+	}
+
 	if (contentQualityEvidence.length > 0) {
 		try {
-			const capture = await captureContentQualityEvidence(domain, contentQualityEvidence);
+			const issueCount = contentQuality.items.filter(
+				(item) => item.status === 'warn' || item.status === 'fail'
+			).length;
+			const capture = await captureContentQualityEvidence(
+				domain,
+				contentQualityEvidence,
+				issueCount
+			);
 			const firstIssue = contentQuality.items.find(
 				(item) => item.status === 'warn' || item.status === 'fail'
 			);

@@ -88,6 +88,12 @@ class AuditSidebar extends HTMLElement {
 			return el;
 		}
 
+		if (panel.kind === 'internal-links') {
+			const el = document.createElement('internal-links-panel');
+			el.panel = panel;
+			return el;
+		}
+
 		if (panel.kind === 'lazy-loading') {
 			const el = document.createElement('lazy-loading-panel');
 			el.panel = panel;
