@@ -1,7 +1,6 @@
 import { buildAuditPageData } from '$lib/server/audit-detail';
-import { generateReportHtml } from '$lib/server/legacy-api';
-import { getAudit, updateAuditRecord } from '$lib/server/pocketbase';
-import { appendReportScreenshots } from '$lib/server/report-screenshots';
+import { getAudit, listAuditFindingTypeTemplates, updateAuditRecord } from '$lib/server/pocketbase';
+import { generateTemplateReportHtml } from '$lib/server/report-template';
 
 type ReportRunnerState = {
 	activeAudits: Set<string>;
@@ -21,148 +20,8 @@ function formatReportError(error: unknown) {
 	return error instanceof Error ? error.message : 'Failed to generate report.';
 }
 
-const reportSectionKeys = [
-	'h1Tags',
-	'metaTitles',
-	'imageAltTags',
-	'canonicalUrls',
-	'internalLinks',
-	'sitemap',
-	'llmsTxt',
-	'structuredData',
-	'security',
-	'mixedContent',
-	'contentQuality',
-	'webIcons',
-	'ssl',
-	'mobileUsability',
-	'flash',
-	'charset',
-	'loremIpsum',
-	'openGraph',
-	'shopifyUrls',
-	'internationalDomains',
-	'trailingSlash',
-	'wwwResolve',
-	'trustSignals',
-	'tapTargets',
-	'lazyLoadImages'
-] as const;
-
-function getRecord(value: unknown): Record<string, unknown> {
-	return value && typeof value === 'object' && !Array.isArray(value)
-		? (value as Record<string, unknown>)
-		: {};
-}
-
-function displayText(value: unknown, fallback = '') {
-	if (value === undefined || value === null) return fallback;
-	const text = String(value).trim();
-	return text || fallback;
-}
-
-function toLegacyStatus(status: unknown) {
-	switch (String(status || '')) {
-		case 'pass':
-			return 'ok';
-		case 'warn':
-			return 'warn';
-		case 'fail':
-			return 'err';
-		default:
-			return 'info';
-	}
-}
-
-function toLegacyAuditValue(value: unknown): unknown {
-	if (Array.isArray(value)) {
-		return value.map((item) => toLegacyAuditValue(item));
-	}
-
-	if (!value || typeof value !== 'object') {
-		return value;
-	}
-
-	const source = value as Record<string, unknown>;
-	const target: Record<string, unknown> = {};
-	for (const [key, nestedValue] of Object.entries(source)) {
-		if (key === 'screenshot' || key === 'screenshotRequest') continue;
-		target[key] = key === 'status' ? toLegacyStatus(nestedValue) : toLegacyAuditValue(nestedValue);
-	}
-	return target;
-}
-
-function buildLegacyReportAuditData(pageData: Awaited<ReturnType<typeof buildAuditPageData>>) {
-	const audit = getRecord(pageData.audit);
-	const payload = toLegacyAuditValue(audit) as Record<string, unknown>;
-	const summary = getRecord(pageData.summary?.summary);
-
-	payload.summary = {
-		passed: Number(summary.passed || 0),
-		warnings: Number(summary.warnings || 0),
-		failed: Number(summary.failed || 0)
-	};
-
-	payload.pageSpeed = {
-		mobile: getRecord(getRecord(audit.pageSpeed).mobile),
-		desktop: getRecord(getRecord(audit.pageSpeed).desktop)
-	};
-
-	payload.openPageRank = {
-		pageRank: displayText(getRecord(audit.openPageRank).pageRank, 'N/A'),
-		globalRank: displayText(getRecord(audit.openPageRank).globalRank, 'N/A')
-	};
-
-	for (const key of reportSectionKeys) {
-		const section = getRecord(payload[key]);
-		if (!payload[key]) payload[key] = { items: [], stats: '' };
-		else payload[key] = section;
-	}
-
-	const internalLinks = getRecord(payload.internalLinks);
-	payload.internalLinks = {
-		...internalLinks,
-		totalLinks: displayText(getRecord(audit.internalLinks).totalLinks, '0'),
-		brokenLinks: displayText(getRecord(audit.internalLinks).brokenLinks, '0')
-	};
-
-	const currentAiVisibility = getRecord(payload.aiVisibility);
-	payload.aiVisibility = {
-		...currentAiVisibility,
-		score: displayText(pageData.aiVisibility?.aiVisibility ?? currentAiVisibility.score, '-'),
-		monthlyAudience: displayText(
-			pageData.aiVisibility?.monthlyAudience ?? currentAiVisibility.monthlyAudience,
-			'-'
-		),
-		mentions: displayText(pageData.aiVisibility?.mentions ?? currentAiVisibility.mentions, '-'),
-		citedPages: displayText(
-			pageData.aiVisibility?.citedPages ?? currentAiVisibility.citedPages,
-			'-'
-		),
-		performingTopics: displayText(
-			pageData.aiVisibility?.performingTopics ?? currentAiVisibility.performingTopics,
-			'-'
-		),
-		topicOpportunities: displayText(
-			pageData.aiVisibility?.topicOpportunities ?? currentAiVisibility.topicOpportunities,
-			'-'
-		),
-		citedSources: displayText(
-			pageData.aiVisibility?.citedSources ?? currentAiVisibility.citedSources,
-			'-'
-		),
-		sourceOpportunities: displayText(
-			pageData.aiVisibility?.sourceOpportunities ?? currentAiVisibility.sourceOpportunities,
-			'-'
-		)
-	};
-
-	return payload;
-}
-
 async function processReportGeneration(auditId: string, token?: string) {
 	const auditRecord = await getAudit(auditId, token);
-	const website = (auditRecord.expand as { website?: { url?: string } } | undefined)?.website;
 	const pageData = await buildAuditPageData(auditId, token);
 	const audit = pageData.audit;
 
@@ -204,12 +63,8 @@ async function processReportGeneration(auditId: string, token?: string) {
 	);
 
 	try {
-		const reportData = buildLegacyReportAuditData(pageData);
-		const generatedReportHtml = await generateReportHtml(
-			audit.domain || website?.url || '',
-			reportData
-		);
-		const reportHtml = appendReportScreenshots(generatedReportHtml, pageData);
+		const reportTemplates = await listAuditFindingTypeTemplates(token);
+		const reportHtml = generateTemplateReportHtml(pageData, reportTemplates);
 		await updateAuditRecord(
 			auditId,
 			{

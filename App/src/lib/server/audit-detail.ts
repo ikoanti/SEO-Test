@@ -6,7 +6,6 @@ import {
 	listAuditFindings,
 	listRunsByWorkflow
 } from '$lib/server/pocketbase';
-import { appendReportScreenshotsIfMissing } from '$lib/server/report-screenshots';
 import { hasPendingScreenshotJobs } from '$lib/server/audit-runner';
 
 type BuildAuditPageDataOptions = {
@@ -179,13 +178,7 @@ export async function buildAuditPageData(
 		};
 	});
 	const storedReportHtml = String(auditRecord?.report_html || '');
-	const reportHtml =
-		includeReportHtml && storedReportHtml
-			? appendReportScreenshotsIfMissing(storedReportHtml, {
-					auditId: auditRecord.id,
-					normalizedItems
-				})
-			: '';
+	const reportHtml = includeReportHtml && storedReportHtml ? storedReportHtml : '';
 
 	return {
 		auditId: auditRecord.id,

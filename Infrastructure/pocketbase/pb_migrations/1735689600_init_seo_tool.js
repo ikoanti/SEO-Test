@@ -96,6 +96,14 @@ migrate(
               onlyInt: true,
               min: 1,
             },
+            {
+              name: "severity",
+              type: "select",
+              required: false,
+              maxSelect: 1,
+              values: ["Urgent", "High", "Medium"],
+            },
+            { name: "report_template", type: "editor", required: false },
           ],
           indexes: [
             "CREATE UNIQUE INDEX idx_audit_finding_types_key ON audit_finding_types (key)",
@@ -142,16 +150,111 @@ migrate(
     ];
 
     findingTypes.forEach(([key, label], index) => {
+      let record;
       try {
-        app.findFirstRecordByFilter("audit_finding_types", `key = "${key}"`);
+        record = app.findFirstRecordByFilter(
+          "audit_finding_types",
+          `key = "${key}"`,
+        );
       } catch {
-        const record = new Record(findingTypesCollection);
+        record = new Record(findingTypesCollection);
         record.set("key", key);
         record.set("label", label);
         record.set("sort_order", index + 1);
         app.save(record);
       }
     });
+
+    const findingTypeReportTemplates = {
+      robotsTxt: {
+        severity: "Urgent",
+        template: `We’re noticing more and more traffic, as well as sales coming in from AI Chatbots such as ChatGPT, Perplexity, Gemini, etc - and with that, we need to ensure that your Shopify store is properly optimized, in order to maximize your visibility in AI Chatbots.
+
+Unfortunately, {{domain}} is currently not explicitly whitelisting important AI Chatbots and crawlers, which can have a significant negative impact on your visibility.
+
+By whitelisting AI Chatbots and modifying your robots.txt we’ll be able to unblock AI crawlers, and have your site welcome them. In other words, we’d be inviting AI Chatbots to crawl your site, and feature your products and content in answers to people’s questions.`,
+      },
+      pageSpeed: {
+        severity: "High",
+        template: `At the moment your site scores only {{worstScore}} out of 100 on Google’s Page Speed Insight’s test, this is currently negatively impacting both your conversion and organic rankings and we suggest fixing this as soon as possible.
+
+Slow loading pages reduce user engagement and make it harder for Google to reward the site with stronger organic rankings. Mobile score: {{mobileScore}}. Desktop score: {{desktopScore}}.
+
+The current speed metrics should be treated as a high-priority technical SEO opportunity because improving them usually has a direct impact on both user experience and conversion rate.`,
+      },
+      h1Tags: {
+        severity: "High",
+        template: `H1 heading tags are among the 3 most important on-page factors, as Google directly looks and crawls them to figure out the context of your page.
+
+If you don’t have a clean H1 setup on your page, Google will simply struggle a bit more to understand the topic you’re trying to rank for and thus you’ll rank lower.
+
+In the case of your website, {{count}} pages have H1 issues, which is a great quick-win opportunity.`,
+      },
+      metaTitles: {
+        severity: "High",
+        template: `Meta titles and descriptions are a critical part of SEO, serving as the first impression in search results. Missing, duplicated, or overly long metadata makes it harder to maximize the visibility of your website.
+
+During our review of {{domain}}, we found {{count}} metadata issues across the crawled pages.
+
+Addressing these by creating unique, concise, and search-focused metadata presents an opportunity to enhance click-through rates, improve user experience, and boost SEO effectiveness.`,
+      },
+      imageAltTags: {
+        severity: "High",
+        template: `Missing alt tags for images can negatively impact your website's accessibility and SEO. Alt tags provide crucial information to visually impaired users and search engines, enhancing the understanding and context of the images.
+
+Currently, {{count}} {{domain}} images lack descriptions, affecting accessibility, user experience, and search visibility.`,
+      },
+      shopifyUrls: {
+        severity: "High",
+        template: `By default Shopify is set up to use collection based product URLs, when clicking to a specific product within a collection.
+
+Let’s say that you have a product called “Blue T-Shirt”, with the following URL structure: domain.com/products/blue-t-shirt. However, if you click on that same product from within a collection, called “Apparel” for example, the product will now have the following URL structure: domain.com/collections/apparel/products/blue-t-shirt.
+
+This is a bad practice, as it creates duplicate URLs of the same product, which negatively affects your Google rankings and organic traffic. We noticed the exact same thing happening on {{domain}}, which represents another quick-win that can be implemented for an additional boost in organic traffic.`,
+      },
+      internalLinks: {
+        severity: "High",
+        template: `4xx errors, like 404 pages, occur when a page is inaccessible or a link is broken, leading to a poor user experience and hurting SEO. These errors disrupt the flow of visitors and prevent search engines from properly indexing your site, which can lead to lower rankings.
+
+Fixing the uncovered instances of 4xx errors on your website is crucial. Addressing these issues by redirecting or correcting broken links will enhance user experience and improve search engine crawling, helping to maintain your site's performance and visibility.`,
+      },
+      openGraph: {
+        severity: "Medium",
+        template: `OpenGraph tags control how your pages appear when they are shared across social platforms and increasingly help AI and discovery tools understand page context.
+
+Adding the missing OpenGraph tags on {{domain}} is a simple technical improvement that makes shared links more compelling and improves how your pages are interpreted outside traditional search.`,
+      },
+      webIcons: {
+        severity: "Medium",
+        template: `Favicons and Apple Touch Icons are small technical trust signals that improve brand presentation in browser tabs, bookmarks, mobile devices, and search surfaces.
+
+Adding the missing icon assets is a straightforward fix that helps {{domain}} look more complete and trustworthy across devices.`,
+      },
+      charset: {
+        severity: "Medium",
+        template: `Declaring the page charset helps browsers and crawlers interpret page content correctly. Missing charset declarations can create avoidable rendering and parsing issues.
+
+Adding a proper charset declaration is a simple technical cleanup item for {{domain}}.`,
+      },
+      aiVisibility: {
+        severity: "Urgent",
+        template: `Your AI visibility score of {{aiScore}} represents a major opportunity cost. Search behavior is shifting toward AI-powered tools, and brands that are not visible in those answers are missing demand before users even reach Google.
+
+Improving the technical structure, crawlability, content clarity, and AI crawler accessibility of {{domain}} can help the website become easier for AI systems to understand, cite, and recommend.`,
+      },
+    };
+
+    Object.entries(findingTypeReportTemplates).forEach(
+      ([key, reportTemplate]) => {
+        const record = app.findFirstRecordByFilter(
+          "audit_finding_types",
+          `key = "${key}"`,
+        );
+        record.set("severity", reportTemplate.severity);
+        record.set("report_template", reportTemplate.template);
+        app.save(record);
+      },
+    );
 
     try {
       app.findCollectionByNameOrId("audits");

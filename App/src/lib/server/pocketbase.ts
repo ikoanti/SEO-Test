@@ -345,6 +345,31 @@ export async function getOrCreateAuditFindingTypeRecord(
 	}
 }
 
+export type AuditFindingTypeTemplateRecord = {
+	id: string;
+	key: string;
+	label: string;
+	severity?: 'Urgent' | 'High' | 'Medium';
+	report_template?: string;
+	sort_order: number;
+};
+
+export async function listAuditFindingTypeTemplates(token?: string) {
+	const pb = createAuthedClient(token);
+
+	try {
+		const findingTypes = (await pb.collection(AUDIT_FINDING_TYPES_COLLECTION).getFullList({
+			sort: 'sort_order'
+		})) as unknown as AuditFindingTypeTemplateRecord[];
+
+		return findingTypes.filter((findingType) => String(findingType.report_template || '').trim());
+	} catch (error) {
+		const response = (error as { response?: { status?: number } }).response;
+		if (response?.status === 400 || response?.status === 404) return [];
+		throw error;
+	}
+}
+
 export async function createRunRecord(
 	input: {
 		workflow: string;
