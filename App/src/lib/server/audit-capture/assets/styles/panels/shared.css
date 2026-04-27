@@ -347,7 +347,7 @@
 	font-size: 22px;
 	line-height: 1;
 	font-weight: 800;
-	color: #202124;
+	color: var(--score-color);
 }
 
 .speed-panel-card .metric-panel-title {
