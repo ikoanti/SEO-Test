@@ -24,19 +24,23 @@
 			/>
 		</div>
 	{/if}
-	<div class="metric-grid">
-		<div class="metric-card">
-			<span class="metric-label">Page Rank</span>
-			<span class="metric-value">{pageRank}</span>
+	<div class="rank-grid">
+		<div class="rank-stat">
+			<span class="rank-label">Page Rank</span>
+			<strong class="rank-value">{pageRank}</strong>
 		</div>
-		<div class="metric-card">
-			<span class="metric-label">Global Rank</span>
-			<span class="metric-value">{globalRank}</span>
+		<div class="rank-stat">
+			<span class="rank-label">Global Rank</span>
+			<strong class="rank-value">{globalRank}</strong>
 		</div>
 	</div>
 </div>
 
 <style>
+	.audit-card {
+		overflow: hidden;
+	}
+
 	.card-image-proof {
 		margin: 0 0 1rem;
 		overflow: hidden;
@@ -49,5 +53,45 @@
 		display: block;
 		width: 100%;
 		height: auto;
+	}
+
+	.rank-grid {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 1rem;
+		width: 100%;
+		min-width: 0;
+	}
+
+	.rank-stat {
+		min-width: 0;
+		padding: 1rem 0;
+	}
+
+	.rank-label {
+		display: block;
+		margin-bottom: 0.45rem;
+		color: var(--text-muted);
+		font-size: 0.78rem;
+		font-weight: 700;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+	}
+
+	.rank-value {
+		display: block;
+		max-width: 100%;
+		overflow-wrap: anywhere;
+		color: var(--text-main);
+		font-size: clamp(1.9rem, 5vw, 3rem);
+		line-height: 0.95;
+		font-weight: 800;
+	}
+
+	@media (max-width: 560px) {
+		.rank-grid {
+			grid-template-columns: 1fr;
+			gap: 0.25rem;
+		}
 	}
 </style>
