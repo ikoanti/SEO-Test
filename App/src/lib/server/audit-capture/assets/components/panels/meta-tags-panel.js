@@ -7,6 +7,7 @@ class MetaTagsPanel extends HTMLElement {
 			description: '',
 			domain: 'this domain',
 			count: 0,
+			activePageUrl: '',
 			entries: []
 		};
 	}
@@ -24,7 +25,33 @@ class MetaTagsPanel extends HTMLElement {
 		this.render();
 	}
 
-	groupEntries(entries) {
+	normalizeUrl(value) {
+		try {
+			const url = new URL(value);
+			url.hash = '';
+			url.search = '';
+			return url.href.replace(/\/+$/, '');
+		} catch {
+			return String(value ?? '').replace(/\/+$/, '');
+		}
+	}
+
+	isActivePage(page, activePageUrl) {
+		if (!page || !activePageUrl) return false;
+		return this.normalizeUrl(page) === this.normalizeUrl(activePageUrl);
+	}
+
+	sortPagesByActivePage(pages, activePageUrl) {
+		if (!Array.isArray(pages)) return [];
+		return [...pages].sort((a, b) => {
+			const aActive = this.isActivePage(a, activePageUrl);
+			const bActive = this.isActivePage(b, activePageUrl);
+			if (aActive === bActive) return 0;
+			return aActive ? -1 : 1;
+		});
+	}
+
+	groupEntries(entries, activePageUrl) {
 		const groups = [];
 		const groupedIndexes = new Map();
 
@@ -46,7 +73,18 @@ class MetaTagsPanel extends HTMLElement {
 			if (entry.page) group.pages.push(entry.page);
 		}
 
-		return groups;
+		for (const group of groups) {
+			group.pages = this.sortPagesByActivePage(group.pages, activePageUrl);
+		}
+
+		return groups.sort((a, b) => {
+			const aActive = this.sortPagesByActivePage(a.pages, activePageUrl)[0];
+			const bActive = this.sortPagesByActivePage(b.pages, activePageUrl)[0];
+			const aMatches = this.isActivePage(aActive, activePageUrl);
+			const bMatches = this.isActivePage(bActive, activePageUrl);
+			if (aMatches === bMatches) return 0;
+			return aMatches ? -1 : 1;
+		});
 	}
 
 	renderPageList(pages) {
@@ -66,17 +104,17 @@ class MetaTagsPanel extends HTMLElement {
 		return `
       <div>
         <p class="meta-label">${escapeHtml(label)}</p>
-        <p class="meta-value meta-value-strong">${formatValue(entry.value)}</p>
+        <p class="meta-value meta-value-strong meta-value-preview">${formatValue(entry.value)}</p>
       </div>
     `;
 	}
 
 	render() {
-		const { escapeHtml, formatValue } = window.AutomagicHtml;
+		const { escapeHtml } = window.AutomagicHtml;
 		const styles = window.AutomagicAuditStyles || {};
 		const panel = this._panel ?? {};
 		const entries = Array.isArray(panel.entries) ? panel.entries : [];
-		const groups = this.groupEntries(entries);
+		const groups = this.groupEntries(entries, panel.activePageUrl);
 
 		this.shadowRoot.innerHTML = `
       ${styles['panels-shared'] ? `<style>${styles['panels-shared']}</style>` : '<link rel="stylesheet" href="./styles/panels/shared.css">'}

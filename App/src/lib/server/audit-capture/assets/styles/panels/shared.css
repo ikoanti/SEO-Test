@@ -135,6 +135,14 @@
 	font-weight: 700;
 }
 
+.meta-value-preview {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 3;
+}
+
 .meta-value-list {
 	display: grid;
 	gap: 4px;

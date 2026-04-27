@@ -86,8 +86,9 @@ export async function captureMetaEvidence(
 	entries: Array<{ page: string; issue: string; value?: string }>
 ) {
 	if (!entries.length) return null;
+	const pageUrl = screenshotPageUrl(entries);
 	return captureAuditSidebarScreenshot({
-		pageUrl: screenshotPageUrl(entries),
+		pageUrl,
 		sidebarData: buildSidebarData('meta-tags', {
 			kind: 'meta-tags',
 			title: 'Unoptimized Meta Tags',
@@ -95,6 +96,7 @@ export async function captureMetaEvidence(
 				'Important pages have missing, duplicated, or oversized metadata, which can weaken search result relevance and click-through clarity.',
 			domain,
 			count: entries.length,
+			activePageUrl: pageUrl,
 			entries
 		})
 	});
