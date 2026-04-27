@@ -72,6 +72,20 @@
 			summary?: { passed?: number; warnings?: number; failed?: number };
 		} | null;
 		reportHtml: string;
+		reportPreviewItems: {
+			key: string;
+			title: string;
+			priority: 'Urgent' | 'High' | 'Medium';
+			paragraphs: string[];
+			count: number;
+			screenshot?: {
+				id?: string;
+				title?: string;
+				page_url?: string;
+				image_url?: string;
+			} | null;
+		}[];
+		selectedReportFindingTypeKeys: string[];
 		aiVisibility: Record<string, unknown> | null;
 		normalizedItems: AuditItemView[];
 		isPendingReport?: boolean;
@@ -155,6 +169,8 @@
 	const pageData = $derived(liveData ?? data);
 	let copyState = $state('Copy');
 	let activeTab = $state<AuditTab>('findings');
+	let selectedReportKeys = $state<string[]>([]);
+	let reportSelectionSeed = $state('');
 	let fallbackInterval: number | undefined;
 	let stream: EventSource | undefined;
 
@@ -168,6 +184,10 @@
 	const isReportFailed = () => reportStatus() === 'failed';
 	const canGenerateReport = () => runStatus() === 'completed' && !isReportPending();
 	const hasReport = () => Boolean(pageData.reportHtml);
+	const reportSelectionMin = () => Math.min(5, pageData.reportPreviewItems?.length ?? 0);
+	const reportSelectionIsValid = () =>
+		(pageData.reportPreviewItems?.length ?? 0) === 0 ||
+		(selectedReportKeys.length >= reportSelectionMin() && selectedReportKeys.length <= 10);
 	const needsLiveUpdates = () =>
 		isPending() || isReportPending() || Boolean(pageData.isPendingScreenshots);
 	const tabs: { key: AuditTab; label: string }[] = [
@@ -196,6 +216,20 @@
 		value === undefined || value === null || value === '' ? fallback : String(value);
 	const openPageRank = () => metricSection('openPageRank');
 	const pageSpeed = () => metricSection('pageSpeed');
+
+	$effect(() => {
+		const previewKeys = (pageData.reportPreviewItems || []).map((item) => item.key).join('|');
+		const savedKeys = (pageData.selectedReportFindingTypeKeys || []).join('|');
+		const seed = `${pageData.auditId}:${previewKeys}:${savedKeys}`;
+		if (seed === reportSelectionSeed) return;
+
+		selectedReportKeys = pageData.selectedReportFindingTypeKeys?.length
+			? pageData.selectedReportFindingTypeKeys.filter((key) =>
+					pageData.reportPreviewItems?.some((item) => item.key === key)
+				)
+			: (pageData.reportPreviewItems || []).slice(0, 10).map((item) => item.key);
+		reportSelectionSeed = seed;
+	});
 
 	function summaryBarStyle() {
 		const passed = pageData.summary?.summary?.passed ?? 0;
@@ -304,6 +338,7 @@
 					completed_at: undefined
 				},
 				reportHtml: '',
+				selectedReportFindingTypeKeys: [...selectedReportKeys],
 				isPendingReport: true
 			};
 			ensureLiveUpdates();
@@ -497,7 +532,7 @@
 			</div>
 		{:else if activeTab === 'report'}
 			<div class="card audit-card" id="card-report">
-				<h3 class="audit-card-title">📄 AI Report Generator</h3>
+				<h3 class="audit-card-title">Report Builder</h3>
 				{#if isReportPending()}
 					<div class="report-pending-indicator" aria-live="polite">
 						<Loader2 size={18} />
@@ -525,13 +560,64 @@
 					<form
 						method="POST"
 						action="?/generateReport"
-						class="stack"
+						class="report-builder"
 						use:enhance={enhanceReportGeneration}
 					>
 						{#if form?.reportError}
 							<p class="report-error">{form.reportError}</p>
 						{/if}
-						<button type="submit" class="audit-primary-button">
+
+						<div class="report-builder-header">
+							<div>
+								<p class="report-builder-title">Review report findings</p>
+								<p class="muted report-builder-copy">
+									Select {reportSelectionMin()}–10 findings. These previews are exactly what will
+									appear in the final report.
+								</p>
+							</div>
+							<span class="report-selection-count"
+								>{selectedReportKeys.length}/{pageData.reportPreviewItems?.length ?? 0} selected</span
+							>
+						</div>
+
+						{#if pageData.reportPreviewItems?.length}
+							<div class="report-preview-list">
+								{#each pageData.reportPreviewItems as item (item.key)}
+									<label class="report-preview-item">
+										<input
+											type="checkbox"
+											name="findingTypeKey"
+											value={item.key}
+											bind:group={selectedReportKeys}
+										/>
+										<div class="report-preview-body">
+											<div class="report-preview-heading">
+												<span>{item.title}</span>
+												<span class="report-priority">{item.priority}</span>
+											</div>
+											{#each item.paragraphs as paragraph}
+												<p>{paragraph}</p>
+											{/each}
+											{#if item.screenshot?.image_url}
+												<div class="report-preview-proof">
+													<span>Proof</span>
+													<img
+														src={item.screenshot.image_url}
+														alt={item.screenshot.title || item.title}
+													/>
+												</div>
+											{/if}
+										</div>
+									</label>
+								{/each}
+							</div>
+						{:else}
+							<p class="muted report-status-note">
+								No report-ready findings are available for this audit.
+							</p>
+						{/if}
+
+						<button type="submit" class="audit-primary-button" disabled={!reportSelectionIsValid()}>
 							<Sparkles size={18} />
 							<span>{hasReport() ? 'Regenerate report' : 'Generate report'}</span>
 						</button>
@@ -621,6 +707,110 @@
 	.report-pending-indicator :global(svg) {
 		color: var(--goldenweb-primary);
 		animation: report-spin 0.9s linear infinite;
+	}
+
+	.report-builder {
+		display: flex;
+		flex-direction: column;
+		gap: 1.25rem;
+	}
+
+	.report-builder-header {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 1rem;
+	}
+
+	.report-builder-title {
+		margin: 0 0 0.35rem;
+		color: var(--text-primary);
+		font-size: 1.05rem;
+		font-weight: 800;
+	}
+
+	.report-builder-copy {
+		margin: 0;
+	}
+
+	.report-selection-count {
+		flex: 0 0 auto;
+		border: 1px solid var(--border-color);
+		border-radius: 999px;
+		padding: 0.55rem 0.85rem;
+		color: var(--text-muted);
+		font-size: 0.9rem;
+		font-weight: 800;
+	}
+
+	.report-preview-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0.85rem;
+	}
+
+	.report-preview-item {
+		display: grid;
+		grid-template-columns: auto 1fr;
+		gap: 0.9rem;
+		padding: 1rem;
+		border: 1px solid var(--border-color);
+		border-radius: 18px;
+		background: rgba(9, 14, 22, 0.28);
+		cursor: pointer;
+	}
+
+	.report-preview-item input {
+		margin-top: 0.3rem;
+		accent-color: var(--goldenweb-primary);
+	}
+
+	.report-preview-body {
+		min-width: 0;
+	}
+
+	.report-preview-heading {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
+		margin-bottom: 0.65rem;
+		color: var(--text-primary);
+		font-size: 1rem;
+		font-weight: 900;
+	}
+
+	.report-priority {
+		flex: 0 0 auto;
+		color: var(--goldenweb-primary);
+		font-size: 0.8rem;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+	}
+
+	.report-preview-body p {
+		margin: 0 0 0.65rem;
+		color: var(--text-muted);
+		font-size: 0.95rem;
+		line-height: 1.55;
+	}
+
+	.report-preview-proof {
+		display: flex;
+		flex-direction: column;
+		gap: 0.55rem;
+		margin-top: 0.85rem;
+		color: var(--text-muted);
+		font-size: 0.85rem;
+		font-weight: 800;
+	}
+
+	.report-preview-proof img {
+		width: 100%;
+		max-height: 260px;
+		object-fit: cover;
+		border: 1px solid var(--border-color);
+		border-radius: 12px;
 	}
 
 	.report-output {

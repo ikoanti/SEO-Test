@@ -2,15 +2,53 @@ import type { buildAuditPageData } from '$lib/server/audit-detail';
 import type { AuditFindingTypeTemplateRecord } from '$lib/server/pocketbase';
 
 type AuditPageData = Awaited<ReturnType<typeof buildAuditPageData>>;
-type AuditItem = AuditPageData['normalizedItems'][number];
+type ReportPageData = {
+	auditId: string;
+	runRecord: {
+		url?: string;
+		name?: string;
+		[key: string]: unknown;
+	};
+	auditRecord: {
+		name?: string;
+		url?: string;
+		[key: string]: unknown;
+	} | null;
+	audit: Record<string, unknown> | null;
+	summary: {
+		domain?: string;
+		summary?: { passed?: number; warnings?: number; failed?: number };
+		[key: string]: unknown;
+	} | null;
+	aiVisibility: Record<string, unknown> | null;
+	normalizedItems: Array<{
+		key: string;
+		label: string;
+		status?: string;
+		screenshot?: {
+			id?: string;
+			title?: string;
+			page_url?: string;
+			image_url?: string;
+		} | null;
+		findings: Array<{
+			status?: string;
+			title?: string;
+			detail?: string;
+			page_url?: string;
+		}>;
+	}>;
+};
+type AuditItem = ReportPageData['normalizedItems'][number];
 type Finding = AuditItem['findings'][number];
 
-type Problem = {
+export type ReportProblemPreview = {
 	key: string;
 	title: string;
 	priority: 'Urgent' | 'High' | 'Medium';
 	paragraphs: string[];
 	screenshot?: AuditItem['screenshot'];
+	count: number;
 };
 
 type TemplateContext = Record<string, string | number>;
@@ -40,7 +78,7 @@ function metricNumber(value: unknown) {
 	return Number.isFinite(parsed) ? parsed : null;
 }
 
-function domainName(pageData: AuditPageData) {
+function domainName(pageData: ReportPageData) {
 	const summary = getRecord(pageData.summary);
 	return text(
 		summary.domain ||
@@ -70,7 +108,7 @@ function paragraphs(templateBody: string, context: TemplateContext) {
 		.filter(Boolean);
 }
 
-function problemHtml(problem: Problem, index: number) {
+function problemHtml(problem: ReportProblemPreview, index: number) {
 	const screenshotHtml = problem.screenshot?.image_url
 		? `<div style="margin:14px 0 4px 0; page-break-inside:avoid;">
   <p style="font-family:Arial, sans-serif; font-size:10pt; line-height:1.45; color:#6b7280; margin:0 0 8px 0; font-weight:700;">Proof</p>
@@ -92,7 +130,7 @@ function problemHtml(problem: Problem, index: number) {
 </div>`;
 }
 
-function baseContext(pageData: AuditPageData): TemplateContext {
+function baseContext(pageData: ReportPageData): TemplateContext {
 	const domain = domainName(pageData);
 	const audit = getRecord(pageData.audit);
 	const pageSpeed = getRecord(audit.pageSpeed);
@@ -135,10 +173,13 @@ function shouldIncludeMetricTemplate(
 	return item?.status === 'warn' || item?.status === 'fail';
 }
 
-function buildProblems(pageData: AuditPageData, templates: AuditFindingTypeTemplateRecord[]) {
+export function buildReportProblems(
+	pageData: ReportPageData,
+	templates: AuditFindingTypeTemplateRecord[]
+) {
 	const itemsByKey = new Map(pageData.normalizedItems.map((item) => [item.key, item]));
 	const sharedContext = baseContext(pageData);
-	const problems: Problem[] = [];
+	const problems: ReportProblemPreview[] = [];
 
 	for (const template of templates) {
 		const item = itemsByKey.get(template.key);
@@ -161,7 +202,8 @@ function buildProblems(pageData: AuditPageData, templates: AuditFindingTypeTempl
 			title: template.label,
 			priority: template.severity || 'Medium',
 			paragraphs: paragraphs(template.report_template || '', context),
-			screenshot: item?.screenshot
+			screenshot: item?.screenshot,
+			count: findings.length || 1
 		});
 	}
 
@@ -173,7 +215,7 @@ export function generateTemplateReportHtml(
 	templates: AuditFindingTypeTemplateRecord[]
 ) {
 	const domain = domainName(pageData);
-	const problems = buildProblems(pageData, templates);
+	const problems = buildReportProblems(pageData, templates);
 	const factors = 10;
 
 	return `<div style="background:#ffffff; color:#111827; font-family:Arial, sans-serif; max-width:760px; margin:0 auto; padding:0;">

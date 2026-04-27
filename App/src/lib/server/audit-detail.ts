@@ -4,9 +4,11 @@ import {
 	getWorkflowByAuditId,
 	listAuditScreenshots,
 	listAuditFindings,
+	listAuditFindingTypeTemplates,
 	listRunsByWorkflow
 } from '$lib/server/pocketbase';
 import { hasPendingScreenshotJobs } from '$lib/server/audit-runner';
+import { buildReportProblems } from '$lib/server/report-template';
 
 type BuildAuditPageDataOptions = {
 	includeReportHtml?: boolean;
@@ -38,6 +40,13 @@ function parseStoredJson(value: unknown) {
 	} catch {
 		return null;
 	}
+}
+
+function parseStoredStringArray(value: unknown) {
+	const parsed = parseStoredJson(value);
+	return Array.isArray(parsed)
+		? parsed.map((item) => String(item)).filter((item) => item.trim())
+		: [];
 }
 
 function getRecord(value: unknown): Record<string, unknown> {
@@ -87,10 +96,11 @@ export async function buildAuditPageData(
 	const audit = parseStoredJson(auditRecord.audit_json);
 	const summary = parseStoredJson(auditRecord.summary_json);
 	const aiVisibility = parseStoredJson(auditRecord.ai_visibility_json);
-	const [runs, auditFindings, auditScreenshots] = await Promise.all([
+	const [runs, auditFindings, auditScreenshots, reportTemplates] = await Promise.all([
 		listRunsByWorkflow(workflowRecord.id, token),
 		listAuditFindings(auditRecord.id, token),
-		listAuditScreenshots(auditRecord.id, token)
+		listAuditScreenshots(auditRecord.id, token),
+		listAuditFindingTypeTemplates(token)
 	]);
 	const findingsByRunId = new Map<string, typeof auditFindings>();
 	for (const finding of auditFindings) {
@@ -179,6 +189,27 @@ export async function buildAuditPageData(
 	});
 	const storedReportHtml = String(auditRecord?.report_html || '');
 	const reportHtml = includeReportHtml && storedReportHtml ? storedReportHtml : '';
+	const selectedReportFindingTypeKeys = parseStoredStringArray(
+		auditRecord.selected_report_finding_types_json
+	);
+	const reportPreviewItems = buildReportProblems(
+		{
+			auditId: auditRecord.id,
+			runRecord: {
+				url: getWebsite(auditRecord)?.url,
+				name: getWebsite(auditRecord)?.domain || getWebsite(auditRecord)?.url
+			},
+			auditRecord: compactAuditRecord(auditRecord),
+			audit,
+			summary: buildDisplayedSummary(
+				summary,
+				auditFindings as Array<Record<string, unknown> & { status?: AuditFindingStatus }>
+			),
+			aiVisibility,
+			normalizedItems
+		},
+		reportTemplates
+	);
 
 	return {
 		auditId: auditRecord.id,
@@ -203,6 +234,8 @@ export async function buildAuditPageData(
 			auditFindings as Array<Record<string, unknown> & { status?: AuditFindingStatus }>
 		),
 		reportHtml,
+		reportPreviewItems,
+		selectedReportFindingTypeKeys,
 		aiVisibility,
 		normalizedItems,
 		isPendingRun: ['queued', 'running'].includes(String(workflowRecord.status || '')),

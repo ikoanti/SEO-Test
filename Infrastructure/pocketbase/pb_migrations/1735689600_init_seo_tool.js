@@ -305,6 +305,11 @@ Improving the technical structure, crawlability, content clarity, and AI crawler
             { name: "report_started_at", type: "date", required: false },
             { name: "report_completed_at", type: "date", required: false },
             { name: "report_html", type: "editor", required: false },
+            {
+              name: "selected_report_finding_types_json",
+              type: "editor",
+              required: false,
+            },
             { name: "ai_visibility_json", type: "editor", required: false },
             { name: "audit_json", type: "editor", required: false },
           ],

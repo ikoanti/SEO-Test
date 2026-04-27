@@ -20,6 +20,18 @@ function formatReportError(error: unknown) {
 	return error instanceof Error ? error.message : 'Failed to generate report.';
 }
 
+function parseSelectedFindingTypeKeys(value: unknown) {
+	if (typeof value !== 'string' || !value.trim()) return [];
+	try {
+		const parsed = JSON.parse(value);
+		return Array.isArray(parsed)
+			? parsed.map((item) => String(item)).filter((item) => item.trim())
+			: [];
+	} catch {
+		return [];
+	}
+}
+
 async function processReportGeneration(auditId: string, token?: string) {
 	const auditRecord = await getAudit(auditId, token);
 	const pageData = await buildAuditPageData(auditId, token);
@@ -63,7 +75,12 @@ async function processReportGeneration(auditId: string, token?: string) {
 	);
 
 	try {
-		const reportTemplates = await listAuditFindingTypeTemplates(token);
+		const selectedKeys = new Set(
+			parseSelectedFindingTypeKeys(auditRecord.selected_report_finding_types_json)
+		);
+		const reportTemplates = (await listAuditFindingTypeTemplates(token)).filter(
+			(template) => !selectedKeys.size || selectedKeys.has(template.key)
+		);
 		const reportHtml = generateTemplateReportHtml(pageData, reportTemplates);
 		await updateAuditRecord(
 			auditId,

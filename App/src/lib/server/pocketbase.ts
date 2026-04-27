@@ -207,6 +207,7 @@ export async function createAuditRecord(
 		report_started_at?: string;
 		report_completed_at?: string;
 		report_html?: string;
+		selected_report_finding_types_json?: string;
 		ai_visibility_json?: string;
 	},
 	token?: string
@@ -224,6 +225,7 @@ export async function createAuditRecord(
 		...(input.report_started_at ? { report_started_at: input.report_started_at } : {}),
 		...(input.report_completed_at ? { report_completed_at: input.report_completed_at } : {}),
 		report_html: input.report_html || '',
+		selected_report_finding_types_json: input.selected_report_finding_types_json || '',
 		ai_visibility_json: input.ai_visibility_json || ''
 	});
 }
@@ -263,6 +265,7 @@ export async function updateAuditRecord(
 		report_started_at?: string | null;
 		report_completed_at?: string | null;
 		report_html?: string;
+		selected_report_finding_types_json?: string;
 		ai_visibility_json?: string;
 	},
 	token?: string

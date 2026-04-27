@@ -74,6 +74,7 @@ export const actions = {
 				report_started_at: null,
 				report_completed_at: null,
 				report_html: '',
+				selected_report_finding_types_json: '',
 				ai_visibility_json: ''
 			},
 			locals.pbToken
@@ -99,9 +100,12 @@ export const actions = {
 
 		throw redirect(303, `/audits/${params.auditId}`);
 	},
-	generateReport: async ({ params, locals }) => {
+	generateReport: async ({ request, params, locals }) => {
 		const auditRecord = await getAudit(params.auditId, locals.pbToken);
 		const workflowRecord = await getWorkflowByAuditId(params.auditId, locals.pbToken);
+		const payload = await buildAuditPageData(params.auditId, locals.pbToken, {
+			includeReportHtml: false
+		});
 
 		if (String(workflowRecord.status || '') !== 'completed') {
 			return fail(400, {
@@ -114,6 +118,25 @@ export const actions = {
 			return { reportQueued: true };
 		}
 
+		const data = await request.formData();
+		const availableKeys = new Set(payload.reportPreviewItems.map((item) => item.key));
+		const selectedKeys = data
+			.getAll('findingTypeKey')
+			.map((value) => String(value))
+			.filter((key) => availableKeys.has(key));
+		const uniqueSelectedKeys = [...new Set(selectedKeys)];
+		const minSelection = Math.min(5, availableKeys.size);
+
+		if (availableKeys.size > 0 && uniqueSelectedKeys.length < minSelection) {
+			return fail(400, {
+				reportError: `Select at least ${minSelection} finding${minSelection === 1 ? '' : 's'} for the report.`
+			});
+		}
+
+		if (uniqueSelectedKeys.length > 10) {
+			return fail(400, { reportError: 'Select no more than 10 findings for the report.' });
+		}
+
 		await updateAuditRecord(
 			auditRecord.id,
 			{
@@ -121,7 +144,8 @@ export const actions = {
 				report_error: '',
 				report_started_at: null,
 				report_completed_at: null,
-				report_html: ''
+				report_html: '',
+				selected_report_finding_types_json: JSON.stringify(uniqueSelectedKeys)
 			},
 			locals.pbToken
 		);
