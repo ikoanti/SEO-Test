@@ -90,12 +90,10 @@ class PageSpeedPanel extends HTMLElement {
                   <div class="speed-panel-head">
                     <div class="speed-gauge" style="${this.gaugeStyle(data.score)}">
                       <div class="speed-gauge-inner">
-                        <span class="speed-gauge-icon">${strategy === 'mobile' ? '📱' : '🖥️'}</span>
                         <strong>${escapeHtml(data.score ?? 'N/A')}</strong>
                       </div>
                     </div>
                     <div class="speed-panel-copy">
-                      <p class="summary-label">${strategy === 'mobile' ? 'Mobile' : 'Desktop'}</p>
                       <p class="metric-panel-title">${strategy === 'mobile' ? 'Mobile Score' : 'Desktop Score'}</p>
                     </div>
                   </div>

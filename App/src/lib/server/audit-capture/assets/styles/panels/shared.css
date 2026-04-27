@@ -261,13 +261,16 @@
 
 .rank-stack {
 	display: grid;
-	gap: 18px;
+	gap: 12px;
 	min-width: 0;
 }
 
 .rank-panel-stat {
 	min-width: 0;
-	padding: 4px 0;
+	padding: 14px;
+	border: 1px solid #e0e3e7;
+	border-radius: 14px;
+	background: #fff;
 }
 
 .rank-panel-label {
@@ -283,8 +286,8 @@
 	margin: 0;
 	max-width: 100%;
 	overflow-wrap: anywhere;
-	font-size: 54px;
-	line-height: 0.95;
+	font-size: 38px;
+	line-height: 1;
 	font-weight: 800;
 	color: #202124;
 }
@@ -298,11 +301,12 @@
 }
 
 .speed-panel-head {
-	display: grid;
-	grid-template-columns: auto minmax(0, 1fr);
+	display: flex;
+	flex-direction: column;
 	align-items: center;
-	gap: 14px;
+	gap: 10px;
 	min-width: 0;
+	text-align: center;
 }
 
 .speed-panel-copy {
@@ -339,16 +343,17 @@
 	gap: 2px;
 }
 
-.speed-gauge-icon {
-	font-size: 15px;
-	line-height: 1;
-}
-
 .speed-gauge-inner strong {
 	font-size: 22px;
 	line-height: 1;
 	font-weight: 800;
 	color: #202124;
+}
+
+.speed-panel-card .metric-panel-title {
+	margin: 0;
+	color: var(--score-color);
+	font-size: 16px;
 }
 
 .speed-metric-list {
