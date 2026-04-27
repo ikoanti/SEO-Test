@@ -1,14 +1,14 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import type { AuditFindingStatus } from '$lib/audit-status';
 	import AuditFindingCard from '$lib/components/AuditFindingCard.svelte';
 	import AuditOverviewCard from '$lib/components/AuditOverviewCard.svelte';
 	import OpenPageRankCard from '$lib/components/OpenPageRankCard.svelte';
 	import PageSpeedCard from '$lib/components/PageSpeedCard.svelte';
 	import SegmentedPicker from '$lib/components/SegmentedPicker.svelte';
-	import { asBlob as htmlToDocxBlob } from 'html-docx-js-typescript';
-	import { Copy, Download, FileText, FileUp, Loader2, Sparkles } from 'lucide-svelte';
+	import { Copy, FileText, FileUp, Loader2, Sparkles } from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import AuditHeader from './AuditHeader.svelte';
 	import type { ActionData } from './$types';
@@ -298,15 +298,6 @@
 		}, 2000);
 	}
 
-	function resolvedFilename() {
-		const raw = pageData.runRecord.url || pageData.summary?.domain || 'audit';
-		try {
-			return new URL(raw.startsWith('http') ? raw : `https://${raw}`).hostname;
-		} catch {
-			return 'audit';
-		}
-	}
-
 	function stopLiveUpdates() {
 		stream?.close();
 		stream = undefined;
@@ -387,77 +378,6 @@
 			ensureLiveUpdates();
 		};
 	};
-
-	function downloadReportHtml() {
-		if (!pageData.reportHtml) return;
-
-		const filename = resolvedFilename();
-		const fullHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Mini SEO Audit - ${filename}</title></head><body style="background:#ffffff;color:#333333;margin:0;padding:2rem;font-family:'Segoe UI',sans-serif;">${pageData.reportHtml}</body></html>`;
-		const blob = new Blob([fullHtml], { type: 'text/html' });
-		const link = document.createElement('a');
-		link.download = `Mini-SEO-Audit-${filename}.html`;
-		link.href = URL.createObjectURL(blob);
-		link.click();
-		URL.revokeObjectURL(link.href);
-	}
-
-	async function blobToDataUrl(blob: Blob) {
-		return new Promise<string>((resolve, reject) => {
-			const reader = new FileReader();
-			reader.onload = () => resolve(String(reader.result || ''));
-			reader.onerror = () => reject(reader.error);
-			reader.readAsDataURL(blob);
-		});
-	}
-
-	async function inlineReportImages(html: string) {
-		const container = document.createElement('div');
-		container.innerHTML = html;
-		const images = Array.from(container.querySelectorAll('img[src]'));
-
-		await Promise.all(
-			images.map(async (image) => {
-				const source = image.getAttribute('src');
-				if (!source || source.startsWith('data:')) return;
-
-				try {
-					const response = await fetch(source);
-					if (!response.ok) return;
-					const blob = await response.blob();
-					image.setAttribute('src', await blobToDataUrl(blob));
-				} catch {
-					// Leave the original source in place if the browser cannot fetch it.
-				}
-			})
-		);
-
-		return container.innerHTML;
-	}
-
-	async function downloadReportDoc() {
-		if (!pageData.reportHtml) return;
-
-		const filename = resolvedFilename();
-		const reportHtml = await inlineReportImages(pageData.reportHtml);
-		const fullHtml =
-			"<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Mini SEO Audit</title><style>body { font-family: Arial, sans-serif; }</style></head><body>" +
-			reportHtml +
-			'</body></html>';
-		const docxResult = await htmlToDocxBlob(fullHtml);
-		const blob =
-			docxResult instanceof Blob
-				? docxResult
-				: new Blob([ArrayBuffer.isView(docxResult) ? Uint8Array.from(docxResult) : docxResult], {
-						type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-					});
-		const link = document.createElement('a');
-		link.download = `Mini-SEO-Audit-${filename}.docx`;
-		link.href = URL.createObjectURL(blob);
-		document.body.appendChild(link);
-		link.click();
-		document.body.removeChild(link);
-		URL.revokeObjectURL(link.href);
-	}
 
 	onMount(() => {
 		ensureLiveUpdates();
@@ -691,24 +611,14 @@
 							<Copy size={16} />
 							<span>{copyState}</span>
 						</button>
-						<button
-							type="button"
-							class="audit-action-button"
-							title="Download as HTML"
-							onclick={downloadReportHtml}
-						>
-							<Download size={16} />
-							<span>Download HTML</span>
-						</button>
-						<button
-							type="button"
+						<a
+							href={resolve(`/api/audits/${pageData.auditId}/report.docx`)}
 							class="audit-action-button"
 							title="Download as Word Doc"
-							onclick={downloadReportDoc}
 						>
 							<FileText size={16} />
-							<span>Download Doc</span>
-						</button>
+							<span>Download DOCX</span>
+						</a>
 					</div>
 					<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 					<div class="report-output">{@html pageData.reportHtml}</div>

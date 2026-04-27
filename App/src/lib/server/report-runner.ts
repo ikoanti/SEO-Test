@@ -1,6 +1,11 @@
 import { buildAuditPageData } from '$lib/server/audit-detail';
-import { getAudit, listAuditReportTemplates, updateAuditRecord } from '$lib/server/pocketbase';
-import { generateTemplateReportHtml } from '$lib/server/report-template';
+import { generateTemplateReportDocx } from '$lib/server/report-docx';
+import {
+	getAudit,
+	listAuditReportTemplates,
+	saveAuditReportDocx,
+	updateAuditRecord
+} from '$lib/server/pocketbase';
 
 type ReportRunnerState = {
 	activeAudits: Set<string>;
@@ -81,13 +86,12 @@ async function processReportGeneration(auditId: string, token?: string) {
 		const reportTemplates = (await listAuditReportTemplates(token)).filter(
 			(template) => !selectedKeys.size || selectedKeys.has(template.key)
 		);
-		const reportHtml = generateTemplateReportHtml(pageData, reportTemplates);
-		await updateAuditRecord(
+		const reportDocument = await generateTemplateReportDocx(pageData, reportTemplates, token);
+		await saveAuditReportDocx(
 			auditId,
 			{
-				report_status: 'completed',
-				report_error: '',
-				report_html: reportHtml,
+				filename: reportDocument.filename,
+				body: reportDocument.body,
 				report_completed_at: timestamp()
 			},
 			token

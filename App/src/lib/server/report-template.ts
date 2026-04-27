@@ -1,8 +1,6 @@
-import type { buildAuditPageData } from '$lib/server/audit-detail';
 import type { AuditReportTemplateRecord } from '$lib/server/pocketbase';
 
-type AuditPageData = Awaited<ReturnType<typeof buildAuditPageData>>;
-type ReportPageData = {
+export type ReportPageData = {
 	auditId: string;
 	runRecord: {
 		url?: string;
@@ -42,6 +40,9 @@ type ReportPageData = {
 			meta?: Record<string, unknown> | null;
 		}>;
 	}>;
+};
+type ReportPageDataWithPreview = ReportPageData & {
+	reportPreviewItems?: ReportProblemPreview[];
 };
 type AuditItem = ReportPageData['normalizedItems'][number];
 type Finding = AuditItem['findings'][number];
@@ -274,7 +275,7 @@ export function buildReportProblems(
 }
 
 export function generateTemplateReportHtml(
-	pageData: AuditPageData,
+	pageData: ReportPageDataWithPreview,
 	templates: AuditReportTemplateRecord[]
 ) {
 	const domain = domainName(pageData);

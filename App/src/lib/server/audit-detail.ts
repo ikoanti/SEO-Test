@@ -8,7 +8,7 @@ import {
 	listRunsByWorkflow
 } from '$lib/server/pocketbase';
 import { hasPendingScreenshotJobs } from '$lib/server/audit-runner';
-import { buildReportProblems } from '$lib/server/report-template';
+import { buildReportProblems, generateTemplateReportHtml } from '$lib/server/report-template';
 
 type BuildAuditPageDataOptions = {
 	includeReportHtml?: boolean;
@@ -193,34 +193,43 @@ export async function buildAuditPageData(
 			findings
 		};
 	});
-	const storedReportHtml = String(auditRecord?.report_html || '');
-	const reportHtml = includeReportHtml && storedReportHtml ? storedReportHtml : '';
 	const selectedReportTemplateKeys = parseStoredStringArray(
 		auditRecord.selected_report_template_keys_json
 	);
-	const reportPreviewItems = buildReportProblems(
-		{
-			auditId: auditRecord.id,
-			runRecord: {
-				url: getWebsite(auditRecord)?.url,
-				name: getWebsite(auditRecord)?.domain || getWebsite(auditRecord)?.url
-			},
-			auditRecord: compactAuditRecord(auditRecord),
-			audit,
-			summary: buildDisplayedSummary(
-				summary,
-				auditFindings as Array<Record<string, unknown> & { status?: AuditFindingStatus }>
-			),
-			aiVisibility,
-			normalizedItems
+	const reportPageData = {
+		auditId: auditRecord.id,
+		runRecord: {
+			url: getWebsite(auditRecord)?.url,
+			name: getWebsite(auditRecord)?.domain || getWebsite(auditRecord)?.url
 		},
-		reportTemplates
-	).map((problem) => ({
-		...problem,
-		screenshot:
-			screenshotView(auditRecord.id, screenshotsByReportTemplateKey.get(problem.key)) ||
-			problem.screenshot
-	}));
+		auditRecord: compactAuditRecord(auditRecord),
+		audit,
+		summary: buildDisplayedSummary(
+			summary,
+			auditFindings as Array<Record<string, unknown> & { status?: AuditFindingStatus }>
+		),
+		aiVisibility,
+		normalizedItems
+	};
+	const reportPreviewItems = buildReportProblems(reportPageData, reportTemplates).map(
+		(problem) => ({
+			...problem,
+			screenshot:
+				screenshotView(auditRecord.id, screenshotsByReportTemplateKey.get(problem.key)) ||
+				problem.screenshot
+		})
+	);
+	const selectedReportTemplateSet = new Set(selectedReportTemplateKeys);
+	const selectedReportTemplates = selectedReportTemplateSet.size
+		? reportTemplates.filter((template) => selectedReportTemplateSet.has(template.key))
+		: reportTemplates;
+	const reportHtml =
+		includeReportHtml && String(auditRecord.report_status || '') === 'completed'
+			? generateTemplateReportHtml(
+					{ ...reportPageData, reportPreviewItems },
+					selectedReportTemplates
+				)
+			: '';
 
 	return {
 		auditId: auditRecord.id,

@@ -443,7 +443,16 @@ Currently, {{count}} {{domain}} images lack descriptions, affecting accessibilit
             { name: "report_error", type: "editor", required: false },
             { name: "report_started_at", type: "date", required: false },
             { name: "report_completed_at", type: "date", required: false },
-            { name: "report_html", type: "editor", required: false },
+            {
+              name: "report_docx",
+              type: "file",
+              required: false,
+              maxSelect: 1,
+              maxSize: 20971520,
+              mimeTypes: [
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+              ],
+            },
             {
               name: "selected_report_template_keys_json",
               type: "editor",

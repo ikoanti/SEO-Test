@@ -209,7 +209,7 @@ export async function createAuditRecord(
 		report_error?: string;
 		report_started_at?: string;
 		report_completed_at?: string;
-		report_html?: string;
+		report_docx?: null;
 		selected_report_template_keys_json?: string;
 		ai_visibility_json?: string;
 	},
@@ -227,7 +227,6 @@ export async function createAuditRecord(
 		report_error: input.report_error || '',
 		...(input.report_started_at ? { report_started_at: input.report_started_at } : {}),
 		...(input.report_completed_at ? { report_completed_at: input.report_completed_at } : {}),
-		report_html: input.report_html || '',
 		selected_report_template_keys_json: input.selected_report_template_keys_json || '',
 		ai_visibility_json: input.ai_visibility_json || ''
 	});
@@ -267,7 +266,7 @@ export async function updateAuditRecord(
 		report_error?: string;
 		report_started_at?: string | null;
 		report_completed_at?: string | null;
-		report_html?: string;
+		report_docx?: null;
 		selected_report_template_keys_json?: string;
 		ai_visibility_json?: string;
 	},
@@ -275,6 +274,58 @@ export async function updateAuditRecord(
 ) {
 	const pb = createAuthedClient(token);
 	return pb.collection(AUDITS_COLLECTION).update(auditId, input);
+}
+
+export async function saveAuditReportDocx(
+	auditId: string,
+	input: {
+		filename: string;
+		body: Uint8Array | ArrayBuffer | Buffer;
+		report_completed_at: string;
+	},
+	token?: string
+) {
+	const pb = createAuthedClient(token);
+	const body = input.body instanceof ArrayBuffer ? input.body : new Uint8Array(input.body).buffer;
+	const docxBlob = new Blob([body], {
+		type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+	});
+	const formData = new FormData();
+	formData.set('report_status', 'completed');
+	formData.set('report_error', '');
+	formData.set('report_completed_at', input.report_completed_at);
+	formData.set('report_docx', docxBlob, input.filename);
+
+	return pb.collection(AUDITS_COLLECTION).update(auditId, formData);
+}
+
+export async function getAuditReportDocxFile(auditId: string, token?: string) {
+	const pb = createAuthedClient(token);
+	const audit = (await pb
+		.collection(AUDITS_COLLECTION)
+		.getOne(auditId, { expand: 'website' })) as Record<string, unknown>;
+	const filename = typeof audit.report_docx === 'string' ? audit.report_docx : '';
+
+	if (!filename) {
+		throw new Error('Report document is missing.');
+	}
+
+	const fileUrl = pb.files.getURL(audit, filename);
+	const response = await fetch(fileUrl, {
+		headers: token ? { Authorization: `Bearer ${token}` } : undefined
+	});
+
+	if (!response.ok) {
+		throw new Error(`Failed to fetch report document: ${response.status}`);
+	}
+
+	return {
+		filename,
+		contentType:
+			response.headers.get('content-type') ||
+			'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+		body: await response.arrayBuffer()
+	};
 }
 
 export async function createWorkflowRecord(

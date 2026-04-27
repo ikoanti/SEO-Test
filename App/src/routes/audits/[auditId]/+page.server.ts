@@ -73,7 +73,7 @@ export const actions = {
 				report_error: '',
 				report_started_at: null,
 				report_completed_at: null,
-				report_html: '',
+				report_docx: null,
 				selected_report_template_keys_json: '',
 				ai_visibility_json: ''
 			},
@@ -144,7 +144,7 @@ export const actions = {
 				report_error: '',
 				report_started_at: null,
 				report_completed_at: null,
-				report_html: '',
+				report_docx: null,
 				selected_report_template_keys_json: JSON.stringify(uniqueSelectedKeys)
 			},
 			locals.pbToken
