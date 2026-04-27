@@ -221,10 +221,16 @@
 		value === undefined || value === null || value === '' ? fallback : String(value);
 	const openPageRank = () => metricSection('openPageRank');
 	const pageSpeed = () => metricSection('pageSpeed');
+	const priorityRank = (priority: 'Urgent' | 'High' | 'Medium') =>
+		priority === 'Urgent' ? 0 : priority === 'High' ? 1 : 2;
 	const reportFindingItems = $derived.by(() =>
 		(pageData.reportPreviewItems || [])
 			.filter((item) => item.findings?.length > 0 && item.sourceFindingTypeKey !== 'pageSpeed')
-			.sort((first, second) => (first.sortOrder || 999) - (second.sortOrder || 999))
+			.sort(
+				(first, second) =>
+					priorityRank(first.priority) - priorityRank(second.priority) ||
+					(first.sortOrder || 999) - (second.sortOrder || 999)
+			)
 	);
 	const reportFindingSourceKeys = $derived.by(
 		() => new Set(reportFindingItems.map((item) => item.sourceFindingTypeKey).filter(Boolean))
@@ -641,7 +647,6 @@
 											{/each}
 											{#if item.screenshot?.image_url}
 												<div class="report-preview-proof">
-													<span>Proof</span>
 													<img
 														src={item.screenshot.image_url}
 														alt={item.screenshot.title || item.title}
@@ -837,13 +842,7 @@
 	}
 
 	.report-preview-proof {
-		display: flex;
-		flex-direction: column;
-		gap: 0.55rem;
 		margin-top: 0.85rem;
-		color: var(--text-muted);
-		font-size: 0.85rem;
-		font-weight: 800;
 	}
 
 	.report-preview-proof img {

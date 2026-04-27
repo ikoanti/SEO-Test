@@ -131,9 +131,7 @@ function paragraphs(templateBody: string, context: TemplateContext) {
 function problemHtml(problem: ReportProblemPreview, index: number) {
 	const screenshotHtml = problem.screenshot?.image_url
 		? `<div style="margin:14px 0 4px 0; page-break-inside:avoid;">
-  <p style="font-family:Arial, sans-serif; font-size:10pt; line-height:1.45; color:#6b7280; margin:0 0 8px 0; font-weight:700;">Proof</p>
-  ${problem.screenshot.page_url ? `<p style="font-family:Arial, sans-serif; font-size:9.5pt; line-height:1.45; margin:0 0 8px 0;"><a href="${escapeHtml(problem.screenshot.page_url)}" style="color:#2563eb; text-decoration:none; overflow-wrap:anywhere;">${escapeHtml(problem.screenshot.page_url)}</a></p>` : ''}
-  <img src="${escapeHtml(problem.screenshot.image_url)}" alt="${escapeHtml(problem.screenshot.title || `${problem.title} proof`)}" style="display:block; width:100%; max-width:680px; height:auto; border:1px solid #d1d5db; border-radius:6px; margin:0;" />
+  <img src="${escapeHtml(problem.screenshot.image_url)}" alt="${escapeHtml(problem.screenshot.title || `${problem.title} screenshot`)}" style="display:block; width:100%; max-width:680px; height:auto; border:1px solid #d1d5db; border-radius:6px; margin:0;" />
 </div>`
 		: '';
 
@@ -212,6 +210,25 @@ function statusFromFindings(
 	return 'info';
 }
 
+const PRIORITY_RANK: Record<ReportProblemPreview['priority'], number> = {
+	Urgent: 0,
+	High: 1,
+	Medium: 2
+};
+
+function priorityRank(priority: ReportProblemPreview['priority']) {
+	return PRIORITY_RANK[priority] ?? 99;
+}
+
+function sortReportProblems(problems: ReportProblemPreview[]) {
+	return problems.sort(
+		(first, second) =>
+			priorityRank(first.priority) - priorityRank(second.priority) ||
+			(first.sortOrder || 999) - (second.sortOrder || 999) ||
+			first.title.localeCompare(second.title)
+	);
+}
+
 export function buildReportProblems(
 	pageData: ReportPageData,
 	templates: AuditReportTemplateRecord[]
@@ -253,7 +270,7 @@ export function buildReportProblems(
 		});
 	}
 
-	return problems;
+	return sortReportProblems(problems);
 }
 
 export function generateTemplateReportHtml(
