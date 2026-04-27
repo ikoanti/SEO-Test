@@ -30,20 +30,6 @@
 		return 'fail';
 	}
 
-	function gaugeStyle(score: unknown) {
-		const value = Number(score);
-		const normalized = Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : 0;
-		const color =
-			normalized >= 90
-				? 'var(--status-pass)'
-				: normalized >= 50
-					? 'var(--status-warn)'
-					: normalized > 0
-						? 'var(--status-fail)'
-						: 'var(--border)';
-		return `--score: ${normalized}; --score-color: ${color};`;
-	}
-
 	function metricsForPageSpeed(strategy: 'mobile' | 'desktop') {
 		const strategyData = getRecord(pageSpeedData[strategy]);
 		const metrics = getRecord(strategyData.metrics);
@@ -71,35 +57,29 @@
 		{#each pageSpeedStrategies as strategy (strategy)}
 			{@const strategyData = getRecord(pageSpeedData[strategy])}
 			<div class="speed-item">
-				<div class="speed-score-row">
-					<div
-						class={`speed-gauge ${scoreClass(strategyData.score)}`}
-						style={gaugeStyle(strategyData.score)}
-						aria-label={`${strategy === 'mobile' ? 'Mobile' : 'Desktop'} score ${displayValue(strategyData.score, '--')}`}
-					>
-						<div class="speed-gauge-inner">
-							{#if strategy === 'mobile'}
-								<Smartphone size={18} strokeWidth={2.25} />
-							{:else}
-								<Monitor size={18} strokeWidth={2.25} />
-							{/if}
-							<strong>{displayValue(strategyData.score, '--')}</strong>
-						</div>
-					</div>
-					<div class="speed-heading">
-						<span>{strategy === 'mobile' ? 'Mobile' : 'Desktop'}</span>
-						<strong>{strategy === 'mobile' ? 'Mobile Score' : 'Desktop Score'}</strong>
-					</div>
+				<div class={`metric-circle ${scoreClass(strategyData.score)}`}>
+					{displayValue(strategyData.score, '--')}
 				</div>
+				<span class="speed-label">
+					{#if strategy === 'mobile'}
+						<Smartphone size={14} strokeWidth={2.25} />
+					{:else}
+						<Monitor size={14} strokeWidth={2.25} />
+					{/if}
+					<span>{strategy === 'mobile' ? 'Mobile' : 'Desktop'} Score</span>
+				</span>
 				<div class="speed-details">
 					{#each metricsForPageSpeed(strategy) as metric (metric[0])}
 						<div class="speed-metric">
-							<span>{metric[0]}</span>
+							<span>{metric[0]}:</span>
 							<span>{displayValue(metric[1], 'N/A')}</span>
 						</div>
 					{/each}
 				</div>
 			</div>
+			{#if strategy === 'mobile'}
+				<div class="speed-divider"></div>
+			{/if}
 		{/each}
 	</div>
 </div>
@@ -138,126 +118,100 @@
 	}
 
 	.speed-container {
-		display: grid;
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-		gap: 1.25rem;
-		padding: 0.5rem 0 0;
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-around;
+		gap: 1rem;
+		padding: 0.75rem 0;
 	}
 
 	.speed-item {
 		display: flex;
+		flex: 1;
 		flex-direction: column;
-		min-width: 0;
-		gap: 1rem;
-	}
-
-	.speed-score-row {
-		display: grid;
-		grid-template-columns: auto minmax(0, 1fr);
 		align-items: center;
-		gap: 0.9rem;
-		min-width: 0;
+		gap: 0.5rem;
 	}
 
-	.speed-gauge {
-		--score: 0;
-		--score-color: var(--border);
-		position: relative;
-		display: grid;
-		width: 86px;
-		height: 86px;
-		place-items: center;
-		border-radius: 50%;
-		background: conic-gradient(
-			var(--score-color) calc(var(--score) * 1%),
-			rgba(148, 163, 184, 0.18) 0
-		);
-		color: var(--score-color);
-		flex: 0 0 auto;
-	}
-
-	.speed-gauge::before {
-		position: absolute;
-		inset: 7px;
-		border-radius: inherit;
-		background: var(--card-bg);
-		content: '';
-	}
-
-	.speed-gauge-inner {
-		position: relative;
-		z-index: 1;
+	.metric-circle {
 		display: flex;
-		flex-direction: column;
 		align-items: center;
-		gap: 0.15rem;
-	}
-
-	.speed-gauge-inner strong {
-		color: var(--text-main);
-		font-size: 1.45rem;
-		line-height: 1;
+		justify-content: center;
+		width: 80px;
+		height: 80px;
+		border: 4px solid var(--border);
+		border-radius: 50%;
+		background: rgba(0, 0, 0, 0.2);
+		font-size: 1.5rem;
 		font-weight: 700;
 	}
 
-	.speed-heading {
-		min-width: 0;
+	.metric-circle.pass {
+		border-color: var(--status-pass);
+		color: var(--status-pass);
 	}
 
-	.speed-heading span {
-		display: block;
-		margin-bottom: 0.25rem;
+	.metric-circle.warn {
+		border-color: var(--status-warn);
+		color: var(--status-warn);
+	}
+
+	.metric-circle.fail {
+		border-color: var(--status-fail);
+		color: var(--status-fail);
+	}
+
+	.speed-label {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35rem;
 		color: var(--text-muted);
-		font-size: 0.78rem;
-		font-weight: 700;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
+		font-size: 0.85rem;
+		font-weight: 500;
 	}
 
-	.speed-heading strong {
-		display: block;
-		color: var(--text-main);
-		font-size: 1.05rem;
-		line-height: 1.2;
-		font-weight: 700;
+	.speed-divider {
+		align-self: stretch;
+		width: 1px;
+		min-height: 100px;
+		background: var(--border);
 	}
 
 	.speed-details {
 		display: flex;
 		flex-direction: column;
-		gap: 0;
+		gap: 0.4rem;
 		width: 100%;
+		max-width: 250px;
+		margin-top: 0.5rem;
 		color: var(--text-muted);
+		font-size: 0.85rem;
 	}
 
 	.speed-metric {
 		display: flex;
-		align-items: center;
 		justify-content: space-between;
-		gap: 1rem;
-		padding: 0.65rem 0;
-		border-bottom: 1px solid rgba(148, 163, 184, 0.14);
-		font-size: 0.9rem;
-	}
-
-	.speed-metric:first-child {
-		border-top: 1px solid rgba(148, 163, 184, 0.14);
-	}
-
-	.speed-metric span:first-child {
-		color: var(--text-muted);
-		font-weight: 600;
+		padding: 0.4rem 0.6rem;
+		border: 1px solid rgba(255, 255, 255, 0.05);
+		border-radius: 0.4rem;
+		background: rgba(255, 255, 255, 0.03);
 	}
 
 	.speed-metric span:last-child {
 		color: var(--text-main);
 		font-weight: 600;
-		text-align: right;
 	}
 
 	@media (max-width: 760px) {
 		.speed-container {
-			grid-template-columns: 1fr;
+			flex-direction: column;
+			align-items: stretch;
+		}
+
+		.speed-divider {
+			width: 100%;
+			min-height: 1px;
+			height: 1px;
 		}
 	}
 </style>
