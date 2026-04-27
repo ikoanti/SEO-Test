@@ -88,6 +88,8 @@ export async function analyzeRobots(origin: string, summary: AuditSummary, logge
 				),
 				{
 					kind: 'robots',
+					reportTemplateKey: 'ai-chatbots-llms-not-whitelisted',
+					title: 'AI Chatbots/LLMs Not Whitelisted',
 					domain: new URL(origin).hostname,
 					robotsUrl: `${origin}/robots.txt`,
 					storefrontUrl: `${origin}/`,

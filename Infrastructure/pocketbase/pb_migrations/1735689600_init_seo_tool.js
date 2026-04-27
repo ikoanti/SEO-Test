@@ -659,6 +659,12 @@ Currently, {{count}} {{domain}} images lack descriptions, affecting accessibilit
               cascadeDelete: true,
             },
             { name: "title", type: "text", required: true, max: 255 },
+            {
+              name: "report_template_key",
+              type: "text",
+              required: false,
+              max: 140,
+            },
             { name: "page_url", type: "url", required: false },
             {
               name: "image",
@@ -672,7 +678,8 @@ Currently, {{count}} {{domain}} images lack descriptions, affecting accessibilit
           indexes: [
             "CREATE INDEX idx_audit_screenshots_audit ON audit_screenshots (audit)",
             "CREATE INDEX idx_audit_screenshots_type ON audit_screenshots (audit_finding_type)",
-            "CREATE UNIQUE INDEX idx_audit_screenshots_audit_type_run ON audit_screenshots (audit, audit_finding_type, run)",
+            "CREATE INDEX idx_audit_screenshots_report_template_key ON audit_screenshots (report_template_key)",
+            "CREATE UNIQUE INDEX idx_audit_screenshots_audit_type_run_template ON audit_screenshots (audit, audit_finding_type, run, report_template_key)",
           ],
         }),
       );

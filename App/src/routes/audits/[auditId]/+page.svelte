@@ -75,6 +75,10 @@
 		reportPreviewItems: {
 			key: string;
 			title: string;
+			sourceFindingTypeKey: string;
+			sourceLabel: string;
+			sortOrder: number;
+			status: AuditFindingStatus;
 			priority: 'Urgent' | 'High' | 'Medium';
 			paragraphs: string[];
 			count: number;
@@ -84,6 +88,7 @@
 				page_url?: string;
 				image_url?: string;
 			} | null;
+			findings: AuditFindingView[];
 		}[];
 		selectedReportTemplateKeys: string[];
 		aiVisibility: Record<string, unknown> | null;
@@ -216,6 +221,38 @@
 		value === undefined || value === null || value === '' ? fallback : String(value);
 	const openPageRank = () => metricSection('openPageRank');
 	const pageSpeed = () => metricSection('pageSpeed');
+	const reportFindingItems = $derived.by(() =>
+		(pageData.reportPreviewItems || [])
+			.filter((item) => item.findings?.length > 0 && item.sourceFindingTypeKey !== 'pageSpeed')
+			.sort((first, second) => (first.sortOrder || 999) - (second.sortOrder || 999))
+	);
+	const reportFindingSourceKeys = $derived.by(
+		() => new Set(reportFindingItems.map((item) => item.sourceFindingTypeKey).filter(Boolean))
+	);
+	const legacySectionsForDisplay = $derived.by(() =>
+		legacySections.filter((section) => !reportFindingSourceKeys.has(section.key))
+	);
+
+	function reportIssueSection(item: (typeof pageData.reportPreviewItems)[number]) {
+		return {
+			key: item.key,
+			title: item.title,
+			mini: true
+		};
+	}
+
+	function reportIssueAuditItem(item: (typeof pageData.reportPreviewItems)[number]): AuditItemView {
+		return {
+			id: `report-${item.key}`,
+			key: item.key,
+			label: item.title,
+			status: item.status,
+			runStatus: pageData.runRecord.status,
+			summary: `${item.count} finding${item.count === 1 ? '' : 's'}`,
+			screenshot: item.screenshot,
+			findings: item.findings || []
+		};
+	}
 
 	$effect(() => {
 		const previewKeys = (pageData.reportPreviewItems || []).map((item) => item.key).join('|');
@@ -454,7 +491,11 @@
 
 			<PageSpeedCard pageSpeedData={pageSpeed()} screenshot={itemByKey('pageSpeed')?.screenshot} />
 
-			{#each legacySections as section (section.key)}
+			{#each reportFindingItems as item (item.key)}
+				<AuditFindingCard section={reportIssueSection(item)} item={reportIssueAuditItem(item)} />
+			{/each}
+
+			{#each legacySectionsForDisplay as section (section.key)}
 				<AuditFindingCard {section} item={itemByKey(section.key)} />
 			{/each}
 		{:else if activeTab === 'ai-visibility'}
@@ -595,7 +636,7 @@
 												<span>{item.title}</span>
 												<span class="report-priority">{item.priority}</span>
 											</div>
-											{#each item.paragraphs as paragraph}
+											{#each item.paragraphs as paragraph, index (`${item.key}-paragraph-${index}`)}
 												<p>{paragraph}</p>
 											{/each}
 											{#if item.screenshot?.image_url}

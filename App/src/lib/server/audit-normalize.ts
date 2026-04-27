@@ -294,6 +294,8 @@ export function attachMetricScreenshots(
 		const pageSpeed = audit.pageSpeed as Record<string, unknown>;
 		attachScreenshotRequest(pageSpeed, {
 			kind: 'pagespeed',
+			reportTemplateKey: 'unoptimized-page-speed',
+			title: 'Unoptimized page speed',
 			domain,
 			pageUrl,
 			pageSpeed: snapshotRecord(pageSpeed)
@@ -308,6 +310,8 @@ export function attachMetricScreenshots(
 		const openPageRank = audit.openPageRank as Record<string, unknown>;
 		attachScreenshotRequest(openPageRank, {
 			kind: 'open-page-rank',
+			reportTemplateKey: 'open-page-rank',
+			title: 'Open PageRank',
 			domain,
 			pageUrl,
 			openPageRank: snapshotRecord(openPageRank)

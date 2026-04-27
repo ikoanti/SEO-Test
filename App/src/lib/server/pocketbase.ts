@@ -526,6 +526,7 @@ export async function createAuditScreenshotRecord(
 		audit: string;
 		audit_finding_type: string;
 		run?: string;
+		report_template_key?: string;
 		title: string;
 		page_url?: string;
 		content_type: string;
@@ -553,6 +554,7 @@ export async function createAuditScreenshotRecord(
 	formData.set('audit', input.audit);
 	formData.set('audit_finding_type', input.audit_finding_type);
 	if (input.run) formData.set('run', input.run);
+	if (input.report_template_key) formData.set('report_template_key', input.report_template_key);
 	formData.set('title', truncateText(input.title || 'Audit screenshot', 255));
 	if (pageUrl) formData.set('page_url', pageUrl);
 	formData.set('image', imageBlob, 'audit-screenshot.png');

@@ -40,6 +40,7 @@ type ScreenshotJob = {
 	auditId: string;
 	findingTypeId: string;
 	runId: string;
+	reportTemplateKey: string;
 	title: string;
 	page_url?: string;
 	request: AuditCaptureRequest;
@@ -150,12 +151,22 @@ function getRecord(value: unknown): Record<string, unknown> | null {
 		: null;
 }
 
+function getScreenshotRequests(value: unknown): AuditCaptureRequest[] {
+	if (Array.isArray(value)) {
+		return value.filter((item) => getRecord(item)?.kind).map((item) => item as AuditCaptureRequest);
+	}
+
+	const record = getRecord(value);
+	return record?.kind ? [record as AuditCaptureRequest] : [];
+}
+
 function extractScreenshotFromMeta(metaJson: string) {
 	if (!metaJson) {
 		return {
 			meta_json: metaJson,
 			screenshot: null as ScreenshotPayload | null,
-			screenshotRequest: null as AuditCaptureRequest | null
+			screenshotRequest: null as AuditCaptureRequest | null,
+			screenshotRequests: [] as AuditCaptureRequest[]
 		};
 	}
 
@@ -164,12 +175,14 @@ function extractScreenshotFromMeta(metaJson: string) {
 		const nestedMeta = getRecord(meta.meta);
 		const directScreenshot = getRecord(meta.screenshot);
 		const nestedScreenshot = getRecord(nestedMeta?.screenshot);
-		const directScreenshotRequest = getRecord(meta.screenshotRequest);
-		const nestedScreenshotRequest = getRecord(nestedMeta?.screenshotRequest);
+		const screenshotRequests = [
+			...getScreenshotRequests(meta.screenshotRequest),
+			...getScreenshotRequests(nestedMeta?.screenshotRequest),
+			...getScreenshotRequests(meta.screenshotRequests),
+			...getScreenshotRequests(nestedMeta?.screenshotRequests)
+		];
 		const screenshotSource = directScreenshot || nestedScreenshot;
-		const screenshotRequestSource = directScreenshotRequest || nestedScreenshotRequest;
 		const screenshot = screenshotSource as ScreenshotPayload | null;
-		const screenshotRequest = screenshotRequestSource as AuditCaptureRequest | null;
 
 		if (directScreenshot) {
 			delete meta.screenshot;
@@ -179,11 +192,18 @@ function extractScreenshotFromMeta(metaJson: string) {
 			meta.meta = nestedMeta;
 		}
 
-		if (directScreenshotRequest) {
+		if (meta.screenshotRequest) {
 			delete meta.screenshotRequest;
 		}
-		if (nestedScreenshotRequest && nestedMeta) {
+		if (meta.screenshotRequests) {
+			delete meta.screenshotRequests;
+		}
+		if (nestedMeta?.screenshotRequest) {
 			delete nestedMeta.screenshotRequest;
+			meta.meta = nestedMeta;
+		}
+		if (nestedMeta?.screenshotRequests) {
+			delete nestedMeta.screenshotRequests;
 			meta.meta = nestedMeta;
 		}
 
@@ -196,13 +216,15 @@ function extractScreenshotFromMeta(metaJson: string) {
 							imageBase64: screenshot.imageBase64
 						}
 					: null,
-			screenshotRequest: screenshotRequest?.kind ? screenshotRequest : null
+			screenshotRequest: screenshotRequests[0] || null,
+			screenshotRequests
 		};
 	} catch {
 		return {
 			meta_json: metaJson,
 			screenshot: null as ScreenshotPayload | null,
-			screenshotRequest: null as AuditCaptureRequest | null
+			screenshotRequest: null as AuditCaptureRequest | null,
+			screenshotRequests: [] as AuditCaptureRequest[]
 		};
 	}
 }
@@ -212,6 +234,7 @@ async function persistScreenshotIfPresent(
 		auditId: string;
 		findingTypeId: string;
 		runId: string;
+		reportTemplateKey: string;
 		title: string;
 		page_url?: string;
 		screenshot: ScreenshotPayload | null;
@@ -226,6 +249,7 @@ async function persistScreenshotIfPresent(
 				audit: input.auditId,
 				audit_finding_type: input.findingTypeId,
 				run: input.runId,
+				report_template_key: input.reportTemplateKey,
 				title: input.title,
 				page_url: input.page_url,
 				content_type: input.screenshot.contentType,
@@ -246,8 +270,10 @@ async function persistScreenshotIfPresent(
 	}
 }
 
-function screenshotJobKey(input: Pick<ScreenshotJob, 'auditId' | 'findingTypeId' | 'runId'>) {
-	return `${input.auditId}:${input.findingTypeId}:${input.runId}`;
+function screenshotJobKey(
+	input: Pick<ScreenshotJob, 'auditId' | 'findingTypeId' | 'runId' | 'reportTemplateKey'>
+) {
+	return `${input.auditId}:${input.findingTypeId}:${input.runId}:${input.reportTemplateKey}`;
 }
 
 async function processScreenshotJob(input: ScreenshotJob, token?: string) {
@@ -268,6 +294,7 @@ async function processScreenshotJob(input: ScreenshotJob, token?: string) {
 				auditId: input.auditId,
 				findingTypeId: input.findingTypeId,
 				runId: input.runId,
+				reportTemplateKey: input.reportTemplateKey,
 				title: input.title,
 				page_url: input.page_url,
 				screenshot
@@ -417,6 +444,7 @@ async function syncProgressSnapshot(
 					auditId,
 					findingTypeId: run.findingTypeId,
 					runId: run.runId,
+					reportTemplateKey: item.key,
 					title: item.label,
 					screenshot
 				},
@@ -442,6 +470,7 @@ async function syncProgressSnapshot(
 						auditId,
 						findingTypeId: run.findingTypeId,
 						runId: run.runId,
+						reportTemplateKey: item.key,
 						title: finding.detail || finding.title || item.label,
 						page_url: finding.page_url,
 						screenshot
@@ -504,10 +533,12 @@ function collectScreenshotJobs(
 
 		const addJob = (request: AuditCaptureRequest | null, title: string, page_url?: string) => {
 			if (!request) return;
+			const reportTemplateKey = request.reportTemplateKey || request.kind;
 			const key = screenshotJobKey({
 				auditId,
 				findingTypeId: run.findingTypeId,
-				runId: run.runId
+				runId: run.runId,
+				reportTemplateKey
 			});
 			if (seen.has(key)) return;
 			seen.add(key);
@@ -515,6 +546,7 @@ function collectScreenshotJobs(
 				auditId,
 				findingTypeId: run.findingTypeId,
 				runId: run.runId,
+				reportTemplateKey,
 				title,
 				page_url,
 				request
@@ -522,14 +554,22 @@ function collectScreenshotJobs(
 		};
 
 		if (item.findings.length === 0) {
-			const { screenshotRequest } = extractScreenshotFromMeta(item.stats_json);
-			addJob(screenshotRequest, item.label);
+			const { screenshotRequests } = extractScreenshotFromMeta(item.stats_json);
+			for (const screenshotRequest of screenshotRequests) {
+				addJob(screenshotRequest, screenshotRequest.title || item.label);
+			}
 			continue;
 		}
 
 		for (const finding of item.findings) {
-			const { screenshotRequest } = extractScreenshotFromMeta(finding.meta_json);
-			addJob(screenshotRequest, finding.detail || finding.title || item.label, finding.page_url);
+			const { screenshotRequests } = extractScreenshotFromMeta(finding.meta_json);
+			for (const screenshotRequest of screenshotRequests) {
+				addJob(
+					screenshotRequest,
+					screenshotRequest.title || finding.detail || finding.title || item.label,
+					finding.page_url
+				);
+			}
 		}
 	}
 

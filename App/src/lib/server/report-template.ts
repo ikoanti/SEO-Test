@@ -22,9 +22,11 @@ type ReportPageData = {
 	} | null;
 	aiVisibility: Record<string, unknown> | null;
 	normalizedItems: Array<{
+		id?: string;
 		key: string;
 		label: string;
 		status?: string;
+		sortOrder?: number;
 		screenshot?: {
 			id?: string;
 			title?: string;
@@ -32,10 +34,12 @@ type ReportPageData = {
 			image_url?: string;
 		} | null;
 		findings: Array<{
+			id?: string;
 			status?: string;
 			title?: string;
 			detail?: string;
 			page_url?: string;
+			meta?: Record<string, unknown> | null;
 		}>;
 	}>;
 };
@@ -45,9 +49,14 @@ type Finding = AuditItem['findings'][number];
 export type ReportProblemPreview = {
 	key: string;
 	title: string;
+	sourceFindingTypeKey: string;
+	sourceLabel: string;
+	sortOrder: number;
+	status: 'pass' | 'warn' | 'fail' | 'info';
 	priority: 'Urgent' | 'High' | 'Medium';
 	paragraphs: string[];
 	screenshot?: AuditItem['screenshot'];
+	findings: Finding[];
 	count: number;
 };
 
@@ -186,6 +195,23 @@ function shouldIncludeMetricTemplate(
 	return item?.status === 'warn' || item?.status === 'fail';
 }
 
+function isDisplayStatus(value: unknown): value is ReportProblemPreview['status'] {
+	return value === 'pass' || value === 'warn' || value === 'fail' || value === 'info';
+}
+
+function statusFromFindings(
+	findings: Finding[],
+	item: AuditItem | undefined
+): ReportProblemPreview['status'] {
+	if (findings.some((finding) => finding.status === 'fail')) return 'fail';
+	if (findings.some((finding) => finding.status === 'warn')) return 'warn';
+	if (findings.some((finding) => finding.status === 'pass')) return 'pass';
+	if (isDisplayStatus(item?.status)) {
+		return item.status;
+	}
+	return 'info';
+}
+
 export function buildReportProblems(
 	pageData: ReportPageData,
 	templates: AuditReportTemplateRecord[]
@@ -215,9 +241,14 @@ export function buildReportProblems(
 		problems.push({
 			key: template.key,
 			title: template.title,
+			sourceFindingTypeKey: findingTypeKey,
+			sourceLabel: item?.label || template.title,
+			sortOrder: template.sort_order || item?.sortOrder || 999,
+			status: statusFromFindings(findings, item),
 			priority: template.priority || 'Medium',
 			paragraphs: paragraphs(template.template_body || '', context),
 			screenshot: item?.screenshot,
+			findings,
 			count: findings.length || 1
 		});
 	}
@@ -230,7 +261,15 @@ export function generateTemplateReportHtml(
 	templates: AuditReportTemplateRecord[]
 ) {
 	const domain = domainName(pageData);
-	const problems = buildReportProblems(pageData, templates);
+	const previewScreenshots = new Map(
+		(pageData.reportPreviewItems || [])
+			.filter((item) => item.screenshot)
+			.map((item) => [item.key, item.screenshot])
+	);
+	const problems = buildReportProblems(pageData, templates).map((problem) => ({
+		...problem,
+		screenshot: previewScreenshots.get(problem.key) || problem.screenshot
+	}));
 	const factors = 10;
 
 	return `<div style="background:#ffffff; color:#111827; font-family:Arial, sans-serif; max-width:760px; margin:0 auto; padding:0;">

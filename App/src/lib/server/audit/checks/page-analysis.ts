@@ -34,9 +34,13 @@ export async function analyzeMetaAndHeadings(
 
 	const titleMap = new Map();
 	const descriptionMap = new Map();
-	const headingEvidence: Array<{ page: string; issue: string }> = [];
+	const missingH1Evidence: Array<{ page: string; issue: string }> = [];
+	const multipleH1Evidence: Array<{ page: string; issue: string }> = [];
 	const imageAltEvidence: Array<{ page: string; image: string; issue?: string }> = [];
-	const metaEvidence: Array<{ page: string; issue: string; value?: string }> = [];
+	const metaTitleEvidence: Array<{ page: string; issue: string; value?: string }> = [];
+	const longDescriptionEvidence: Array<{ page: string; issue: string; value?: string }> = [];
+	const duplicateTitleEvidence: Array<{ page: string; issue: string; value?: string }> = [];
+	const duplicateDescriptionEvidence: Array<{ page: string; issue: string; value?: string }> = [];
 	const canonicalEvidence: Array<{ page: string; issue: string; value?: string }> = [];
 	const internalLinksEvidence: Array<{ page: string; issue: string; count?: number }> = [];
 	const contentQualityEvidence: Array<{ page: string; issue: string; wordCount?: number }> = [];
@@ -79,8 +83,10 @@ export async function analyzeMetaAndHeadings(
 							: 'Multiple H1 tags found'
 						: null;
 
-			if (headingIssue && headingEvidence.length < maxEvidenceItems) {
-				headingEvidence.push({ page, issue: headingIssue });
+			if (headingIssue === 'Missing H1 tag' && missingH1Evidence.length < maxEvidenceItems) {
+				missingH1Evidence.push({ page, issue: headingIssue });
+			} else if (headingIssue && multipleH1Evidence.length < maxEvidenceItems) {
+				multipleH1Evidence.push({ page, issue: headingIssue });
 			}
 
 			if (h1Count === 1 && emptyH1 === 0) {
@@ -98,13 +104,13 @@ export async function analyzeMetaAndHeadings(
 			}
 
 			if (title.length === 0) {
-				if (metaEvidence.length < maxEvidenceItems) {
-					metaEvidence.push({ page, issue: 'Missing meta title' });
+				if (metaTitleEvidence.length < maxEvidenceItems) {
+					metaTitleEvidence.push({ page, issue: 'Missing meta title' });
 				}
 				addItem(summary, metaTitles, 'warn', 'Missing meta title', { title: page });
 			} else if (title.length > 60) {
-				if (metaEvidence.length < maxEvidenceItems) {
-					metaEvidence.push({
+				if (metaTitleEvidence.length < maxEvidenceItems) {
+					metaTitleEvidence.push({
 						page,
 						issue: 'Meta title too long',
 						value: `${title.length} chars: ${title}`
@@ -118,8 +124,8 @@ export async function analyzeMetaAndHeadings(
 			}
 
 			if (metaDescription.length > 160) {
-				if (metaEvidence.length < maxEvidenceItems) {
-					metaEvidence.push({
+				if (longDescriptionEvidence.length < maxEvidenceItems) {
+					longDescriptionEvidence.push({
 						page,
 						issue: 'Meta description too long',
 						value: `${metaDescription.length} chars: ${metaDescription}`
@@ -232,8 +238,8 @@ export async function analyzeMetaAndHeadings(
 	for (const [title, pagesForTitle] of titleMap.entries()) {
 		if (pagesForTitle.length > 1) {
 			for (const page of pagesForTitle) {
-				if (metaEvidence.length < maxEvidenceItems) {
-					metaEvidence.push({
+				if (duplicateTitleEvidence.length < maxEvidenceItems) {
+					duplicateTitleEvidence.push({
 						page,
 						issue: 'Duplicate meta title detected',
 						value: title
@@ -253,8 +259,8 @@ export async function analyzeMetaAndHeadings(
 	for (const [description, pagesForDescription] of descriptionMap.entries()) {
 		if (pagesForDescription.length > 1) {
 			for (const page of pagesForDescription) {
-				if (metaEvidence.length < maxEvidenceItems) {
-					metaEvidence.push({
+				if (duplicateDescriptionEvidence.length < maxEvidenceItems) {
+					duplicateDescriptionEvidence.push({
 						page,
 						issue: 'Duplicate meta description detected',
 						value: description
@@ -271,14 +277,37 @@ export async function analyzeMetaAndHeadings(
 		}
 	}
 
-	if (headingEvidence.length > 0) {
-		const issueCount = h1Tags.items.filter(
-			(item) => item.status === 'warn' || item.status === 'fail'
-		).length;
-		attachScreenshotRequest(
-			h1Tags.items.find((item) => item.status === 'warn' || item.status === 'fail'),
-			{ kind: 'headings', domain, entries: headingEvidence, count: issueCount }
+	const issueItems = (
+		items: Array<Record<string, unknown>>,
+		matcher: (item: Record<string, unknown>) => boolean
+	) => items.filter((item) => (item.status === 'warn' || item.status === 'fail') && matcher(item));
+
+	if (missingH1Evidence.length > 0) {
+		const matchingItems = issueItems(h1Tags.items, (item) => item.detail === 'Missing H1 tag');
+		attachScreenshotRequest(matchingItems[0], {
+			kind: 'headings',
+			reportTemplateKey: 'missing-h1-tags',
+			title: 'Missing H1 tags',
+			domain,
+			entries: missingH1Evidence,
+			count: matchingItems.length
+		});
+	}
+
+	if (multipleH1Evidence.length > 0) {
+		const matchingItems = issueItems(h1Tags.items, (item) =>
+			String(item.detail || '')
+				.toLowerCase()
+				.includes('multiple h1')
 		);
+		attachScreenshotRequest(matchingItems[0], {
+			kind: 'headings',
+			reportTemplateKey: 'multiple-h1-tags',
+			title: 'Multiple H1 tags',
+			domain,
+			entries: multipleH1Evidence,
+			count: matchingItems.length
+		});
 	}
 
 	if (imageAltEvidence.length > 0) {
@@ -287,18 +316,75 @@ export async function analyzeMetaAndHeadings(
 		).length;
 		attachScreenshotRequest(
 			imageAltTags.items.find((item) => item.status === 'warn' || item.status === 'fail'),
-			{ kind: 'image-alts', domain, entries: imageAltEvidence, count: issueCount }
+			{
+				kind: 'image-alts',
+				reportTemplateKey: 'images-with-missing-alt-text',
+				title: 'Images with Missing Alt text',
+				domain,
+				entries: imageAltEvidence,
+				count: issueCount
+			}
 		);
 	}
 
-	if (metaEvidence.length > 0) {
-		const issueCount = metaTitles.items.filter(
-			(item) => item.status === 'warn' || item.status === 'fail'
-		).length;
-		attachScreenshotRequest(
-			metaTitles.items.find((item) => item.status === 'warn' || item.status === 'fail'),
-			{ kind: 'meta-tags', domain, entries: metaEvidence, count: issueCount }
+	if (metaTitleEvidence.length > 0) {
+		const matchingItems = issueItems(
+			metaTitles.items,
+			(item) => item.detail === 'Meta title too long' || item.detail === 'Missing meta title'
 		);
+		attachScreenshotRequest(matchingItems[0], {
+			kind: 'meta-tags',
+			reportTemplateKey: 'meta-titles-too-long-unoptimized',
+			title: 'Meta Titles Are Too Long & Unoptimized',
+			domain,
+			entries: metaTitleEvidence,
+			count: matchingItems.length
+		});
+	}
+
+	if (duplicateTitleEvidence.length > 0) {
+		const matchingItems = issueItems(
+			metaTitles.items,
+			(item) => item.detail === 'Duplicate meta title detected'
+		);
+		attachScreenshotRequest(matchingItems[0], {
+			kind: 'meta-tags',
+			reportTemplateKey: 'duplicated-page-titles',
+			title: 'Duplicated Page Titles',
+			domain,
+			entries: duplicateTitleEvidence,
+			count: matchingItems.length
+		});
+	}
+
+	if (duplicateDescriptionEvidence.length > 0) {
+		const matchingItems = issueItems(
+			metaTitles.items,
+			(item) => item.detail === 'Duplicate meta description detected'
+		);
+		attachScreenshotRequest(matchingItems[0], {
+			kind: 'meta-tags',
+			reportTemplateKey: 'duplicated-meta-descriptions',
+			title: 'Duplicated Meta Descriptions',
+			domain,
+			entries: duplicateDescriptionEvidence,
+			count: matchingItems.length
+		});
+	}
+
+	if (longDescriptionEvidence.length > 0) {
+		const matchingItems = issueItems(
+			metaTitles.items,
+			(item) => item.detail === 'Meta description too long'
+		);
+		attachScreenshotRequest(matchingItems[0], {
+			kind: 'meta-tags',
+			reportTemplateKey: 'overly-long-meta-descriptions',
+			title: 'Overly Long Meta Descriptions',
+			domain,
+			entries: longDescriptionEvidence,
+			count: matchingItems.length
+		});
 	}
 
 	if (canonicalEvidence.length > 0) {
@@ -337,7 +423,14 @@ export async function analyzeMetaAndHeadings(
 		).length;
 		attachScreenshotRequest(
 			shopifyUrls.items.find((item) => item.status === 'warn' || item.status === 'fail'),
-			{ kind: 'shopify-urls', domain, entries: shopifyUrlEvidence, count: issueCount }
+			{
+				kind: 'shopify-urls',
+				reportTemplateKey: 'unoptimized-shopify-url-structure',
+				title: 'Unoptimized Shopify URL structure',
+				domain,
+				entries: shopifyUrlEvidence,
+				count: issueCount
+			}
 		);
 	}
 

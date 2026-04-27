@@ -55,6 +55,23 @@ function getRecord(value: unknown): Record<string, unknown> {
 		: {};
 }
 
+function screenshotView(auditId: string, screenshot: unknown) {
+	const screenshotRecord = screenshot as (Record<string, unknown> & { image_url?: string }) | null;
+	if (!screenshotRecord) return null;
+
+	return {
+		id: typeof screenshotRecord.id === 'string' ? screenshotRecord.id : undefined,
+		title: typeof screenshotRecord.title === 'string' ? screenshotRecord.title : undefined,
+		page_url: typeof screenshotRecord.page_url === 'string' ? screenshotRecord.page_url : undefined,
+		image_url:
+			typeof screenshotRecord.id === 'string'
+				? `/api/audits/${encodeURIComponent(auditId)}/screenshots/${encodeURIComponent(
+						screenshotRecord.id
+					)}/image`
+				: screenshotRecord.image_url || ''
+	};
+}
+
 function buildDisplayedSummary(
 	summary: unknown,
 	auditFindings: Array<Record<string, unknown> & { status?: AuditFindingStatus }>
@@ -111,15 +128,20 @@ export async function buildAuditPageData(
 	}
 	const screenshotsByRunId = new Map<string, (typeof auditScreenshots)[number]>();
 	const screenshotsByFindingTypeId = new Map<string, (typeof auditScreenshots)[number]>();
+	const screenshotsByReportTemplateKey = new Map<string, (typeof auditScreenshots)[number]>();
 	for (const screenshot of auditScreenshots) {
 		const screenshotRecord = screenshot as Record<string, unknown> & { image_url?: string };
 		const runId = String(screenshotRecord.run || '');
 		const findingTypeId = String(screenshotRecord.audit_finding_type || '');
+		const reportTemplateKey = String(screenshotRecord.report_template_key || '');
 		if (runId && !screenshotsByRunId.has(runId)) {
 			screenshotsByRunId.set(runId, screenshot);
 		}
 		if (findingTypeId && !screenshotsByFindingTypeId.has(findingTypeId)) {
 			screenshotsByFindingTypeId.set(findingTypeId, screenshot);
+		}
+		if (reportTemplateKey && !screenshotsByReportTemplateKey.has(reportTemplateKey)) {
+			screenshotsByReportTemplateKey.set(reportTemplateKey, screenshot);
 		}
 	}
 
@@ -157,9 +179,6 @@ export async function buildAuditPageData(
 			(findingType?.key
 				? screenshotsByFindingTypeId.get(String(run.audit_finding_type || ''))
 				: null);
-		const screenshotRecord = screenshot as
-			| (Record<string, unknown> & { image_url?: string })
-			| null;
 		return {
 			id: run.id,
 			key: findingType?.key || run.id,
@@ -170,20 +189,7 @@ export async function buildAuditPageData(
 			itemRun: run,
 			sortOrder: findingType?.sort_order || run.sort_order || 999,
 			stats: displaySummary ? { stats: displaySummary, count: findings.length } : null,
-			screenshot: screenshotRecord
-				? {
-						id: typeof screenshotRecord.id === 'string' ? screenshotRecord.id : undefined,
-						title: typeof screenshotRecord.title === 'string' ? screenshotRecord.title : undefined,
-						page_url:
-							typeof screenshotRecord.page_url === 'string' ? screenshotRecord.page_url : undefined,
-						image_url:
-							typeof screenshotRecord.id === 'string'
-								? `/api/audits/${encodeURIComponent(auditRecord.id)}/screenshots/${encodeURIComponent(
-										screenshotRecord.id
-									)}/image`
-								: screenshotRecord.image_url || ''
-					}
-				: null,
+			screenshot: screenshotView(auditRecord.id, screenshot),
 			findings
 		};
 	});
@@ -209,7 +215,12 @@ export async function buildAuditPageData(
 			normalizedItems
 		},
 		reportTemplates
-	);
+	).map((problem) => ({
+		...problem,
+		screenshot:
+			screenshotView(auditRecord.id, screenshotsByReportTemplateKey.get(problem.key)) ||
+			problem.screenshot
+	}));
 
 	return {
 		auditId: auditRecord.id,

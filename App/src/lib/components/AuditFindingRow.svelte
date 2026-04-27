@@ -126,7 +126,7 @@
 	{/if}
 	{#if urlList?.length}
 		<ul class="check-link-list">
-			{#each urlList as url (`${title}-${url}`)}
+			{#each urlList as url, index (`${title}-${index}-${url}`)}
 				<li>
 					<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
 					<a class="check-link" href={url} target="_blank" rel="noopener">

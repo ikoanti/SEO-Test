@@ -1,79 +1,87 @@
 import { captureAuditSidebarScreenshot } from './renderer';
 
-export type AuditCaptureRequest =
-	| {
-			kind: 'headings';
-			domain: string;
-			entries: Array<{ page: string; issue: string }>;
-			count: number;
-	  }
-	| {
-			kind: 'image-alts';
-			domain: string;
-			entries: Array<{ page: string; image: string; issue?: string }>;
-			count: number;
-	  }
-	| {
-			kind: 'meta-tags';
-			domain: string;
-			entries: Array<{ page: string; issue: string; value?: string }>;
-			count: number;
-	  }
-	| {
-			kind: 'canonicals';
-			domain: string;
-			entries: Array<{ page: string; issue: string; value?: string }>;
-			count: number;
-	  }
-	| {
-			kind: 'internal-links';
-			domain: string;
-			entries: Array<{ page: string; issue: string; count?: number }>;
-			count: number;
-	  }
-	| {
-			kind: 'lazy-loading';
-			domain: string;
-			entries: Array<{ page: string; issue: string; image?: string }>;
-			count: number;
-	  }
-	| {
-			kind: 'open-graph';
-			domain: string;
-			entries: Array<{ page: string; issue: string; property?: string }>;
-			count: number;
-	  }
-	| {
-			kind: 'content-quality';
-			domain: string;
-			entries: Array<{ page: string; issue: string; wordCount?: number }>;
-			count: number;
-	  }
-	| {
-			kind: 'shopify-urls';
-			domain: string;
-			entries: Array<{ page: string; issue: string; pattern?: string }>;
-			count: number;
-	  }
-	| {
-			kind: 'pagespeed';
-			domain: string;
-			pageUrl: string;
-			pageSpeed: Record<string, unknown>;
-	  }
-	| {
-			kind: 'open-page-rank';
-			domain: string;
-			pageUrl: string;
-			openPageRank: Record<string, unknown>;
-	  }
-	| {
-			kind: 'robots';
-			domain: string;
-			robotsUrl: string;
-			storefrontUrl: string;
-			foundAgents: string[];
-	  };
+type AuditCaptureRequestBase = {
+	reportTemplateKey?: string;
+	title?: string;
+	description?: string;
+};
+
+export type AuditCaptureRequest = AuditCaptureRequestBase &
+	(
+		| {
+				kind: 'headings';
+				domain: string;
+				entries: Array<{ page: string; issue: string }>;
+				count: number;
+		  }
+		| {
+				kind: 'image-alts';
+				domain: string;
+				entries: Array<{ page: string; image: string; issue?: string }>;
+				count: number;
+		  }
+		| {
+				kind: 'meta-tags';
+				domain: string;
+				entries: Array<{ page: string; issue: string; value?: string }>;
+				count: number;
+		  }
+		| {
+				kind: 'canonicals';
+				domain: string;
+				entries: Array<{ page: string; issue: string; value?: string }>;
+				count: number;
+		  }
+		| {
+				kind: 'internal-links';
+				domain: string;
+				entries: Array<{ page: string; issue: string; count?: number }>;
+				count: number;
+		  }
+		| {
+				kind: 'lazy-loading';
+				domain: string;
+				entries: Array<{ page: string; issue: string; image?: string }>;
+				count: number;
+		  }
+		| {
+				kind: 'open-graph';
+				domain: string;
+				entries: Array<{ page: string; issue: string; property?: string }>;
+				count: number;
+		  }
+		| {
+				kind: 'content-quality';
+				domain: string;
+				entries: Array<{ page: string; issue: string; wordCount?: number }>;
+				count: number;
+		  }
+		| {
+				kind: 'shopify-urls';
+				domain: string;
+				entries: Array<{ page: string; issue: string; pattern?: string }>;
+				count: number;
+		  }
+		| {
+				kind: 'pagespeed';
+				domain: string;
+				pageUrl: string;
+				pageSpeed: Record<string, unknown>;
+		  }
+		| {
+				kind: 'open-page-rank';
+				domain: string;
+				pageUrl: string;
+				openPageRank: Record<string, unknown>;
+		  }
+		| {
+				kind: 'robots';
+				domain: string;
+				robotsUrl: string;
+				storefrontUrl: string;
+				foundAgents: string[];
+		  }
+	);
 
 type SidebarTab = {
 	id: string;
@@ -125,15 +133,16 @@ function screenshotPageUrl(entries: Array<{ page: string }>) {
 export async function capturePageSpeedEvidence(
 	domain: string,
 	pageUrl: string,
-	pageSpeed: Record<string, unknown>
+	pageSpeed: Record<string, unknown>,
+	title = 'PageSpeed Insights',
+	description = 'Google PageSpeed Insights scores and Core Web Vitals-style lab metrics for the audited page.'
 ) {
 	return captureAuditSidebarScreenshot({
 		pageUrl,
 		sidebarData: buildSidebarData('pagespeed', {
 			kind: 'pagespeed',
-			title: 'PageSpeed Insights',
-			description:
-				'Google PageSpeed Insights scores and Core Web Vitals-style lab metrics for the audited page.',
+			title,
+			description,
 			domain,
 			pageSpeed
 		})
@@ -143,14 +152,16 @@ export async function capturePageSpeedEvidence(
 export async function captureOpenPageRankEvidence(
 	domain: string,
 	pageUrl: string,
-	openPageRank: Record<string, unknown>
+	openPageRank: Record<string, unknown>,
+	title = 'Open PageRank',
+	description = 'Domain authority and global ranking data from Open PageRank.'
 ) {
 	return captureAuditSidebarScreenshot({
 		pageUrl,
 		sidebarData: buildSidebarData('open-page-rank', {
 			kind: 'open-page-rank',
-			title: 'Open PageRank',
-			description: 'Domain authority and global ranking data from Open PageRank.',
+			title,
+			description,
 			domain,
 			openPageRank
 		})
@@ -160,16 +171,17 @@ export async function captureOpenPageRankEvidence(
 export async function captureHeadingEvidence(
 	domain: string,
 	entries: Array<{ page: string; issue: string }>,
-	count = entries.length
+	count = entries.length,
+	title = 'Unoptimized Heading Tags',
+	description = 'Important pages are missing strong heading structure, which weakens topical clarity and makes page hierarchy less obvious to search engines.'
 ) {
 	if (!entries.length) return null;
 	return captureAuditSidebarScreenshot({
 		pageUrl: screenshotPageUrl(entries),
 		sidebarData: buildSidebarData('headings', {
 			kind: 'headings',
-			title: 'Unoptimized Heading Tags',
-			description:
-				'Important pages are missing strong heading structure, which weakens topical clarity and makes page hierarchy less obvious to search engines.',
+			title,
+			description,
 			domain,
 			count,
 			entries
@@ -180,16 +192,17 @@ export async function captureHeadingEvidence(
 export async function captureImageAltEvidence(
 	domain: string,
 	entries: Array<{ page: string; image: string; issue?: string }>,
-	count = entries.length
+	count = entries.length,
+	title = 'Unoptimized Alt Tags',
+	description = 'Important product and collection images are missing descriptive alt text, reducing image search discoverability and weakening crawler context.'
 ) {
 	if (!entries.length) return null;
 	return captureAuditSidebarScreenshot({
 		pageUrl: screenshotPageUrl(entries),
 		sidebarData: buildSidebarData('image-alts', {
 			kind: 'image-alts',
-			title: 'Unoptimized Alt Tags',
-			description:
-				'Important product and collection images are missing descriptive alt text, reducing image search discoverability and weakening crawler context.',
+			title,
+			description,
 			domain,
 			count,
 			entries
@@ -200,7 +213,9 @@ export async function captureImageAltEvidence(
 export async function captureMetaEvidence(
 	domain: string,
 	entries: Array<{ page: string; issue: string; value?: string }>,
-	count = entries.length
+	count = entries.length,
+	title = 'Unoptimized Meta Tags',
+	description = 'Important pages have missing, duplicated, or oversized metadata, which can weaken search result relevance and click-through clarity.'
 ) {
 	if (!entries.length) return null;
 	const pageUrl = screenshotPageUrl(entries);
@@ -208,9 +223,8 @@ export async function captureMetaEvidence(
 		pageUrl,
 		sidebarData: buildSidebarData('meta-tags', {
 			kind: 'meta-tags',
-			title: 'Unoptimized Meta Tags',
-			description:
-				'Important pages have missing, duplicated, or oversized metadata, which can weaken search result relevance and click-through clarity.',
+			title,
+			description,
 			domain,
 			count,
 			activePageUrl: pageUrl,
@@ -222,16 +236,17 @@ export async function captureMetaEvidence(
 export async function captureCanonicalEvidence(
 	domain: string,
 	entries: Array<{ page: string; issue: string; value?: string }>,
-	count = entries.length
+	count = entries.length,
+	title = 'Unoptimized Canonicals',
+	description = 'Canonical tags help consolidate ranking signals and clarify the preferred URL for indexed pages.'
 ) {
 	if (!entries.length) return null;
 	return captureAuditSidebarScreenshot({
 		pageUrl: screenshotPageUrl(entries),
 		sidebarData: buildSidebarData('canonicals', {
 			kind: 'canonicals',
-			title: 'Unoptimized Canonicals',
-			description:
-				'Canonical tags help consolidate ranking signals and clarify the preferred URL for indexed pages.',
+			title,
+			description,
 			domain,
 			count,
 			entries
@@ -242,16 +257,17 @@ export async function captureCanonicalEvidence(
 export async function captureInternalLinksEvidence(
 	domain: string,
 	entries: Array<{ page: string; issue: string; count?: number }>,
-	count = entries.length
+	count = entries.length,
+	title = 'Unoptimized Internal Links',
+	description = 'Pages with no crawlable internal links create dead ends for users and search crawlers.'
 ) {
 	if (!entries.length) return null;
 	return captureAuditSidebarScreenshot({
 		pageUrl: screenshotPageUrl(entries),
 		sidebarData: buildSidebarData('internal-links', {
 			kind: 'internal-links',
-			title: 'Unoptimized Internal Links',
-			description:
-				'Pages with no crawlable internal links create dead ends for users and search crawlers.',
+			title,
+			description,
 			domain,
 			count,
 			entries
@@ -262,16 +278,17 @@ export async function captureInternalLinksEvidence(
 export async function captureLazyLoadingEvidence(
 	domain: string,
 	entries: Array<{ page: string; issue: string; image?: string }>,
-	count = entries.length
+	count = entries.length,
+	title = 'Unoptimized Lazy Loading',
+	description = 'Images without native lazy loading can increase initial page weight and delay rendering on image-heavy pages.'
 ) {
 	if (!entries.length) return null;
 	return captureAuditSidebarScreenshot({
 		pageUrl: screenshotPageUrl(entries),
 		sidebarData: buildSidebarData('lazy-loading', {
 			kind: 'lazy-loading',
-			title: 'Unoptimized Lazy Loading',
-			description:
-				'Images without native lazy loading can increase initial page weight and delay rendering on image-heavy pages.',
+			title,
+			description,
 			domain,
 			count,
 			entries
@@ -282,16 +299,17 @@ export async function captureLazyLoadingEvidence(
 export async function captureOpenGraphEvidence(
 	domain: string,
 	entries: Array<{ page: string; issue: string; property?: string }>,
-	count = entries.length
+	count = entries.length,
+	title = 'Unoptimized OpenGraph Tags',
+	description = 'OpenGraph tags control how pages appear when shared and help AI and social surfaces understand page context.'
 ) {
 	if (!entries.length) return null;
 	return captureAuditSidebarScreenshot({
 		pageUrl: screenshotPageUrl(entries),
 		sidebarData: buildSidebarData('open-graph', {
 			kind: 'open-graph',
-			title: 'Unoptimized OpenGraph Tags',
-			description:
-				'OpenGraph tags control how pages appear when shared and help AI and social surfaces understand page context.',
+			title,
+			description,
 			domain,
 			count,
 			entries
@@ -302,16 +320,17 @@ export async function captureOpenGraphEvidence(
 export async function captureContentQualityEvidence(
 	domain: string,
 	entries: Array<{ page: string; issue: string; wordCount?: number }>,
-	count = entries.length
+	count = entries.length,
+	title = 'Thin Content',
+	description = 'Pages with limited body copy can struggle to communicate topical depth and satisfy search intent.'
 ) {
 	if (!entries.length) return null;
 	return captureAuditSidebarScreenshot({
 		pageUrl: screenshotPageUrl(entries),
 		sidebarData: buildSidebarData('content-quality', {
 			kind: 'content-quality',
-			title: 'Thin Content',
-			description:
-				'Pages with limited body copy can struggle to communicate topical depth and satisfy search intent.',
+			title,
+			description,
 			domain,
 			count,
 			entries
@@ -322,16 +341,17 @@ export async function captureContentQualityEvidence(
 export async function captureShopifyUrlEvidence(
 	domain: string,
 	entries: Array<{ page: string; issue: string; pattern?: string }>,
-	count = entries.length
+	count = entries.length,
+	title = 'Unoptimized Shopify URL Structure',
+	description = 'Duplicate Shopify collection/product URL paths can split ranking signals and create avoidable crawl duplication.'
 ) {
 	if (!entries.length) return null;
 	return captureAuditSidebarScreenshot({
 		pageUrl: screenshotPageUrl(entries),
 		sidebarData: buildSidebarData('shopify-urls', {
 			kind: 'shopify-urls',
-			title: 'Unoptimized Shopify URL Structure',
-			description:
-				'Duplicate Shopify collection/product URL paths can split ranking signals and create avoidable crawl duplication.',
+			title,
+			description,
 			domain,
 			count,
 			entries
@@ -343,21 +363,24 @@ export async function captureRobotsEvidence({
 	domain,
 	robotsUrl,
 	storefrontUrl,
-	foundAgents
+	foundAgents,
+	title = 'Unoptimized Robots.txt',
+	description = 'Robots.txt is missing explicit coverage for important AI and search crawler user-agents, which can limit discovery in ChatGPT, Perplexity, Claude, and modern search tools.'
 }: {
 	domain: string;
 	robotsUrl: string;
 	storefrontUrl: string;
 	foundAgents: string[];
+	title?: string;
+	description?: string;
 }) {
 	return captureAuditSidebarScreenshot({
 		pageUrl: robotsUrl,
 		fallbackPageUrls: [storefrontUrl],
 		sidebarData: buildSidebarData('ai-bot-visibility', {
 			kind: 'ai-bot-visibility',
-			title: 'Unoptimized Robots.txt',
-			description:
-				'Robots.txt is missing explicit coverage for important AI and search crawler user-agents, which can limit discovery in ChatGPT, Perplexity, Claude, and modern search tools.',
+			title,
+			description,
 			domain,
 			foundAgents
 		})
@@ -367,27 +390,93 @@ export async function captureRobotsEvidence({
 export async function runAuditCaptureRequest(request: AuditCaptureRequest) {
 	switch (request.kind) {
 		case 'headings':
-			return captureHeadingEvidence(request.domain, request.entries, request.count);
+			return captureHeadingEvidence(
+				request.domain,
+				request.entries,
+				request.count,
+				request.title,
+				request.description
+			);
 		case 'image-alts':
-			return captureImageAltEvidence(request.domain, request.entries, request.count);
+			return captureImageAltEvidence(
+				request.domain,
+				request.entries,
+				request.count,
+				request.title,
+				request.description
+			);
 		case 'meta-tags':
-			return captureMetaEvidence(request.domain, request.entries, request.count);
+			return captureMetaEvidence(
+				request.domain,
+				request.entries,
+				request.count,
+				request.title,
+				request.description
+			);
 		case 'canonicals':
-			return captureCanonicalEvidence(request.domain, request.entries, request.count);
+			return captureCanonicalEvidence(
+				request.domain,
+				request.entries,
+				request.count,
+				request.title,
+				request.description
+			);
 		case 'internal-links':
-			return captureInternalLinksEvidence(request.domain, request.entries, request.count);
+			return captureInternalLinksEvidence(
+				request.domain,
+				request.entries,
+				request.count,
+				request.title,
+				request.description
+			);
 		case 'lazy-loading':
-			return captureLazyLoadingEvidence(request.domain, request.entries, request.count);
+			return captureLazyLoadingEvidence(
+				request.domain,
+				request.entries,
+				request.count,
+				request.title,
+				request.description
+			);
 		case 'open-graph':
-			return captureOpenGraphEvidence(request.domain, request.entries, request.count);
+			return captureOpenGraphEvidence(
+				request.domain,
+				request.entries,
+				request.count,
+				request.title,
+				request.description
+			);
 		case 'content-quality':
-			return captureContentQualityEvidence(request.domain, request.entries, request.count);
+			return captureContentQualityEvidence(
+				request.domain,
+				request.entries,
+				request.count,
+				request.title,
+				request.description
+			);
 		case 'shopify-urls':
-			return captureShopifyUrlEvidence(request.domain, request.entries, request.count);
+			return captureShopifyUrlEvidence(
+				request.domain,
+				request.entries,
+				request.count,
+				request.title,
+				request.description
+			);
 		case 'pagespeed':
-			return capturePageSpeedEvidence(request.domain, request.pageUrl, request.pageSpeed);
+			return capturePageSpeedEvidence(
+				request.domain,
+				request.pageUrl,
+				request.pageSpeed,
+				request.title,
+				request.description
+			);
 		case 'open-page-rank':
-			return captureOpenPageRankEvidence(request.domain, request.pageUrl, request.openPageRank);
+			return captureOpenPageRankEvidence(
+				request.domain,
+				request.pageUrl,
+				request.openPageRank,
+				request.title,
+				request.description
+			);
 		case 'robots':
 			return captureRobotsEvidence(request);
 	}
