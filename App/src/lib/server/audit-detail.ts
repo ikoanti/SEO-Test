@@ -6,6 +6,7 @@ import {
 	listAuditFindings,
 	listRunsByWorkflow
 } from '$lib/server/pocketbase';
+import { appendReportScreenshotsIfMissing } from '$lib/server/report-screenshots';
 
 type BuildAuditPageDataOptions = {
 	includeReportHtml?: boolean;
@@ -77,6 +78,74 @@ export async function buildAuditPageData(
 		}
 	}
 
+	const normalizedItems = runs.map((run) => {
+		const findingType = (
+			run.expand as
+				| {
+						audit_finding_type?: {
+							key?: string;
+							label?: string;
+							sort_order?: number;
+						};
+				  }
+				| undefined
+		)?.audit_finding_type;
+		const findings = (findingsByRunId.get(run.id) || []).map((finding) => ({
+			...finding,
+			meta: parseStoredJson(finding.meta_json)
+		})) as Array<Record<string, unknown> & { status?: AuditFindingStatus }>;
+		const displaySummary =
+			typeof findings[0]?.detail === 'string' && findings[0].detail.trim()
+				? findings[0].detail
+				: typeof findings[0]?.title === 'string' && findings[0].title.trim()
+					? findings[0].title
+					: '';
+		const status = findings.some((finding) => finding.status === 'fail')
+			? 'fail'
+			: findings.some((finding) => finding.status === 'warn')
+				? 'warn'
+				: findings.some((finding) => finding.status === 'pass')
+					? 'pass'
+					: 'info';
+		const screenshot =
+			screenshotsByRunId.get(run.id) ||
+			(findingType?.key
+				? screenshotsByFindingTypeId.get(String(run.audit_finding_type || ''))
+				: null);
+		const screenshotRecord = screenshot as
+			| (Record<string, unknown> & { image_url?: string })
+			| null;
+		return {
+			id: run.id,
+			key: findingType?.key || run.id,
+			label: findingType?.label || 'Audit check',
+			status,
+			runStatus: run.status,
+			summary: displaySummary,
+			itemRun: run,
+			sortOrder: findingType?.sort_order || run.sort_order || 999,
+			stats: displaySummary ? { stats: displaySummary, count: findings.length } : null,
+			screenshot: screenshotRecord
+				? {
+						id: typeof screenshotRecord.id === 'string' ? screenshotRecord.id : undefined,
+						title: typeof screenshotRecord.title === 'string' ? screenshotRecord.title : undefined,
+						page_url:
+							typeof screenshotRecord.page_url === 'string' ? screenshotRecord.page_url : undefined,
+						image_url: screenshotRecord.image_url || ''
+					}
+				: null,
+			findings
+		};
+	});
+	const storedReportHtml = String(auditRecord?.report_html || '');
+	const reportHtml =
+		includeReportHtml && storedReportHtml
+			? appendReportScreenshotsIfMissing(storedReportHtml, {
+					auditId: auditRecord.id,
+					normalizedItems
+				})
+			: '';
+
 	return {
 		auditId: auditRecord.id,
 		workflowRecord,
@@ -96,70 +165,9 @@ export async function buildAuditPageData(
 		},
 		audit,
 		summary,
-		reportHtml: includeReportHtml ? auditRecord?.report_html || '' : '',
+		reportHtml,
 		aiVisibility,
-		normalizedItems: runs.map((run) => {
-			const findingType = (
-				run.expand as
-					| {
-							audit_finding_type?: {
-								key?: string;
-								label?: string;
-								sort_order?: number;
-							};
-					  }
-					| undefined
-			)?.audit_finding_type;
-			const findings = (findingsByRunId.get(run.id) || []).map((finding) => ({
-				...finding,
-				meta: parseStoredJson(finding.meta_json)
-			})) as Array<Record<string, unknown> & { status?: AuditFindingStatus }>;
-			const displaySummary =
-				typeof findings[0]?.detail === 'string' && findings[0].detail.trim()
-					? findings[0].detail
-					: typeof findings[0]?.title === 'string' && findings[0].title.trim()
-						? findings[0].title
-						: '';
-			const status = findings.some((finding) => finding.status === 'fail')
-				? 'fail'
-				: findings.some((finding) => finding.status === 'warn')
-					? 'warn'
-					: findings.some((finding) => finding.status === 'pass')
-						? 'pass'
-						: 'info';
-			const screenshot =
-				screenshotsByRunId.get(run.id) ||
-				(findingType?.key
-					? screenshotsByFindingTypeId.get(String(run.audit_finding_type || ''))
-					: null);
-			const screenshotRecord = screenshot as
-				| (Record<string, unknown> & { image_url?: string })
-				| null;
-			return {
-				id: run.id,
-				key: findingType?.key || run.id,
-				label: findingType?.label || 'Audit check',
-				status,
-				runStatus: run.status,
-				summary: displaySummary,
-				itemRun: run,
-				sortOrder: findingType?.sort_order || run.sort_order || 999,
-				stats: displaySummary ? { stats: displaySummary, count: findings.length } : null,
-				screenshot: screenshotRecord
-					? {
-							id: typeof screenshotRecord.id === 'string' ? screenshotRecord.id : undefined,
-							title:
-								typeof screenshotRecord.title === 'string' ? screenshotRecord.title : undefined,
-							page_url:
-								typeof screenshotRecord.page_url === 'string'
-									? screenshotRecord.page_url
-									: undefined,
-							image_url: screenshotRecord.image_url || ''
-						}
-					: null,
-				findings
-			};
-		}),
+		normalizedItems,
 		isPendingRun: ['queued', 'running'].includes(String(workflowRecord.status || '')),
 		isPendingReport: ['queued', 'running'].includes(String(auditRecord.report_status || ''))
 	};
