@@ -41,6 +41,41 @@ function parseStoredJson(value: unknown) {
 	}
 }
 
+function getRecord(value: unknown): Record<string, unknown> {
+	return value && typeof value === 'object' && !Array.isArray(value)
+		? (value as Record<string, unknown>)
+		: {};
+}
+
+function buildDisplayedSummary(
+	summary: unknown,
+	auditFindings: Array<Record<string, unknown> & { status?: AuditFindingStatus }>
+) {
+	const base = getRecord(summary);
+	const rawSummary = getRecord(base.summary);
+	const counts = auditFindings.reduce<{ passed: number; warnings: number; failed: number }>(
+		(accumulator, finding) => {
+			if (finding.status === 'pass') accumulator.passed += 1;
+			else if (finding.status === 'warn') accumulator.warnings += 1;
+			else if (finding.status === 'fail') accumulator.failed += 1;
+			return accumulator;
+		},
+		{ passed: 0, warnings: 0, failed: 0 }
+	);
+	const hasPersistedCounts = counts.passed + counts.warnings + counts.failed > 0;
+
+	return {
+		...base,
+		summary: hasPersistedCounts
+			? counts
+			: {
+					passed: Number(rawSummary.passed || 0),
+					warnings: Number(rawSummary.warnings || 0),
+					failed: Number(rawSummary.failed || 0)
+				}
+	};
+}
+
 export async function buildAuditPageData(
 	auditId: string,
 	token?: string,
@@ -170,7 +205,10 @@ export async function buildAuditPageData(
 			completed_at: auditRecord.report_completed_at
 		},
 		audit,
-		summary,
+		summary: buildDisplayedSummary(
+			summary,
+			auditFindings as Array<Record<string, unknown> & { status?: AuditFindingStatus }>
+		),
 		reportHtml,
 		aiVisibility,
 		normalizedItems,
