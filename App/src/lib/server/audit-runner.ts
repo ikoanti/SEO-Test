@@ -5,11 +5,11 @@ import {
 	getNormalizedSectionDefinitions,
 	type AuditResult
 } from '$lib/server/audit-normalize';
+import { runAuditCaptureRequest, type AuditCaptureRequest } from '$lib/server/audit-capture';
 import {
 	createAuditFindingRecord,
 	createAuditScreenshotRecord,
 	deleteAuditFindingsByRunId,
-	deleteAuditScreenshotsByRunId,
 	getOrCreateAuditFindingTypeRecord,
 	getOrCreateRunRecord,
 	getWorkflow,
@@ -30,11 +30,16 @@ type AuditRunnerState = {
 };
 
 type AuditSummaryResult = AuditResult;
-type MetricScreenshotCache = Map<string, unknown>;
 
 type ScreenshotPayload = {
 	contentType?: string;
 	imageBase64?: string;
+};
+
+type ScreenshotQueueState = {
+	chain: Promise<void>;
+	queuedKeys: Set<string>;
+	activeKeys: Set<string>;
 };
 
 type WorkflowRecordLike = {
@@ -57,6 +62,14 @@ const state = ((
 	globalThis as typeof globalThis & { __auditRunnerState?: AuditRunnerState }
 ).__auditRunnerState ??= {
 	activeWorkflows: new Set<string>()
+});
+
+const screenshotQueueState = ((
+	globalThis as typeof globalThis & { __auditScreenshotQueueState?: ScreenshotQueueState }
+).__auditScreenshotQueueState ??= {
+	chain: Promise.resolve(),
+	queuedKeys: new Set<string>(),
+	activeKeys: new Set<string>()
 });
 
 function timestamp() {
@@ -85,7 +98,7 @@ function stripScreenshots(value: unknown): unknown {
 	const source = value as Record<string, unknown>;
 	const target: Record<string, unknown> = {};
 	for (const [key, nestedValue] of Object.entries(source)) {
-		if (key === 'screenshot') continue;
+		if (key === 'screenshot' || key === 'screenshotRequest') continue;
 		target[key] = stripScreenshots(nestedValue);
 	}
 	return target;
@@ -124,17 +137,24 @@ function extractScreenshotFromMeta(metaJson: string) {
 	if (!metaJson) {
 		return {
 			meta_json: metaJson,
-			screenshot: null as ScreenshotPayload | null
+			screenshot: null as ScreenshotPayload | null,
+			screenshotRequest: null as AuditCaptureRequest | null
 		};
 	}
 
 	try {
 		const meta = JSON.parse(metaJson) as Record<string, unknown>;
 		const directScreenshot = getRecord(meta.screenshot);
+		const directScreenshotRequest = getRecord(meta.screenshotRequest);
 		const screenshot = directScreenshot as ScreenshotPayload | null;
+		const screenshotRequest = directScreenshotRequest as AuditCaptureRequest | null;
 
 		if (directScreenshot) {
 			delete meta.screenshot;
+		}
+
+		if (directScreenshotRequest) {
+			delete meta.screenshotRequest;
 		}
 
 		return {
@@ -145,12 +165,14 @@ function extractScreenshotFromMeta(metaJson: string) {
 							contentType: screenshot.contentType,
 							imageBase64: screenshot.imageBase64
 						}
-					: null
+					: null,
+			screenshotRequest: screenshotRequest?.kind ? screenshotRequest : null
 		};
 	} catch {
 		return {
 			meta_json: metaJson,
-			screenshot: null as ScreenshotPayload | null
+			screenshot: null as ScreenshotPayload | null,
+			screenshotRequest: null as AuditCaptureRequest | null
 		};
 	}
 }
@@ -186,6 +208,51 @@ async function persistScreenshotIfPresent(
 			`[audit-runner] screenshot persistence skipped for ${input.title} (${input.screenshot.imageBase64.length} base64 chars): ${formatPocketBaseError(error)}`
 		);
 	}
+}
+
+function enqueueScreenshotRequest(
+	input: {
+		auditId: string;
+		findingTypeId: string;
+		runId: string;
+		title: string;
+		page_url?: string;
+		request: AuditCaptureRequest;
+	},
+	token?: string
+) {
+	const key = `${input.auditId}:${input.findingTypeId}:${input.runId}`;
+	if (screenshotQueueState.queuedKeys.has(key) || screenshotQueueState.activeKeys.has(key)) {
+		return;
+	}
+
+	screenshotQueueState.queuedKeys.add(key);
+	screenshotQueueState.chain = screenshotQueueState.chain
+		.catch(() => undefined)
+		.then(async () => {
+			screenshotQueueState.queuedKeys.delete(key);
+			screenshotQueueState.activeKeys.add(key);
+			try {
+				const screenshot = await runAuditCaptureRequest(input.request);
+				await persistScreenshotIfPresent(
+					{
+						auditId: input.auditId,
+						findingTypeId: input.findingTypeId,
+						runId: input.runId,
+						title: input.title,
+						page_url: input.page_url,
+						screenshot
+					},
+					token
+				);
+			} catch (error) {
+				console.warn(
+					`[audit-runner] screenshot job failed for ${input.title}: ${formatPocketBaseError(error)}`
+				);
+			} finally {
+				screenshotQueueState.activeKeys.delete(key);
+			}
+		});
 }
 
 const STEP_KEYS: Record<string, string[]> = {
@@ -277,17 +344,11 @@ async function syncProgressSnapshot(
 	url: string,
 	partialAudit: AuditSummaryResult,
 	runRegistry: RunRegistry,
-	metricScreenshotCache: MetricScreenshotCache,
 	keysToSync?: Iterable<string>,
 	token?: string
 ) {
 	const keySet = keysToSync ? new Set(keysToSync) : null;
-	await attachMetricScreenshots(
-		partialAudit,
-		url,
-		keySet || ['pageSpeed', 'openPageRank'],
-		metricScreenshotCache
-	);
+	attachMetricScreenshots(partialAudit, url, keySet || ['pageSpeed', 'openPageRank']);
 	const normalizedItems = buildNormalizedAuditItems(partialAudit).filter(
 		(item) => !keySet || keySet.has(item.key)
 	);
@@ -296,10 +357,11 @@ async function syncProgressSnapshot(
 		if (!run) continue;
 
 		await deleteAuditFindingsByRunId(run.runId, token);
-		await deleteAuditScreenshotsByRunId(run.runId, token);
 
 		if (item.findings.length === 0) {
-			const { meta_json, screenshot } = extractScreenshotFromMeta(item.stats_json);
+			const { meta_json, screenshot, screenshotRequest } = extractScreenshotFromMeta(
+				item.stats_json
+			);
 			await persistScreenshotIfPresent(
 				{
 					auditId,
@@ -310,6 +372,18 @@ async function syncProgressSnapshot(
 				},
 				token
 			);
+			if (screenshotRequest) {
+				enqueueScreenshotRequest(
+					{
+						auditId,
+						findingTypeId: run.findingTypeId,
+						runId: run.runId,
+						title: item.label,
+						request: screenshotRequest
+					},
+					token
+				);
+			}
 			await createAuditFindingRecord(
 				{
 					audit: auditId,
@@ -324,7 +398,9 @@ async function syncProgressSnapshot(
 			);
 		} else {
 			for (const finding of item.findings) {
-				const { meta_json, screenshot } = extractScreenshotFromMeta(finding.meta_json);
+				const { meta_json, screenshot, screenshotRequest } = extractScreenshotFromMeta(
+					finding.meta_json
+				);
 				await persistScreenshotIfPresent(
 					{
 						auditId,
@@ -336,6 +412,19 @@ async function syncProgressSnapshot(
 					},
 					token
 				);
+				if (screenshotRequest) {
+					enqueueScreenshotRequest(
+						{
+							auditId,
+							findingTypeId: run.findingTypeId,
+							runId: run.runId,
+							title: finding.detail || finding.title || item.label,
+							page_url: finding.page_url,
+							request: screenshotRequest
+						},
+						token
+					);
+				}
 				await createAuditFindingRecord(
 					{
 						audit: auditId,
@@ -399,7 +488,6 @@ async function processAuditWorkflow({ workflowId, auditId, url, token }: QueuePa
 	const workflowRecord = await getWorkflow(workflowId, token);
 	let runLog = appendLog(workflowRecord.run_log, 'Workflow started.');
 	const runRegistry = await bootstrapRuns(workflowId, token);
-	const metricScreenshotCache: MetricScreenshotCache = new Map();
 
 	await updateWorkflowRecord(
 		workflowId,
@@ -428,7 +516,6 @@ async function processAuditWorkflow({ workflowId, auditId, url, token }: QueuePa
 					url,
 					partialAudit,
 					runRegistry,
-					metricScreenshotCache,
 					STEP_KEYS[stepLabel] || [],
 					token
 				);
@@ -436,15 +523,7 @@ async function processAuditWorkflow({ workflowId, auditId, url, token }: QueuePa
 		});
 		runLog = appendLog(runLog, 'Audit engine completed successfully.');
 		const completedAt = timestamp();
-		await syncProgressSnapshot(
-			auditId,
-			url,
-			audit,
-			runRegistry,
-			metricScreenshotCache,
-			undefined,
-			token
-		);
+		await syncProgressSnapshot(auditId, url, audit, runRegistry, undefined, token);
 		await finalizeUnsyncedRuns(runRegistry, audit, token);
 
 		await updateAuditRecord(

@@ -1,6 +1,17 @@
-import { captureRobotsEvidence } from '$lib/server/audit-capture';
+import type { AuditCaptureRequest } from '$lib/server/audit-capture';
 import type { AuditLogger, AuditSummary } from '../shared';
 import { addItem, AI_BOTS, createListResult, fetchText, SEARCH_BOTS } from '../shared';
+
+function attachScreenshotRequest(
+	item: Record<string, unknown> | undefined,
+	request: AuditCaptureRequest
+) {
+	if (!item) return;
+	item.meta = {
+		...((item.meta as Record<string, unknown> | undefined) || {}),
+		screenshotRequest: request
+	};
+}
 
 export async function analyzeRobots(origin: string, summary: AuditSummary, logger: AuditLogger) {
 	const result = createListResult();
@@ -71,26 +82,18 @@ export async function analyzeRobots(origin: string, summary: AuditSummary, logge
 		});
 
 		if (aiIssues > 0) {
-			try {
-				const capture = await captureRobotsEvidence({
+			attachScreenshotRequest(
+				result.items.find(
+					(item) => item.category === 'ai' && (item.status === 'warn' || item.status === 'fail')
+				),
+				{
+					kind: 'robots',
 					domain: new URL(origin).hostname,
 					robotsUrl: `${origin}/robots.txt`,
 					storefrontUrl: `${origin}/`,
 					foundAgents
-				});
-				const firstAiIssue = result.items.find(
-					(item) => item.category === 'ai' && (item.status === 'warn' || item.status === 'fail')
-				);
-				if (capture && firstAiIssue) {
-					firstAiIssue.meta = {
-						...((firstAiIssue.meta as Record<string, unknown> | undefined) || {}),
-						screenshot: capture
-					};
 				}
-			} catch (error) {
-				const message = error instanceof Error ? error.message : String(error);
-				logger.warn(`robots: evidence capture failed (${message})`);
-			}
+			);
 		}
 
 		result.stats =

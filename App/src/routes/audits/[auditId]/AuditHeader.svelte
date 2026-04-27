@@ -38,13 +38,13 @@
 
 <style>
 	.audit-page-head h1 {
-		font-size: clamp(1.8rem, 3vw, 2.5rem);
+		font-size: clamp(1.55rem, 2.6vw, 2.15rem);
 	}
 
 	.page-head-main {
 		display: flex;
 		align-items: center;
-		gap: 1rem;
+		gap: 1.15rem;
 	}
 
 	.heading-copy {
@@ -124,13 +124,13 @@
 
 	@media (max-width: 760px) {
 		.audit-page-head h1 {
-			font-size: clamp(1.45rem, 6.2vw, 2rem);
+			font-size: clamp(1.25rem, 5.2vw, 1.65rem);
 		}
 
 		.page-head-main {
 			flex-direction: column;
 			align-items: stretch;
-			gap: 0.75rem;
+			gap: 0.9rem;
 		}
 
 		.heading-copy {

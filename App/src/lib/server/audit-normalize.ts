@@ -1,5 +1,5 @@
 import type { AuditFindingStatus } from '$lib/audit-status';
-import { captureOpenPageRankEvidence, capturePageSpeedEvidence } from '$lib/server/audit-capture';
+import type { AuditCaptureRequest } from '$lib/server/audit-capture';
 
 type AuditListItem = {
 	status?: AuditFindingStatus;
@@ -254,11 +254,22 @@ export function buildNormalizedAuditItems(audit: AuditResult): NormalizedAuditFi
 	return items;
 }
 
-export async function attachMetricScreenshots(
+function attachScreenshotRequest(target: Record<string, unknown>, request: AuditCaptureRequest) {
+	if (target.screenshot || target.screenshotRequest) return;
+	target.screenshotRequest = request;
+}
+
+function snapshotRecord(value: Record<string, unknown>) {
+	const snapshot = { ...value };
+	delete snapshot.screenshot;
+	delete snapshot.screenshotRequest;
+	return snapshot;
+}
+
+export function attachMetricScreenshots(
 	audit: AuditResult,
 	pageUrl: string,
-	keys: Iterable<string> = ['pageSpeed', 'openPageRank'],
-	cache: Map<string, unknown> = new Map()
+	keys: Iterable<string> = ['pageSpeed', 'openPageRank']
 ) {
 	const requestedKeys = new Set(keys);
 	const domain =
@@ -273,18 +284,12 @@ export async function attachMetricScreenshots(
 
 	if (requestedKeys.has('pageSpeed') && audit.pageSpeed && typeof audit.pageSpeed === 'object') {
 		const pageSpeed = audit.pageSpeed as Record<string, unknown>;
-		if (!pageSpeed.screenshot) {
-			if (cache.has('pageSpeed')) {
-				pageSpeed.screenshot = cache.get('pageSpeed');
-			} else {
-				try {
-					pageSpeed.screenshot = await capturePageSpeedEvidence(domain, pageUrl, pageSpeed);
-					cache.set('pageSpeed', pageSpeed.screenshot);
-				} catch {
-					void 0;
-				}
-			}
-		}
+		attachScreenshotRequest(pageSpeed, {
+			kind: 'pagespeed',
+			domain,
+			pageUrl,
+			pageSpeed: snapshotRecord(pageSpeed)
+		});
 	}
 
 	if (
@@ -293,21 +298,11 @@ export async function attachMetricScreenshots(
 		typeof audit.openPageRank === 'object'
 	) {
 		const openPageRank = audit.openPageRank as Record<string, unknown>;
-		if (!openPageRank.screenshot) {
-			if (cache.has('openPageRank')) {
-				openPageRank.screenshot = cache.get('openPageRank');
-			} else {
-				try {
-					openPageRank.screenshot = await captureOpenPageRankEvidence(
-						domain,
-						pageUrl,
-						openPageRank
-					);
-					cache.set('openPageRank', openPageRank.screenshot);
-				} catch {
-					void 0;
-				}
-			}
-		}
+		attachScreenshotRequest(openPageRank, {
+			kind: 'open-page-rank',
+			domain,
+			pageUrl,
+			openPageRank: snapshotRecord(openPageRank)
+		});
 	}
 }

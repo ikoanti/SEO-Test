@@ -89,8 +89,8 @@
 		display: grid;
 		grid-template-columns: 1fr auto 1fr;
 		align-items: center;
-		gap: 16px;
-		margin-bottom: 24px;
+		gap: 20px;
+		margin-bottom: 36px;
 	}
 
 	.brand-side {
@@ -114,7 +114,7 @@
 	.brand-mark img {
 		display: block;
 		width: auto;
-		height: 42px;
+		height: 54px;
 	}
 
 	.brand-copy {
@@ -128,7 +128,7 @@
 
 	.brand-copy h1 {
 		margin: 0;
-		font-size: clamp(1.2rem, 2vw, 1.6rem);
+		font-size: clamp(1.35rem, 2.2vw, 1.85rem);
 		font-weight: 700;
 		color: #fff;
 	}
@@ -136,7 +136,7 @@
 	.brand-subtitle {
 		margin: 0;
 		color: var(--text-muted);
-		font-size: 0.95rem;
+		font-size: 1rem;
 		white-space: nowrap;
 	}
 
@@ -147,7 +147,7 @@
 	.profile-trigger {
 		display: inline-flex;
 		align-items: center;
-		padding: 10px 14px;
+		padding: 12px 16px;
 		border: 1px solid rgba(255, 255, 255, 0.08);
 		border-radius: 9999px;
 		background: var(--surface-soft);
@@ -159,7 +159,9 @@
 	.profile-trigger-desktop {
 		display: inline-flex;
 		align-items: center;
-		gap: 8px;
+		gap: 10px;
+		font-size: 1rem;
+		font-weight: 600;
 	}
 
 	.profile-trigger-mobile {
@@ -221,7 +223,11 @@
 			grid-template-columns: auto minmax(0, 1fr) auto;
 			align-items: center;
 			gap: 12px;
-			margin-bottom: 20px;
+			margin-bottom: 30px;
+		}
+
+		.brand-mark img {
+			height: 48px;
 		}
 
 		.brand-copy {

@@ -5,6 +5,7 @@ import { parsePdfMetrics } from '$lib/server/legacy-api';
 import { ensureReportGenerationProcessing, queueReportGeneration } from '$lib/server/report-runner';
 import {
 	deleteAuditFindingsByRunId,
+	deleteAuditScreenshotsByRunId,
 	getAudit,
 	getWorkflowByAuditId,
 	listRunsByWorkflow,
@@ -39,6 +40,7 @@ export const actions = {
 		const runs = await listRunsByWorkflow(workflowRecord.id, locals.pbToken);
 		for (const run of runs) {
 			await deleteAuditFindingsByRunId(run.id, locals.pbToken);
+			await deleteAuditScreenshotsByRunId(run.id, locals.pbToken);
 			await updateRunRecord(
 				run.id,
 				{

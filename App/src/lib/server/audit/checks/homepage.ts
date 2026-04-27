@@ -1,8 +1,23 @@
 import type { CheerioAPI } from 'cheerio';
 import type { AnyNode } from 'domhandler';
-import { captureLazyLoadingEvidence, captureOpenGraphEvidence } from '$lib/server/audit-capture';
+import type { AuditCaptureRequest } from '$lib/server/audit-capture';
 import type { AuditLogger, AuditSummary } from '../shared';
 import { addItem, createListResult } from '../shared';
+
+function attachScreenshotRequest(
+	item: Record<string, unknown> | undefined,
+	request: AuditCaptureRequest
+) {
+	if (!item) return;
+	item.meta = {
+		...((item.meta as Record<string, unknown> | undefined) || {}),
+		screenshotRequest: request
+	};
+}
+
+function issueCount(items: Array<{ status?: string }>) {
+	return items.filter((item) => item.status === 'warn' || item.status === 'fail').length;
+}
 
 export async function analyzeHomePage(
 	urlObj: URL,
@@ -183,45 +198,27 @@ export async function analyzeHomePage(
 	}
 
 	if (lazyLoadingEvidence.length > 0) {
-		try {
-			const issueCount = lazyLoadImages.items.filter(
-				(item) => item.status === 'warn' || item.status === 'fail'
-			).length;
-			const capture = await captureLazyLoadingEvidence(domain, lazyLoadingEvidence, issueCount);
-			const firstIssue = lazyLoadImages.items.find(
-				(item) => item.status === 'warn' || item.status === 'fail'
-			);
-			if (capture && firstIssue) {
-				firstIssue.meta = {
-					...((firstIssue.meta as Record<string, unknown> | undefined) || {}),
-					screenshot: capture
-				};
+		attachScreenshotRequest(
+			lazyLoadImages.items.find((item) => item.status === 'warn' || item.status === 'fail'),
+			{
+				kind: 'lazy-loading',
+				domain,
+				entries: lazyLoadingEvidence,
+				count: issueCount(lazyLoadImages.items)
 			}
-		} catch (error) {
-			const message = error instanceof Error ? error.message : String(error);
-			logger.warn(`homepage: lazy loading evidence capture failed (${message})`);
-		}
+		);
 	}
 
 	if (openGraphEvidence.length > 0) {
-		try {
-			const issueCount = openGraph.items.filter(
-				(item) => item.status === 'warn' || item.status === 'fail'
-			).length;
-			const capture = await captureOpenGraphEvidence(domain, openGraphEvidence, issueCount);
-			const firstIssue = openGraph.items.find(
-				(item) => item.status === 'warn' || item.status === 'fail'
-			);
-			if (capture && firstIssue) {
-				firstIssue.meta = {
-					...((firstIssue.meta as Record<string, unknown> | undefined) || {}),
-					screenshot: capture
-				};
+		attachScreenshotRequest(
+			openGraph.items.find((item) => item.status === 'warn' || item.status === 'fail'),
+			{
+				kind: 'open-graph',
+				domain,
+				entries: openGraphEvidence,
+				count: issueCount(openGraph.items)
 			}
-		} catch (error) {
-			const message = error instanceof Error ? error.message : String(error);
-			logger.warn(`homepage: open graph evidence capture failed (${message})`);
-		}
+		);
 	}
 
 	return {

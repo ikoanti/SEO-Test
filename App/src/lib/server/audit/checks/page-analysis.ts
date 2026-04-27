@@ -1,14 +1,5 @@
 import type { AnyNode } from 'domhandler';
 import {
-	captureCanonicalEvidence,
-	captureContentQualityEvidence,
-	captureHeadingEvidence,
-	captureImageAltEvidence,
-	captureInternalLinksEvidence,
-	captureMetaEvidence,
-	captureShopifyUrlEvidence
-} from '$lib/server/audit-capture';
-import {
 	addItem,
 	createListResult,
 	extractInternalLinks,
@@ -16,6 +7,17 @@ import {
 	loadDocument
 } from '../shared';
 import type { AuditLogger, AuditSummary } from '../shared';
+
+function attachScreenshotRequest(
+	item: Record<string, unknown> | undefined,
+	request: Record<string, unknown>
+) {
+	if (!item) return;
+	item.meta = {
+		...((item.meta as Record<string, unknown> | undefined) || {}),
+		screenshotRequest: request
+	};
+}
 
 export async function analyzeMetaAndHeadings(
 	pages: string[],
@@ -269,154 +271,73 @@ export async function analyzeMetaAndHeadings(
 	}
 
 	if (headingEvidence.length > 0) {
-		try {
-			const issueCount = h1Tags.items.filter(
-				(item) => item.status === 'warn' || item.status === 'fail'
-			).length;
-			const capture = await captureHeadingEvidence(domain, headingEvidence, issueCount);
-			const firstIssue = h1Tags.items.find(
-				(item) => item.status === 'warn' || item.status === 'fail'
-			);
-			if (capture && firstIssue) {
-				firstIssue.meta = {
-					...((firstIssue.meta as Record<string, unknown> | undefined) || {}),
-					screenshot: capture
-				};
-			}
-		} catch (error) {
-			const message = error instanceof Error ? error.message : String(error);
-			logger.warn(`page-analysis: heading evidence capture failed (${message})`);
-		}
+		const issueCount = h1Tags.items.filter(
+			(item) => item.status === 'warn' || item.status === 'fail'
+		).length;
+		attachScreenshotRequest(
+			h1Tags.items.find((item) => item.status === 'warn' || item.status === 'fail'),
+			{ kind: 'headings', domain, entries: headingEvidence, count: issueCount }
+		);
 	}
 
 	if (imageAltEvidence.length > 0) {
-		try {
-			const issueCount = imageAltTags.items.filter(
-				(item) => item.status === 'warn' || item.status === 'fail'
-			).length;
-			const capture = await captureImageAltEvidence(domain, imageAltEvidence, issueCount);
-			const firstIssue = imageAltTags.items.find(
-				(item) => item.status === 'warn' || item.status === 'fail'
-			);
-			if (capture && firstIssue) {
-				firstIssue.meta = {
-					...((firstIssue.meta as Record<string, unknown> | undefined) || {}),
-					screenshot: capture
-				};
-			}
-		} catch (error) {
-			const message = error instanceof Error ? error.message : String(error);
-			logger.warn(`page-analysis: image alt evidence capture failed (${message})`);
-		}
+		const issueCount = imageAltTags.items.filter(
+			(item) => item.status === 'warn' || item.status === 'fail'
+		).length;
+		attachScreenshotRequest(
+			imageAltTags.items.find((item) => item.status === 'warn' || item.status === 'fail'),
+			{ kind: 'image-alts', domain, entries: imageAltEvidence, count: issueCount }
+		);
 	}
 
 	if (metaEvidence.length > 0) {
-		try {
-			const issueCount = metaTitles.items.filter(
-				(item) => item.status === 'warn' || item.status === 'fail'
-			).length;
-			const capture = await captureMetaEvidence(domain, metaEvidence, issueCount);
-			const firstIssue = metaTitles.items.find(
-				(item) => item.status === 'warn' || item.status === 'fail'
-			);
-			if (capture && firstIssue) {
-				firstIssue.meta = {
-					...((firstIssue.meta as Record<string, unknown> | undefined) || {}),
-					screenshot: capture
-				};
-			}
-		} catch (error) {
-			const message = error instanceof Error ? error.message : String(error);
-			logger.warn(`page-analysis: meta evidence capture failed (${message})`);
-		}
+		const issueCount = metaTitles.items.filter(
+			(item) => item.status === 'warn' || item.status === 'fail'
+		).length;
+		attachScreenshotRequest(
+			metaTitles.items.find((item) => item.status === 'warn' || item.status === 'fail'),
+			{ kind: 'meta-tags', domain, entries: metaEvidence, count: issueCount }
+		);
 	}
 
 	if (canonicalEvidence.length > 0) {
-		try {
-			const issueCount = canonicalUrls.items.filter(
-				(item) => item.status === 'warn' || item.status === 'fail'
-			).length;
-			const capture = await captureCanonicalEvidence(domain, canonicalEvidence, issueCount);
-			const firstIssue = canonicalUrls.items.find(
-				(item) => item.status === 'warn' || item.status === 'fail'
-			);
-			if (capture && firstIssue) {
-				firstIssue.meta = {
-					...((firstIssue.meta as Record<string, unknown> | undefined) || {}),
-					screenshot: capture
-				};
-			}
-		} catch (error) {
-			const message = error instanceof Error ? error.message : String(error);
-			logger.warn(`page-analysis: canonical evidence capture failed (${message})`);
-		}
+		const issueCount = canonicalUrls.items.filter(
+			(item) => item.status === 'warn' || item.status === 'fail'
+		).length;
+		attachScreenshotRequest(
+			canonicalUrls.items.find((item) => item.status === 'warn' || item.status === 'fail'),
+			{ kind: 'canonicals', domain, entries: canonicalEvidence, count: issueCount }
+		);
 	}
 
 	if (internalLinksEvidence.length > 0) {
-		try {
-			const issueCount = internalLinks.items.filter(
-				(item) => item.status === 'warn' || item.status === 'fail'
-			).length;
-			const capture = await captureInternalLinksEvidence(domain, internalLinksEvidence, issueCount);
-			const firstIssue = internalLinks.items.find(
-				(item) => item.status === 'warn' || item.status === 'fail'
-			);
-			if (capture && firstIssue) {
-				firstIssue.meta = {
-					...((firstIssue.meta as Record<string, unknown> | undefined) || {}),
-					screenshot: capture
-				};
-			}
-		} catch (error) {
-			const message = error instanceof Error ? error.message : String(error);
-			logger.warn(`page-analysis: internal links evidence capture failed (${message})`);
-		}
+		const issueCount = internalLinks.items.filter(
+			(item) => item.status === 'warn' || item.status === 'fail'
+		).length;
+		attachScreenshotRequest(
+			internalLinks.items.find((item) => item.status === 'warn' || item.status === 'fail'),
+			{ kind: 'internal-links', domain, entries: internalLinksEvidence, count: issueCount }
+		);
 	}
 
 	if (contentQualityEvidence.length > 0) {
-		try {
-			const issueCount = contentQuality.items.filter(
-				(item) => item.status === 'warn' || item.status === 'fail'
-			).length;
-			const capture = await captureContentQualityEvidence(
-				domain,
-				contentQualityEvidence,
-				issueCount
-			);
-			const firstIssue = contentQuality.items.find(
-				(item) => item.status === 'warn' || item.status === 'fail'
-			);
-			if (capture && firstIssue) {
-				firstIssue.meta = {
-					...((firstIssue.meta as Record<string, unknown> | undefined) || {}),
-					screenshot: capture
-				};
-			}
-		} catch (error) {
-			const message = error instanceof Error ? error.message : String(error);
-			logger.warn(`page-analysis: content quality evidence capture failed (${message})`);
-		}
+		const issueCount = contentQuality.items.filter(
+			(item) => item.status === 'warn' || item.status === 'fail'
+		).length;
+		attachScreenshotRequest(
+			contentQuality.items.find((item) => item.status === 'warn' || item.status === 'fail'),
+			{ kind: 'content-quality', domain, entries: contentQualityEvidence, count: issueCount }
+		);
 	}
 
 	if (shopifyUrlEvidence.length > 0) {
-		try {
-			const issueCount = shopifyUrls.items.filter(
-				(item) => item.status === 'warn' || item.status === 'fail'
-			).length;
-			const capture = await captureShopifyUrlEvidence(domain, shopifyUrlEvidence, issueCount);
-			const firstIssue = shopifyUrls.items.find(
-				(item) => item.status === 'warn' || item.status === 'fail'
-			);
-			if (capture && firstIssue) {
-				firstIssue.meta = {
-					...((firstIssue.meta as Record<string, unknown> | undefined) || {}),
-					screenshot: capture
-				};
-			}
-		} catch (error) {
-			const message = error instanceof Error ? error.message : String(error);
-			logger.warn(`page-analysis: shopify URL evidence capture failed (${message})`);
-		}
+		const issueCount = shopifyUrls.items.filter(
+			(item) => item.status === 'warn' || item.status === 'fail'
+		).length;
+		attachScreenshotRequest(
+			shopifyUrls.items.find((item) => item.status === 'warn' || item.status === 'fail'),
+			{ kind: 'shopify-urls', domain, entries: shopifyUrlEvidence, count: issueCount }
+		);
 	}
 
 	return {
