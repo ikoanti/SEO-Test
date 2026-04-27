@@ -74,30 +74,28 @@ function toLegacyStatus(status: unknown) {
 	}
 }
 
-function getSectionStats(audit: Record<string, unknown> | null, key: string, fallback: string) {
-	const section = getRecord(audit?.[key]);
-	return displayText(section.stats, fallback);
-}
+function toLegacyAuditValue(value: unknown): unknown {
+	if (Array.isArray(value)) {
+		return value.map((item) => toLegacyAuditValue(item));
+	}
 
-function findingToReportItem(finding: Record<string, unknown>) {
-	const meta = getRecord(finding.meta);
-	const primary =
-		displayText(finding.detail) || displayText(finding.title) || displayText(finding.page_url);
+	if (!value || typeof value !== 'object') {
+		return value;
+	}
 
-	return {
-		status: toLegacyStatus(finding.status),
-		detail: primary,
-		title: displayText(finding.title),
-		url: displayText(finding.page_url),
-		meta: Object.keys(meta).length ? meta : null
-	};
+	const source = value as Record<string, unknown>;
+	const target: Record<string, unknown> = {};
+	for (const [key, nestedValue] of Object.entries(source)) {
+		if (key === 'screenshot' || key === 'screenshotRequest') continue;
+		target[key] = key === 'status' ? toLegacyStatus(nestedValue) : toLegacyAuditValue(nestedValue);
+	}
+	return target;
 }
 
 function buildLegacyReportAuditData(pageData: Awaited<ReturnType<typeof buildAuditPageData>>) {
-	const payload: Record<string, unknown> = {};
-	const summary = getRecord(pageData.summary?.summary);
 	const audit = getRecord(pageData.audit);
-	const itemsByKey = new Map(pageData.normalizedItems.map((item) => [item.key, item]));
+	const payload = toLegacyAuditValue(audit) as Record<string, unknown>;
+	const summary = getRecord(pageData.summary?.summary);
 
 	payload.summary = {
 		passed: Number(summary.passed || 0),
@@ -116,32 +114,10 @@ function buildLegacyReportAuditData(pageData: Awaited<ReturnType<typeof buildAud
 	};
 
 	for (const key of reportSectionKeys) {
-		const item = itemsByKey.get(key);
-		payload[key] = {
-			items: (item?.findings || []).map((finding) => findingToReportItem(finding)),
-			stats: getSectionStats(pageData.audit, key, displayText(item?.summary)),
-			screenshot: item?.screenshot
-				? {
-						title: item.screenshot.title || '',
-						pageUrl: item.screenshot.page_url || ''
-					}
-				: null
-		};
+		const section = getRecord(payload[key]);
+		if (!payload[key]) payload[key] = { items: [], stats: '' };
+		else payload[key] = section;
 	}
-
-	const robotsItem = itemsByKey.get('robotsTxt');
-	const aiItem = itemsByKey.get('aiVisibility');
-	payload.robotsTxt = {
-		items: [...(robotsItem?.findings || []), ...(aiItem?.findings || [])].map((finding) =>
-			findingToReportItem(finding)
-		),
-		stats: [
-			getSectionStats(pageData.audit, 'robotsTxt', displayText(robotsItem?.summary)),
-			getSectionStats(pageData.audit, 'aiVisibility', displayText(aiItem?.summary))
-		]
-			.filter(Boolean)
-			.join(' | ')
-	};
 
 	const internalLinks = getRecord(payload.internalLinks);
 	payload.internalLinks = {
@@ -150,15 +126,35 @@ function buildLegacyReportAuditData(pageData: Awaited<ReturnType<typeof buildAud
 		brokenLinks: displayText(getRecord(audit.internalLinks).brokenLinks, '0')
 	};
 
+	const currentAiVisibility = getRecord(payload.aiVisibility);
 	payload.aiVisibility = {
-		score: displayText(pageData.aiVisibility?.aiVisibility, '-'),
-		monthlyAudience: displayText(pageData.aiVisibility?.monthlyAudience, '-'),
-		mentions: displayText(pageData.aiVisibility?.mentions, '-'),
-		citedPages: displayText(pageData.aiVisibility?.citedPages, '-'),
-		performingTopics: displayText(pageData.aiVisibility?.performingTopics, '-'),
-		topicOpportunities: displayText(pageData.aiVisibility?.topicOpportunities, '-'),
-		citedSources: displayText(pageData.aiVisibility?.citedSources, '-'),
-		sourceOpportunities: displayText(pageData.aiVisibility?.sourceOpportunities, '-')
+		...currentAiVisibility,
+		score: displayText(pageData.aiVisibility?.aiVisibility ?? currentAiVisibility.score, '-'),
+		monthlyAudience: displayText(
+			pageData.aiVisibility?.monthlyAudience ?? currentAiVisibility.monthlyAudience,
+			'-'
+		),
+		mentions: displayText(pageData.aiVisibility?.mentions ?? currentAiVisibility.mentions, '-'),
+		citedPages: displayText(
+			pageData.aiVisibility?.citedPages ?? currentAiVisibility.citedPages,
+			'-'
+		),
+		performingTopics: displayText(
+			pageData.aiVisibility?.performingTopics ?? currentAiVisibility.performingTopics,
+			'-'
+		),
+		topicOpportunities: displayText(
+			pageData.aiVisibility?.topicOpportunities ?? currentAiVisibility.topicOpportunities,
+			'-'
+		),
+		citedSources: displayText(
+			pageData.aiVisibility?.citedSources ?? currentAiVisibility.citedSources,
+			'-'
+		),
+		sourceOpportunities: displayText(
+			pageData.aiVisibility?.sourceOpportunities ?? currentAiVisibility.sourceOpportunities,
+			'-'
+		)
 	};
 
 	return payload;
