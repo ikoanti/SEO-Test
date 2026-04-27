@@ -1,5 +1,6 @@
 import { runAudit } from '$lib/server/audit';
 import {
+	attachMetricScreenshots,
 	buildNormalizedAuditItems,
 	getNormalizedSectionDefinitions,
 	type AuditResult
@@ -272,10 +273,12 @@ async function markStepRunning(runRegistry: RunRegistry, stepLabel: string, toke
 
 async function syncProgressSnapshot(
 	auditId: string,
+	url: string,
 	partialAudit: AuditSummaryResult,
 	runRegistry: RunRegistry,
 	token?: string
 ) {
+	await attachMetricScreenshots(partialAudit, url);
 	const normalizedItems = buildNormalizedAuditItems(partialAudit);
 	for (const item of normalizedItems) {
 		const run = runRegistry.get(item.key);
@@ -408,12 +411,12 @@ async function processAuditWorkflow({ workflowId, auditId, url, token }: QueuePa
 			onStepComplete: async (stepLabel: string, partialAudit: AuditSummaryResult) => {
 				runLog = appendLog(runLog, `${stepLabel} completed.`);
 				await updateWorkflowRecord(workflowId, { run_log: runLog }, token);
-				await syncProgressSnapshot(auditId, partialAudit, runRegistry, token);
+				await syncProgressSnapshot(auditId, url, partialAudit, runRegistry, token);
 			}
 		});
 		runLog = appendLog(runLog, 'Audit engine completed successfully.');
 		const completedAt = timestamp();
-		await syncProgressSnapshot(auditId, audit, runRegistry, token);
+		await syncProgressSnapshot(auditId, url, audit, runRegistry, token);
 		await finalizeUnsyncedRuns(runRegistry, audit, token);
 
 		await updateAuditRecord(

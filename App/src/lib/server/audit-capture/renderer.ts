@@ -249,7 +249,9 @@ function buildSidebarSrcdoc(panelData: Record<string, unknown>) {
 		'components/panels/internal-links-panel.js',
 		'components/panels/lazy-loading-panel.js',
 		'components/panels/meta-tags-panel.js',
+		'components/panels/open-page-rank-panel.js',
 		'components/panels/open-graph-panel.js',
+		'components/panels/pagespeed-panel.js',
 		'components/panels/placeholder-panel.js',
 		'components/panels/shopify-urls-panel.js',
 		'components/audit-sidebar.js'

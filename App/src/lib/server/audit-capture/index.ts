@@ -7,6 +7,8 @@ type SidebarTab = {
 
 const SIDEBAR_TABS: SidebarTab[] = [
 	{ id: 'ai-bot-visibility', label: 'Unoptimized Robots.txt' },
+	{ id: 'pagespeed', label: 'PageSpeed Insights' },
+	{ id: 'open-page-rank', label: 'Open PageRank' },
 	{ id: 'image-alts', label: 'Unoptimized Alt Tags' },
 	{ id: 'meta-tags', label: 'Unoptimized Meta Tags' },
 	{ id: 'canonicals', label: 'Unoptimized Canonicals' },
@@ -43,6 +45,41 @@ function isHomepageUrl(value: string) {
 function screenshotPageUrl(entries: Array<{ page: string }>) {
 	const firstNonHomepage = entries.find((entry) => entry.page && !isHomepageUrl(entry.page));
 	return firstNonHomepage?.page || entries[0]?.page;
+}
+
+export async function capturePageSpeedEvidence(
+	domain: string,
+	pageUrl: string,
+	pageSpeed: Record<string, unknown>
+) {
+	return captureAuditSidebarScreenshot({
+		pageUrl,
+		sidebarData: buildSidebarData('pagespeed', {
+			kind: 'pagespeed',
+			title: 'PageSpeed Insights',
+			description:
+				'Google PageSpeed Insights scores and Core Web Vitals-style lab metrics for the audited page.',
+			domain,
+			pageSpeed
+		})
+	});
+}
+
+export async function captureOpenPageRankEvidence(
+	domain: string,
+	pageUrl: string,
+	openPageRank: Record<string, unknown>
+) {
+	return captureAuditSidebarScreenshot({
+		pageUrl,
+		sidebarData: buildSidebarData('open-page-rank', {
+			kind: 'open-page-rank',
+			title: 'Open PageRank',
+			description: 'Domain authority and global ranking data from Open PageRank.',
+			domain,
+			openPageRank
+		})
+	});
 }
 
 export async function captureHeadingEvidence(

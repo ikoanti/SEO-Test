@@ -176,3 +176,85 @@
 	color: #1a73e8;
 	font-weight: 500;
 }
+
+.metric-stack {
+	display: grid;
+	gap: 14px;
+}
+
+.metric-panel-card {
+	border: 1px solid #e0e3e7;
+	border-left-width: 4px;
+	border-radius: 14px;
+	padding: 16px;
+	background: #fff;
+}
+
+.metric-panel-head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 14px;
+}
+
+.metric-panel-title {
+	margin: 4px 0 0;
+	font-size: 18px;
+	line-height: 1.25;
+	font-weight: 700;
+	color: #202124;
+}
+
+.metric-panel-score {
+	margin: 0;
+	font-size: 48px;
+	line-height: 0.95;
+	font-weight: 800;
+}
+
+.metric-row-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 8px;
+	margin-top: 14px;
+}
+
+.metric-row-card {
+	min-width: 0;
+	padding: 10px;
+	border: 1px solid #e0e3e7;
+	border-radius: 10px;
+	background: #f8f9fa;
+}
+
+.metric-pass {
+	border-left-color: #10b981;
+}
+
+.metric-pass .metric-panel-score {
+	color: #10b981;
+}
+
+.metric-warn {
+	border-left-color: #f59e0b;
+}
+
+.metric-warn .metric-panel-score {
+	color: #f59e0b;
+}
+
+.metric-fail {
+	border-left-color: #d93025;
+}
+
+.metric-fail .metric-panel-score {
+	color: #d93025;
+}
+
+.metric-info {
+	border-left-color: #1a73e8;
+}
+
+.metric-info .metric-panel-score {
+	color: #1a73e8;
+}

@@ -1,4 +1,5 @@
 import type { AuditFindingStatus } from '$lib/audit-status';
+import { captureOpenPageRankEvidence, capturePageSpeedEvidence } from '$lib/server/audit-capture';
 
 type AuditListItem = {
 	status?: AuditFindingStatus;
@@ -251,4 +252,38 @@ export function buildNormalizedAuditItems(audit: AuditResult): NormalizedAuditFi
 	}
 
 	return items;
+}
+
+export async function attachMetricScreenshots(audit: AuditResult, pageUrl: string) {
+	const domain =
+		audit.domain ||
+		(() => {
+			try {
+				return new URL(pageUrl).hostname;
+			} catch {
+				return 'this domain';
+			}
+		})();
+
+	if (audit.pageSpeed && typeof audit.pageSpeed === 'object') {
+		const pageSpeed = audit.pageSpeed as Record<string, unknown>;
+		if (!pageSpeed.screenshot) {
+			try {
+				pageSpeed.screenshot = await capturePageSpeedEvidence(domain, pageUrl, pageSpeed);
+			} catch {
+				void 0;
+			}
+		}
+	}
+
+	if (audit.openPageRank && typeof audit.openPageRank === 'object') {
+		const openPageRank = audit.openPageRank as Record<string, unknown>;
+		if (!openPageRank.screenshot) {
+			try {
+				openPageRank.screenshot = await captureOpenPageRankEvidence(domain, pageUrl, openPageRank);
+			} catch {
+				void 0;
+			}
+		}
+	}
 }

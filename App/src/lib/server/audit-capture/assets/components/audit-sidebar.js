@@ -64,6 +64,18 @@ class AuditSidebar extends HTMLElement {
 			return el;
 		}
 
+		if (panel.kind === 'pagespeed') {
+			const el = document.createElement('pagespeed-panel');
+			el.panel = panel;
+			return el;
+		}
+
+		if (panel.kind === 'open-page-rank') {
+			const el = document.createElement('open-page-rank-panel');
+			el.panel = panel;
+			return el;
+		}
+
 		if (panel.kind === 'broken-links') {
 			const el = document.createElement('broken-links-panel');
 			el.panel = panel;
