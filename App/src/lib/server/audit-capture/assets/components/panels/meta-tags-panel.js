@@ -97,6 +97,23 @@ class MetaTagsPanel extends HTMLElement {
     `;
 	}
 
+	renderPages(entry) {
+		const { formatValue } = window.AutomagicHtml;
+		const pages = Array.isArray(entry.pages) ? entry.pages : [];
+		if (pages.length === 0) return '';
+
+		return `
+      <div>
+        <p class="meta-label">${pages.length > 1 ? 'Pages' : 'Page'}</p>
+        ${
+					pages.length === 1
+						? `<p class="meta-value">${formatValue(pages[0])}</p>`
+						: this.renderPageList(pages)
+				}
+      </div>
+    `;
+	}
+
 	renderValue(entry) {
 		const { escapeHtml, formatValue } = window.AutomagicHtml;
 		if (!entry.value) return '';
@@ -141,10 +158,7 @@ class MetaTagsPanel extends HTMLElement {
                   </div>
                   <div class="meta">
                     ${this.renderValue(entry)}
-                    <div>
-                      <p class="meta-label">${Array.isArray(entry.pages) && entry.pages.length > 1 ? 'Pages' : 'Page'}</p>
-                      ${this.renderPageList(entry.pages)}
-                    </div>
+                    ${this.renderPages(entry)}
                   </div>
                 </article>
               `
