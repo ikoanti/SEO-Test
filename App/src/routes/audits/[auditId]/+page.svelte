@@ -187,10 +187,15 @@
 			? (value as Record<string, unknown>)
 			: {};
 	const auditSection = (key: string) => getRecord(pageData.audit?.[key]);
+	const metricSection = (key: string) => {
+		const auditValue = auditSection(key);
+		if (Object.keys(auditValue).length > 0) return auditValue;
+		return getRecord(itemByKey(key)?.findings?.[0]?.meta);
+	};
 	const displayValue = (value: unknown, fallback = '-') =>
 		value === undefined || value === null || value === '' ? fallback : String(value);
-	const openPageRank = () => auditSection('openPageRank');
-	const pageSpeed = () => auditSection('pageSpeed');
+	const openPageRank = () => metricSection('openPageRank');
+	const pageSpeed = () => metricSection('pageSpeed');
 
 	function summaryBarStyle() {
 		const passed = pageData.summary?.summary?.passed ?? 0;
