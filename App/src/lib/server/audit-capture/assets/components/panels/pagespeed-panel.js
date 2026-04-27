@@ -25,10 +25,24 @@ class PageSpeedPanel extends HTMLElement {
 
 	scoreClass(score) {
 		const value = Number(score);
-		if (!Number.isFinite(value) || value <= 0) return 'metric-info';
-		if (value >= 90) return 'metric-pass';
-		if (value >= 50) return 'metric-warn';
-		return 'metric-fail';
+		if (!Number.isFinite(value) || value <= 0) return 'speed-info';
+		if (value >= 90) return 'speed-pass';
+		if (value >= 50) return 'speed-warn';
+		return 'speed-fail';
+	}
+
+	gaugeStyle(score) {
+		const value = Number(score);
+		const normalized = Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : 0;
+		const color =
+			normalized >= 90
+				? '#10b981'
+				: normalized >= 50
+					? '#f59e0b'
+					: normalized > 0
+						? '#d93025'
+						: '#dadce0';
+		return `--score:${normalized};--score-color:${color};`;
 	}
 
 	metricRows(strategyData) {
@@ -72,21 +86,26 @@ class PageSpeedPanel extends HTMLElement {
           ${strategies
 						.map(
 							({ strategy, data }) => `
-                <article class="metric-panel-card ${this.scoreClass(data.score)}">
-                  <div class="metric-panel-head">
-                    <div>
+                <article class="speed-panel-card ${this.scoreClass(data.score)}">
+                  <div class="speed-panel-head">
+                    <div class="speed-gauge" style="${this.gaugeStyle(data.score)}">
+                      <div class="speed-gauge-inner">
+                        <span class="speed-gauge-icon">${strategy === 'mobile' ? '📱' : '🖥️'}</span>
+                        <strong>${escapeHtml(data.score ?? 'N/A')}</strong>
+                      </div>
+                    </div>
+                    <div class="speed-panel-copy">
                       <p class="summary-label">${strategy === 'mobile' ? 'Mobile' : 'Desktop'}</p>
                       <p class="metric-panel-title">${strategy === 'mobile' ? 'Mobile Score' : 'Desktop Score'}</p>
                     </div>
-                    <p class="metric-panel-score">${escapeHtml(data.score ?? 'N/A')}</p>
                   </div>
-                  <div class="metric-row-grid">
+                  <div class="speed-metric-list">
                     ${this.metricRows(data)
 											.map(
 												([label, value]) => `
-                          <div class="metric-row-card">
-                            <p class="meta-label">${escapeHtml(label)}</p>
-                            <p class="meta-value meta-value-strong">${escapeHtml(value)}</p>
+                          <div class="speed-metric-row">
+                            <span>${escapeHtml(label)}</span>
+                            <strong>${escapeHtml(value)}</strong>
                           </div>
                         `
 											)

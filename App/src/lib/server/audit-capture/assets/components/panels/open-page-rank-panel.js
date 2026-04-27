@@ -36,24 +36,14 @@ class OpenPageRankPanel extends HTMLElement {
         <p class="copy">${escapeHtml(panel.description ?? '')}</p>
       </section>
       <section class="section">
-        <div class="metric-stack">
-          <article class="metric-panel-card metric-info">
-            <div class="metric-panel-head">
-              <div>
-                <p class="summary-label">Authority</p>
-                <p class="metric-panel-title">Page Rank</p>
-              </div>
-              <p class="metric-panel-score">${escapeHtml(rank.pageRank ?? 'N/A')}</p>
-            </div>
+        <div class="rank-stack">
+          <article class="rank-panel-stat">
+            <p class="rank-panel-label">Page Rank</p>
+            <p class="rank-panel-value">${escapeHtml(rank.pageRank ?? 'N/A')}</p>
           </article>
-          <article class="metric-panel-card metric-info">
-            <div class="metric-panel-head">
-              <div>
-                <p class="summary-label">Global</p>
-                <p class="metric-panel-title">Global Rank</p>
-              </div>
-              <p class="metric-panel-score">${escapeHtml(rank.globalRank ?? 'N/A')}</p>
-            </div>
+          <article class="rank-panel-stat">
+            <p class="rank-panel-label">Global Rank</p>
+            <p class="rank-panel-value">${escapeHtml(rank.globalRank ?? 'N/A')}</p>
           </article>
         </div>
       </section>
