@@ -266,7 +266,14 @@
 </script>
 
 <div class="card audit-finding-card" id={`card-${section.key}`}>
-	<h3>{section.title}</h3>
+	<div class="audit-finding-card-heading">
+		<h3>{section.title}</h3>
+		{#if cardScreenshot}
+			<div class="card-image-proof">
+				<img src={cardScreenshot.src} alt={cardScreenshot.alt} loading="lazy" />
+			</div>
+		{/if}
+	</div>
 	{#if section.mini}
 		<AuditStatusPills
 			pass={pills.pass}
@@ -275,11 +282,6 @@
 			statuses={visiblePillStatuses}
 			bind:selectedStatus
 		/>
-	{/if}
-	{#if cardScreenshot}
-		<div class="card-image-proof">
-			<img src={cardScreenshot.src} alt={cardScreenshot.alt} loading="lazy" />
-		</div>
 	{/if}
 	<ul class={`check-list ${section.mini ? 'mini-list' : ''}`}>
 		{#if hasVisibleFindings}
@@ -414,13 +416,17 @@
 		border-radius: 1rem;
 	}
 
+	.audit-finding-card-heading {
+		margin: 0 0 1rem;
+		padding-bottom: 1rem;
+		border-bottom: 1px solid var(--border);
+	}
+
 	.audit-finding-card h3 {
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
-		margin: 0 0 1rem;
-		padding-bottom: 0.5rem;
-		border-bottom: 1px solid var(--border);
+		margin: 0;
 		font-size: 1.25rem;
 		font-weight: 600;
 	}
@@ -435,7 +441,7 @@
 	}
 
 	.card-image-proof {
-		margin: 0 0 1rem;
+		margin: 1rem 0 0;
 		overflow: hidden;
 		border: 1px solid var(--border);
 		border-radius: 0.9rem;
