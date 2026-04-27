@@ -195,12 +195,13 @@ export async function analyzeMetaAndHeadings(
 				});
 			}
 
-			const shopifyPattern = /\/collections\/|\/products\//.test(page);
+			const pagePath = new URL(page).pathname;
+			const shopifyPattern = /^\/collections\/[^/]+\/products\/[^/]+\/?$/i.test(pagePath);
 			if (shopifyPattern && shopifyUrlEvidence.length < maxEvidenceItems) {
 				shopifyUrlEvidence.push({
 					page,
 					issue: 'Shopify URL pattern detected',
-					pattern: page.includes('/collections/') ? '/collections/' : '/products/'
+					pattern: '/collections/{collection}/products/{product}'
 				});
 			}
 			addItem(
