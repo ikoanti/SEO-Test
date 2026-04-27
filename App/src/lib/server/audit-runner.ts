@@ -40,6 +40,7 @@ type ScreenshotQueueState = {
 	chain: Promise<void>;
 	queuedKeys: Set<string>;
 	activeKeys: Set<string>;
+	completedKeys: Set<string>;
 };
 
 type WorkflowRecordLike = {
@@ -69,7 +70,8 @@ const screenshotQueueState = ((
 ).__auditScreenshotQueueState ??= {
 	chain: Promise.resolve(),
 	queuedKeys: new Set<string>(),
-	activeKeys: new Set<string>()
+	activeKeys: new Set<string>(),
+	completedKeys: new Set<string>()
 });
 
 function timestamp() {
@@ -125,6 +127,12 @@ function formatPocketBaseError(error: unknown) {
 	if (!(error instanceof Error)) return String(error);
 	const response = (error as Error & { response?: unknown }).response;
 	return response ? `${error.message}: ${JSON.stringify(response)}` : error.message;
+}
+
+function isUniqueConstraintError(error: unknown) {
+	const response = (error as { response?: { status?: number; data?: unknown } })?.response;
+	if (response?.status !== 400) return false;
+	return JSON.stringify(response.data || '').includes('validation_not_unique');
 }
 
 function getRecord(value: unknown): Record<string, unknown> | null {
@@ -201,7 +209,7 @@ async function persistScreenshotIfPresent(
 	},
 	token?: string
 ) {
-	if (!input.screenshot?.contentType || !input.screenshot.imageBase64) return;
+	if (!input.screenshot?.contentType || !input.screenshot.imageBase64) return false;
 
 	try {
 		await createAuditScreenshotRecord(
@@ -216,10 +224,16 @@ async function persistScreenshotIfPresent(
 			},
 			token
 		);
+		return true;
 	} catch (error) {
+		if (isUniqueConstraintError(error)) {
+			return true;
+		}
+
 		console.warn(
 			`[audit-runner] screenshot persistence skipped for ${input.title} (${input.screenshot.imageBase64.length} base64 chars): ${formatPocketBaseError(error)}`
 		);
+		return false;
 	}
 }
 
@@ -235,7 +249,11 @@ export function enqueueScreenshotRequest(
 	token?: string
 ) {
 	const key = `${input.auditId}:${input.findingTypeId}:${input.runId}`;
-	if (screenshotQueueState.queuedKeys.has(key) || screenshotQueueState.activeKeys.has(key)) {
+	if (
+		screenshotQueueState.queuedKeys.has(key) ||
+		screenshotQueueState.activeKeys.has(key) ||
+		screenshotQueueState.completedKeys.has(key)
+	) {
 		return;
 	}
 
@@ -247,7 +265,7 @@ export function enqueueScreenshotRequest(
 			screenshotQueueState.activeKeys.add(key);
 			try {
 				const screenshot = await runAuditCaptureRequest(input.request);
-				await persistScreenshotIfPresent(
+				const persisted = await persistScreenshotIfPresent(
 					{
 						auditId: input.auditId,
 						findingTypeId: input.findingTypeId,
@@ -258,6 +276,9 @@ export function enqueueScreenshotRequest(
 					},
 					token
 				);
+				if (persisted) {
+					screenshotQueueState.completedKeys.add(key);
+				}
 			} catch (error) {
 				console.warn(
 					`[audit-runner] screenshot job failed for ${input.title}: ${formatPocketBaseError(error)}`
@@ -277,6 +298,16 @@ export function hasPendingScreenshotJobs(auditId?: string) {
 		if (matchesAudit(key)) return true;
 	}
 	return false;
+}
+
+export function clearScreenshotQueueStateForAudit(auditId: string) {
+	const matchesAudit = (key: string) => key.startsWith(`${auditId}:`);
+	for (const key of screenshotQueueState.queuedKeys) {
+		if (matchesAudit(key)) screenshotQueueState.queuedKeys.delete(key);
+	}
+	for (const key of screenshotQueueState.completedKeys) {
+		if (matchesAudit(key)) screenshotQueueState.completedKeys.delete(key);
+	}
 }
 
 const STEP_KEYS: Record<string, string[]> = {

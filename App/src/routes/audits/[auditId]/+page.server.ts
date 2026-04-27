@@ -1,6 +1,10 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { buildAuditPageData } from '$lib/server/audit-detail';
-import { ensureAuditWorkflowProcessing, queueAuditWorkflow } from '$lib/server/audit-runner';
+import {
+	clearScreenshotQueueStateForAudit,
+	ensureAuditWorkflowProcessing,
+	queueAuditWorkflow
+} from '$lib/server/audit-runner';
 import { parsePdfMetrics } from '$lib/server/legacy-api';
 import { ensureReportGenerationProcessing, queueReportGeneration } from '$lib/server/report-runner';
 import {
@@ -38,6 +42,7 @@ export const actions = {
 		}
 
 		const runs = await listRunsByWorkflow(workflowRecord.id, locals.pbToken);
+		clearScreenshotQueueStateForAudit(auditRecord.id);
 		for (const run of runs) {
 			await deleteAuditFindingsByRunId(run.id, locals.pbToken);
 			await deleteAuditScreenshotsByRunId(run.id, locals.pbToken);
