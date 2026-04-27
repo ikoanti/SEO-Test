@@ -74,7 +74,7 @@ export const actions = {
 				report_started_at: null,
 				report_completed_at: null,
 				report_html: '',
-				selected_report_finding_types_json: '',
+				selected_report_template_keys_json: '',
 				ai_visibility_json: ''
 			},
 			locals.pbToken
@@ -121,7 +121,7 @@ export const actions = {
 		const data = await request.formData();
 		const availableKeys = new Set(payload.reportPreviewItems.map((item) => item.key));
 		const selectedKeys = data
-			.getAll('findingTypeKey')
+			.getAll('reportTemplateKey')
 			.map((value) => String(value))
 			.filter((key) => availableKeys.has(key));
 		const uniqueSelectedKeys = [...new Set(selectedKeys)];
@@ -145,7 +145,7 @@ export const actions = {
 				report_started_at: null,
 				report_completed_at: null,
 				report_html: '',
-				selected_report_finding_types_json: JSON.stringify(uniqueSelectedKeys)
+				selected_report_template_keys_json: JSON.stringify(uniqueSelectedKeys)
 			},
 			locals.pbToken
 		);

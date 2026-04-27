@@ -1,5 +1,5 @@
 import type { buildAuditPageData } from '$lib/server/audit-detail';
-import type { AuditFindingTypeTemplateRecord } from '$lib/server/pocketbase';
+import type { AuditReportTemplateRecord } from '$lib/server/pocketbase';
 
 type AuditPageData = Awaited<ReturnType<typeof buildAuditPageData>>;
 type ReportPageData = {
@@ -95,6 +95,17 @@ function issueFindings(item: AuditItem | undefined) {
 	);
 }
 
+function issueMatcher(pattern: string | undefined) {
+	if (!pattern?.trim()) return undefined;
+
+	try {
+		const regex = new RegExp(pattern, 'i');
+		return (finding: Finding) => regex.test(`${finding.title || ''} ${finding.detail || ''}`);
+	} catch {
+		return undefined;
+	}
+}
+
 function interpolate(template: string, context: TemplateContext) {
 	return template.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_, key: string) =>
 		String(context[key] ?? '')
@@ -157,16 +168,18 @@ function baseContext(pageData: ReportPageData): TemplateContext {
 }
 
 function shouldIncludeMetricTemplate(
-	template: AuditFindingTypeTemplateRecord,
+	template: AuditReportTemplateRecord,
 	item: AuditItem | undefined,
 	context: TemplateContext
 ) {
-	if (template.key === 'pageSpeed') {
+	const findingTypeKey = template.expand?.audit_finding_type?.key;
+
+	if (findingTypeKey === 'pageSpeed') {
 		const worstScore = Number(context.worstScore);
 		return Number.isFinite(worstScore) && worstScore < 90;
 	}
 
-	if (template.key === 'aiVisibility') {
+	if (findingTypeKey === 'aiVisibility') {
 		return text(context.aiScore, '-') !== '-';
 	}
 
@@ -175,15 +188,17 @@ function shouldIncludeMetricTemplate(
 
 export function buildReportProblems(
 	pageData: ReportPageData,
-	templates: AuditFindingTypeTemplateRecord[]
+	templates: AuditReportTemplateRecord[]
 ) {
 	const itemsByKey = new Map(pageData.normalizedItems.map((item) => [item.key, item]));
 	const sharedContext = baseContext(pageData);
 	const problems: ReportProblemPreview[] = [];
 
 	for (const template of templates) {
-		const item = itemsByKey.get(template.key);
-		const findings = issueFindings(item);
+		const findingTypeKey = template.expand?.audit_finding_type?.key || '';
+		const item = itemsByKey.get(findingTypeKey);
+		const matcher = issueMatcher(template.match_pattern);
+		const findings = issueFindings(item).filter((finding) => !matcher || matcher(finding));
 
 		if (!findings.length && !shouldIncludeMetricTemplate(template, item, sharedContext)) continue;
 
@@ -199,9 +214,9 @@ export function buildReportProblems(
 
 		problems.push({
 			key: template.key,
-			title: template.label,
-			priority: template.severity || 'Medium',
-			paragraphs: paragraphs(template.report_template || '', context),
+			title: template.title,
+			priority: template.priority || 'Medium',
+			paragraphs: paragraphs(template.template_body || '', context),
 			screenshot: item?.screenshot,
 			count: findings.length || 1
 		});
@@ -212,7 +227,7 @@ export function buildReportProblems(
 
 export function generateTemplateReportHtml(
 	pageData: AuditPageData,
-	templates: AuditFindingTypeTemplateRecord[]
+	templates: AuditReportTemplateRecord[]
 ) {
 	const domain = domainName(pageData);
 	const problems = buildReportProblems(pageData, templates);

@@ -1,5 +1,5 @@
 import { buildAuditPageData } from '$lib/server/audit-detail';
-import { getAudit, listAuditFindingTypeTemplates, updateAuditRecord } from '$lib/server/pocketbase';
+import { getAudit, listAuditReportTemplates, updateAuditRecord } from '$lib/server/pocketbase';
 import { generateTemplateReportHtml } from '$lib/server/report-template';
 
 type ReportRunnerState = {
@@ -76,9 +76,9 @@ async function processReportGeneration(auditId: string, token?: string) {
 
 	try {
 		const selectedKeys = new Set(
-			parseSelectedFindingTypeKeys(auditRecord.selected_report_finding_types_json)
+			parseSelectedFindingTypeKeys(auditRecord.selected_report_template_keys_json)
 		);
-		const reportTemplates = (await listAuditFindingTypeTemplates(token)).filter(
+		const reportTemplates = (await listAuditReportTemplates(token)).filter(
 			(template) => !selectedKeys.size || selectedKeys.has(template.key)
 		);
 		const reportHtml = generateTemplateReportHtml(pageData, reportTemplates);

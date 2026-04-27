@@ -15,6 +15,8 @@ const AUDIT_FINDING_TYPES_COLLECTION =
 const AUDIT_FINDINGS_COLLECTION = env.POCKETBASE_AUDIT_FINDINGS_COLLECTION || 'audit_findings';
 const AUDIT_SCREENSHOTS_COLLECTION =
 	env.POCKETBASE_AUDIT_SCREENSHOTS_COLLECTION || 'audit_screenshots';
+const AUDIT_REPORT_TEMPLATES_COLLECTION =
+	env.POCKETBASE_AUDIT_REPORT_TEMPLATES_COLLECTION || 'audit_report_templates';
 const AUTH_COOKIE_OPTIONS = {
 	httpOnly: true,
 	sameSite: 'lax' as const,
@@ -122,7 +124,8 @@ export function getCollectionNames() {
 		runs: RUNS_COLLECTION,
 		auditFindingTypes: AUDIT_FINDING_TYPES_COLLECTION,
 		auditFindings: AUDIT_FINDINGS_COLLECTION,
-		auditScreenshots: AUDIT_SCREENSHOTS_COLLECTION
+		auditScreenshots: AUDIT_SCREENSHOTS_COLLECTION,
+		auditReportTemplates: AUDIT_REPORT_TEMPLATES_COLLECTION
 	};
 }
 
@@ -207,7 +210,7 @@ export async function createAuditRecord(
 		report_started_at?: string;
 		report_completed_at?: string;
 		report_html?: string;
-		selected_report_finding_types_json?: string;
+		selected_report_template_keys_json?: string;
 		ai_visibility_json?: string;
 	},
 	token?: string
@@ -225,7 +228,7 @@ export async function createAuditRecord(
 		...(input.report_started_at ? { report_started_at: input.report_started_at } : {}),
 		...(input.report_completed_at ? { report_completed_at: input.report_completed_at } : {}),
 		report_html: input.report_html || '',
-		selected_report_finding_types_json: input.selected_report_finding_types_json || '',
+		selected_report_template_keys_json: input.selected_report_template_keys_json || '',
 		ai_visibility_json: input.ai_visibility_json || ''
 	});
 }
@@ -265,7 +268,7 @@ export async function updateAuditRecord(
 		report_started_at?: string | null;
 		report_completed_at?: string | null;
 		report_html?: string;
-		selected_report_finding_types_json?: string;
+		selected_report_template_keys_json?: string;
 		ai_visibility_json?: string;
 	},
 	token?: string
@@ -348,24 +351,33 @@ export async function getOrCreateAuditFindingTypeRecord(
 	}
 }
 
-export type AuditFindingTypeTemplateRecord = {
+export type AuditReportTemplateRecord = {
 	id: string;
 	key: string;
-	label: string;
-	severity?: 'Urgent' | 'High' | 'Medium';
-	report_template?: string;
+	audit_finding_type?: string;
+	title: string;
+	priority: 'Urgent' | 'High' | 'Medium';
+	match_pattern?: string;
+	template_body: string;
 	sort_order: number;
+	enabled?: boolean;
+	expand?: {
+		audit_finding_type?: {
+			key?: string;
+			label?: string;
+		};
+	};
 };
 
-export async function listAuditFindingTypeTemplates(token?: string) {
+export async function listAuditReportTemplates(token?: string) {
 	const pb = createAuthedClient(token);
 
 	try {
-		const findingTypes = (await pb.collection(AUDIT_FINDING_TYPES_COLLECTION).getFullList({
-			sort: 'sort_order'
-		})) as unknown as AuditFindingTypeTemplateRecord[];
-
-		return findingTypes.filter((findingType) => String(findingType.report_template || '').trim());
+		return (await pb.collection(AUDIT_REPORT_TEMPLATES_COLLECTION).getFullList({
+			filter: 'enabled = true',
+			sort: 'sort_order',
+			expand: 'audit_finding_type'
+		})) as unknown as AuditReportTemplateRecord[];
 	} catch (error) {
 		const response = (error as { response?: { status?: number } }).response;
 		if (response?.status === 400 || response?.status === 404) return [];

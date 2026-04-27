@@ -85,7 +85,7 @@
 				image_url?: string;
 			} | null;
 		}[];
-		selectedReportFindingTypeKeys: string[];
+		selectedReportTemplateKeys: string[];
 		aiVisibility: Record<string, unknown> | null;
 		normalizedItems: AuditItemView[];
 		isPendingReport?: boolean;
@@ -219,12 +219,12 @@
 
 	$effect(() => {
 		const previewKeys = (pageData.reportPreviewItems || []).map((item) => item.key).join('|');
-		const savedKeys = (pageData.selectedReportFindingTypeKeys || []).join('|');
+		const savedKeys = (pageData.selectedReportTemplateKeys || []).join('|');
 		const seed = `${pageData.auditId}:${previewKeys}:${savedKeys}`;
 		if (seed === reportSelectionSeed) return;
 
-		selectedReportKeys = pageData.selectedReportFindingTypeKeys?.length
-			? pageData.selectedReportFindingTypeKeys.filter((key) =>
+		selectedReportKeys = pageData.selectedReportTemplateKeys?.length
+			? pageData.selectedReportTemplateKeys.filter((key) =>
 					pageData.reportPreviewItems?.some((item) => item.key === key)
 				)
 			: (pageData.reportPreviewItems || []).slice(0, 10).map((item) => item.key);
@@ -338,7 +338,7 @@
 					completed_at: undefined
 				},
 				reportHtml: '',
-				selectedReportFindingTypeKeys: [...selectedReportKeys],
+				selectedReportTemplateKeys: [...selectedReportKeys],
 				isPendingReport: true
 			};
 			ensureLiveUpdates();
@@ -586,7 +586,7 @@
 									<label class="report-preview-item">
 										<input
 											type="checkbox"
-											name="findingTypeKey"
+											name="reportTemplateKey"
 											value={item.key}
 											bind:group={selectedReportKeys}
 										/>

@@ -4,7 +4,7 @@ import {
 	getWorkflowByAuditId,
 	listAuditScreenshots,
 	listAuditFindings,
-	listAuditFindingTypeTemplates,
+	listAuditReportTemplates,
 	listRunsByWorkflow
 } from '$lib/server/pocketbase';
 import { hasPendingScreenshotJobs } from '$lib/server/audit-runner';
@@ -100,7 +100,7 @@ export async function buildAuditPageData(
 		listRunsByWorkflow(workflowRecord.id, token),
 		listAuditFindings(auditRecord.id, token),
 		listAuditScreenshots(auditRecord.id, token),
-		listAuditFindingTypeTemplates(token)
+		listAuditReportTemplates(token)
 	]);
 	const findingsByRunId = new Map<string, typeof auditFindings>();
 	for (const finding of auditFindings) {
@@ -189,8 +189,8 @@ export async function buildAuditPageData(
 	});
 	const storedReportHtml = String(auditRecord?.report_html || '');
 	const reportHtml = includeReportHtml && storedReportHtml ? storedReportHtml : '';
-	const selectedReportFindingTypeKeys = parseStoredStringArray(
-		auditRecord.selected_report_finding_types_json
+	const selectedReportTemplateKeys = parseStoredStringArray(
+		auditRecord.selected_report_template_keys_json
 	);
 	const reportPreviewItems = buildReportProblems(
 		{
@@ -235,7 +235,7 @@ export async function buildAuditPageData(
 		),
 		reportHtml,
 		reportPreviewItems,
-		selectedReportFindingTypeKeys,
+		selectedReportTemplateKeys,
 		aiVisibility,
 		normalizedItems,
 		isPendingRun: ['queued', 'running'].includes(String(workflowRecord.status || '')),
