@@ -25,7 +25,7 @@ class ContentQualityPanel extends HTMLElement {
 	}
 
 	render() {
-		const { escapeHtml } = window.AutomagicHtml;
+		const { escapeHtml, formatValue } = window.AutomagicHtml;
 		const styles = window.AutomagicAuditStyles || {};
 		const panel = this._panel ?? {};
 		const entries = Array.isArray(panel.entries) ? panel.entries : [];
@@ -56,11 +56,11 @@ class ContentQualityPanel extends HTMLElement {
                   <div class="meta">
                     <div>
                       <p class="meta-label">Page</p>
-                      <p class="meta-value">${escapeHtml(entry.page ?? '')}</p>
+                      <p class="meta-value">${formatValue(entry.page ?? '')}</p>
                     </div>
                     <div>
                       <p class="meta-label">Word Count</p>
-                      <p class="meta-value">${escapeHtml(entry.wordCount ?? entry.value ?? '')}</p>
+                      <p class="meta-value">${formatValue(entry.wordCount ?? entry.value ?? '')}</p>
                     </div>
                   </div>
                 </article>

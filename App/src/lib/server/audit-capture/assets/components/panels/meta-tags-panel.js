@@ -50,29 +50,29 @@ class MetaTagsPanel extends HTMLElement {
 	}
 
 	renderPageList(pages) {
-		const { escapeHtml } = window.AutomagicHtml;
+		const { formatValue } = window.AutomagicHtml;
 		if (!Array.isArray(pages) || pages.length === 0) return '';
 		return `
       <ul class="meta-value-list">
-        ${pages.map((page) => `<li>${escapeHtml(page)}</li>`).join('')}
+        ${pages.map((page) => `<li>${formatValue(page)}</li>`).join('')}
       </ul>
     `;
 	}
 
 	renderValue(entry) {
-		const { escapeHtml } = window.AutomagicHtml;
+		const { escapeHtml, formatValue } = window.AutomagicHtml;
 		if (!entry.value) return '';
 		const label = entry.issue?.includes('description') ? 'Description' : 'Title';
 		return `
       <div>
         <p class="meta-label">${escapeHtml(label)}</p>
-        <p class="meta-value meta-value-strong">${escapeHtml(entry.value)}</p>
+        <p class="meta-value meta-value-strong">${formatValue(entry.value)}</p>
       </div>
     `;
 	}
 
 	render() {
-		const { escapeHtml } = window.AutomagicHtml;
+		const { escapeHtml, formatValue } = window.AutomagicHtml;
 		const styles = window.AutomagicAuditStyles || {};
 		const panel = this._panel ?? {};
 		const entries = Array.isArray(panel.entries) ? panel.entries : [];

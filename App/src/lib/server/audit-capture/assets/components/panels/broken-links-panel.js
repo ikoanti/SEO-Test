@@ -25,7 +25,7 @@ class BrokenLinksPanel extends HTMLElement {
 	}
 
 	render() {
-		const { escapeHtml } = window.AutomagicHtml;
+		const { escapeHtml, formatValue } = window.AutomagicHtml;
 		const styles = window.AutomagicAuditStyles || {};
 		const panel = this._panel ?? {};
 		const entries = Array.isArray(panel.entries) ? panel.entries : [];
@@ -56,11 +56,11 @@ class BrokenLinksPanel extends HTMLElement {
                   <div class="meta">
                     <div>
                       <p class="meta-label">Page</p>
-                      <p class="meta-value">${escapeHtml(entry.page ?? '')}</p>
+                      <p class="meta-value">${formatValue(entry.page ?? '')}</p>
                     </div>
                     <div>
                       <p class="meta-label">Link</p>
-                      <p class="meta-value">${escapeHtml(entry.link ?? '')}</p>
+                      <p class="meta-value">${formatValue(entry.link ?? '')}</p>
                     </div>
                   </div>
                 </article>

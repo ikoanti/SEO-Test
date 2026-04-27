@@ -25,7 +25,7 @@ class CanonicalsPanel extends HTMLElement {
 	}
 
 	render() {
-		const { escapeHtml } = window.AutomagicHtml;
+		const { escapeHtml, formatValue } = window.AutomagicHtml;
 		const styles = window.AutomagicAuditStyles || {};
 		const panel = this._panel ?? {};
 		const entries = Array.isArray(panel.entries) ? panel.entries : [];
@@ -58,13 +58,13 @@ class CanonicalsPanel extends HTMLElement {
 											entry.value
 												? `<div>
                       <p class="meta-label">Canonical</p>
-                      <p class="meta-value meta-value-strong">${escapeHtml(entry.value)}</p>
+                      <p class="meta-value meta-value-strong">${formatValue(entry.value)}</p>
                     </div>`
 												: ''
 										}
                     <div>
                       <p class="meta-label">Page</p>
-                      <p class="meta-value">${escapeHtml(entry.page ?? '')}</p>
+                      <p class="meta-value">${formatValue(entry.page ?? '')}</p>
                     </div>
                   </div>
                 </article>
