@@ -251,6 +251,7 @@ function buildSidebarSrcdoc(panelData: Record<string, unknown>) {
 		'components/panels/meta-tags-panel.js',
 		'components/panels/open-graph-panel.js',
 		'components/panels/placeholder-panel.js',
+		'components/panels/shopify-urls-panel.js',
 		'components/audit-sidebar.js'
 	];
 	const scriptTags = scripts

@@ -5,7 +5,8 @@ import {
 	captureHeadingEvidence,
 	captureImageAltEvidence,
 	captureInternalLinksEvidence,
-	captureMetaEvidence
+	captureMetaEvidence,
+	captureShopifyUrlEvidence
 } from '$lib/server/audit-capture';
 import {
 	addItem,
@@ -37,6 +38,7 @@ export async function analyzeMetaAndHeadings(
 	const canonicalEvidence: Array<{ page: string; issue: string; value?: string }> = [];
 	const internalLinksEvidence: Array<{ page: string; issue: string; count?: number }> = [];
 	const contentQualityEvidence: Array<{ page: string; issue: string; wordCount?: number }> = [];
+	const shopifyUrlEvidence: Array<{ page: string; issue: string; pattern?: string }> = [];
 	const maxEvidenceItems = 5;
 	const domain = (() => {
 		try {
@@ -191,13 +193,19 @@ export async function analyzeMetaAndHeadings(
 				});
 			}
 
+			const shopifyPattern = /\/collections\/|\/products\//.test(page);
+			if (shopifyPattern && shopifyUrlEvidence.length < maxEvidenceItems) {
+				shopifyUrlEvidence.push({
+					page,
+					issue: 'Shopify URL pattern detected',
+					pattern: page.includes('/collections/') ? '/collections/' : '/products/'
+				});
+			}
 			addItem(
 				summary,
 				shopifyUrls,
-				/\/collections\/|\/products\//.test(page) ? 'warn' : 'pass',
-				/\/collections\/|\/products\//.test(page)
-					? 'Shopify URL pattern detected'
-					: 'No Shopify URL pattern detected',
+				shopifyPattern ? 'warn' : 'pass',
+				shopifyPattern ? 'Shopify URL pattern detected' : 'No Shopify URL pattern detected',
 				{ title: page }
 			);
 
@@ -387,6 +395,27 @@ export async function analyzeMetaAndHeadings(
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
 			logger.warn(`page-analysis: content quality evidence capture failed (${message})`);
+		}
+	}
+
+	if (shopifyUrlEvidence.length > 0) {
+		try {
+			const issueCount = shopifyUrls.items.filter(
+				(item) => item.status === 'warn' || item.status === 'fail'
+			).length;
+			const capture = await captureShopifyUrlEvidence(domain, shopifyUrlEvidence, issueCount);
+			const firstIssue = shopifyUrls.items.find(
+				(item) => item.status === 'warn' || item.status === 'fail'
+			);
+			if (capture && firstIssue) {
+				firstIssue.meta = {
+					...((firstIssue.meta as Record<string, unknown> | undefined) || {}),
+					screenshot: capture
+				};
+			}
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			logger.warn(`page-analysis: shopify URL evidence capture failed (${message})`);
 		}
 	}
 

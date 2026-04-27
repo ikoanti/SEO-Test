@@ -146,7 +146,7 @@
 		{ key: 'wwwResolve', title: 'WWW vs Non-WWW Resolution' },
 		{ key: 'trustSignals', title: 'Contact & Trust Signals' },
 		{ key: 'tapTargets', title: 'Mobile Tap Targets', subtitle: 'Analyzing DOM heuristics' },
-		{ key: 'lazyLoadImages', title: 'Lazy Loading Images' }
+		{ key: 'lazyLoadImages', title: 'Lazy Loading Images', mini: true }
 	];
 
 	let { data, form }: { data: AuditPageViewData; form?: ActionData } = $props();
