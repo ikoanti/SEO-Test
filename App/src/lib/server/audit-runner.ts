@@ -462,7 +462,7 @@ function requestEntryPages(request: AuditCaptureRequest) {
 	return [];
 }
 
-function requestPageCandidates(request: AuditCaptureRequest, auditPages: string[]) {
+function requestPageCandidates(request: AuditCaptureRequest) {
 	const entryPages = requestEntryPages(request);
 	const explicitCandidates = homeLast(
 		uniquePageUrls([...(request.captureCandidatePageUrls || []), ...entryPages])
@@ -548,7 +548,7 @@ function allocateScreenshotPages(
 	);
 
 	for (const job of allocationOrder) {
-		const candidates = requestPageCandidates(job.request, auditPages);
+		const candidates = requestPageCandidates(job.request);
 		const selectedPage = chooseScreenshotPage(candidates, usedPageKeys);
 
 		if (!selectedPage) {
