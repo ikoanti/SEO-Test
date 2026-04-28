@@ -470,11 +470,11 @@ function requestPageCandidates(request: AuditCaptureRequest, auditPages: string[
 	if (explicitCandidates.length) return explicitCandidates;
 
 	if (request.kind === 'pagespeed') {
-		return homeLast(uniquePageUrls([request.pageUrl, ...auditPages]));
+		return uniquePageUrls([request.pageUrl]);
 	}
 
 	if (request.kind === 'open-page-rank') {
-		return homeLast(uniquePageUrls([request.pageUrl, ...auditPages]));
+		return uniquePageUrls([request.pageUrl]);
 	}
 
 	if (request.kind === 'robots') {
