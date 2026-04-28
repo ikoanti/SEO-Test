@@ -5,11 +5,14 @@ import {
 	AlignmentType,
 	Document,
 	Header,
+	HorizontalPositionRelativeFrom,
 	ImageRun,
 	PageBreak,
 	Packer,
 	Paragraph,
-	TextRun
+	TextRun,
+	TextWrappingType,
+	VerticalPositionRelativeFrom
 } from 'docx';
 import type { IRunOptions } from 'docx';
 import { getAuditScreenshotFile, type AuditReportTemplateRecord } from '$lib/server/pocketbase';
@@ -189,7 +192,7 @@ async function reportHeader() {
 		return new Header({
 			children: [
 				new Paragraph({
-					alignment: AlignmentType.RIGHT,
+					alignment: AlignmentType.LEFT,
 					children: [
 						new ImageRun({
 							type: 'png',
@@ -197,6 +200,28 @@ async function reportHeader() {
 							transformation: {
 								width: LOGO_WIDTH_PX,
 								height: LOGO_HEIGHT_PX
+							},
+							floating: {
+								allowOverlap: true,
+								behindDocument: false,
+								layoutInCell: true,
+								horizontalPosition: {
+									relative: HorizontalPositionRelativeFrom.COLUMN,
+									offset: 4171950
+								},
+								verticalPosition: {
+									relative: VerticalPositionRelativeFrom.PARAGRAPH,
+									offset: -133349
+								},
+								margins: {
+									top: 0,
+									right: 0,
+									bottom: 0,
+									left: 0
+								},
+								wrap: {
+									type: TextWrappingType.TOP_AND_BOTTOM
+								}
 							}
 						})
 					]
