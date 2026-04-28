@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { Plus, Search, X } from 'lucide-svelte';
+	import { tick } from 'svelte';
 	import type { ActionData } from './$types';
 
 	type AuditListItem = {
@@ -14,51 +15,78 @@
 	let { data, form }: { data: { audits: AuditListItem[]; query: string }; form?: ActionData } =
 		$props();
 	let createSheetOpen = $state(false);
-	let auditUrlInput = $state('');
-	let auditUrls = $state<string[]>([]);
+	let auditUrls = $state<string[]>(['']);
 
 	$effect(() => {
 		if (form?.createError) {
 			createSheetOpen = true;
-			auditUrls = Array.isArray(form.urls) ? form.urls : [];
+			auditUrls = Array.isArray(form.urls) && form.urls.length ? form.urls : [''];
 		}
 	});
 
 	function openCreateSheet() {
 		createSheetOpen = true;
+		if (!auditUrls.length) auditUrls = [''];
 	}
 
 	function closeCreateSheet() {
 		createSheetOpen = false;
 	}
 
-	function addAuditUrls(value: string) {
-		const urls = value
+	function splitUrls(value: string) {
+		return value
 			.split(',')
 			.map((url) => url.trim())
 			.filter(Boolean);
-		if (!urls.length) return;
-
-		auditUrls = [...new Set([...auditUrls, ...urls])];
-		auditUrlInput = '';
 	}
 
-	function removeAuditUrl(url: string) {
-		auditUrls = auditUrls.filter((item) => item !== url);
+	function auditUrlCount() {
+		return auditUrls.filter((url) => url.trim()).length;
 	}
 
-	function handleAuditUrlInput(event: Event) {
+	function focusAuditUrl(index: number) {
+		void tick().then(() => {
+			const input = document.querySelector<HTMLInputElement>(`[data-audit-url-index="${index}"]`);
+			input?.focus();
+		});
+	}
+
+	function updateAuditUrl(index: number, value: string) {
+		if (value.includes(',')) {
+			const urls = splitUrls(value);
+			if (!urls.length) return;
+
+			const next = [...auditUrls];
+			next.splice(index, 1, ...urls, '');
+			auditUrls = next;
+			focusAuditUrl(index + urls.length);
+			return;
+		}
+
+		auditUrls = auditUrls.map((url, itemIndex) => (itemIndex === index ? value : url));
+	}
+
+	function handleAuditUrlInput(index: number, event: Event) {
 		const input = event.currentTarget as HTMLInputElement;
-		if (!input.value.includes(',')) return;
-
-		addAuditUrls(input.value);
+		updateAuditUrl(index, input.value);
 	}
 
-	function handleAuditUrlKeydown(event: KeyboardEvent) {
+	function handleAuditUrlKeydown(index: number, event: KeyboardEvent) {
 		if (event.key !== 'Enter') return;
 
 		event.preventDefault();
-		addAuditUrls((event.currentTarget as HTMLInputElement).value);
+		const value = (event.currentTarget as HTMLInputElement).value.trim();
+		if (!value) return;
+
+		const next = [...auditUrls];
+		next.splice(index + 1, 0, '');
+		auditUrls = next;
+		focusAuditUrl(index + 1);
+	}
+
+	function removeAuditUrl(index: number) {
+		auditUrls = auditUrls.filter((_, itemIndex) => itemIndex !== index);
+		if (!auditUrls.length) auditUrls = [''];
 	}
 </script>
 
@@ -119,11 +147,11 @@
 
 {#if createSheetOpen}
 	<div class="sheet-backdrop" role="presentation" onclick={closeCreateSheet}></div>
-	<aside class="audit-create-sheet" aria-label="Create audits">
+	<div class="audit-create-sheet" aria-label="Create audits" aria-modal="true" role="dialog">
 		<div class="sheet-header">
 			<div>
 				<h2>Create audits</h2>
-				<p class="muted">Enter one URL, press Enter, or paste a comma-separated list.</p>
+				<p class="muted">Paste comma-separated URLs or press Enter to add another website.</p>
 			</div>
 			<button
 				type="button"
@@ -136,26 +164,31 @@
 		</div>
 
 		<form method="POST" action="?/create" class="sheet-form">
-			<div class="audit-url-combobox">
-				{#each auditUrls as url (url)}
-					<span class="audit-url-chip">
-						{url}
-						<button type="button" aria-label={`Remove ${url}`} onclick={() => removeAuditUrl(url)}>
-							<X size={14} />
+			<div class="audit-url-fields">
+				{#each auditUrls as url, index (index)}
+					<div class="audit-url-field">
+						<input
+							name="urls"
+							type="text"
+							inputmode="url"
+							value={url}
+							placeholder={index === 0 ? 'example.com' : 'another-site.com'}
+							aria-label={`Audit URL ${index + 1}`}
+							data-audit-url-index={index}
+							oninput={(event) => handleAuditUrlInput(index, event)}
+							onkeydown={(event) => handleAuditUrlKeydown(index, event)}
+						/>
+						<button
+							type="button"
+							class="field-remove"
+							aria-label={`Remove URL field ${index + 1}`}
+							disabled={auditUrls.length === 1 && !url.trim()}
+							onclick={() => removeAuditUrl(index)}
+						>
+							<X size={16} />
 						</button>
-					</span>
-					<input type="hidden" name="urls" value={url} />
+					</div>
 				{/each}
-				<input
-					name="url"
-					type="text"
-					inputmode="url"
-					bind:value={auditUrlInput}
-					placeholder={auditUrls.length ? 'Add another URL' : 'example.com, another-site.com'}
-					aria-label="Audit URLs"
-					oninput={handleAuditUrlInput}
-					onkeydown={handleAuditUrlKeydown}
-				/>
 			</div>
 
 			{#if form?.createError}
@@ -164,17 +197,13 @@
 
 			<div class="sheet-actions">
 				<button type="button" class="ghost-button" onclick={closeCreateSheet}>Cancel</button>
-				<button
-					type="submit"
-					class="icon-button"
-					disabled={!auditUrls.length && !auditUrlInput.trim()}
-				>
+				<button type="submit" class="icon-button" disabled={auditUrlCount() === 0}>
 					<Plus size={18} />
-					<span>Run {auditUrls.length > 1 ? `${auditUrls.length} audits` : 'audit'}</span>
+					<span>Run {auditUrlCount() > 1 ? `${auditUrlCount()} audits` : 'audit'}</span>
 				</button>
 			</div>
 		</form>
-	</aside>
+	</div>
 {/if}
 
 <style>
@@ -246,17 +275,20 @@
 
 	.audit-create-sheet {
 		position: fixed;
-		top: 0;
-		right: 0;
-		bottom: 0;
+		top: 50%;
+		left: 50%;
 		z-index: 100;
 		display: flex;
-		width: min(520px, 100%);
+		width: min(560px, calc(100% - 32px));
+		max-height: calc(100vh - 48px);
+		transform: translate(-50%, -50%);
 		flex-direction: column;
 		gap: 24px;
 		padding: 28px;
-		border-left: 1px solid var(--border-color);
-		background: var(--goldenweb-background);
+		overflow: auto;
+		border: 1px solid var(--border-color);
+		border-radius: 28px;
+		background: rgba(17, 24, 34, 0.98);
 	}
 
 	.sheet-header {
@@ -273,7 +305,7 @@
 	}
 
 	.sheet-close,
-	.audit-url-chip button {
+	.field-remove {
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
@@ -298,49 +330,34 @@
 		gap: 16px;
 	}
 
-	.audit-url-combobox {
+	.audit-url-fields {
 		display: flex;
-		min-height: 140px;
-		align-content: flex-start;
-		flex-wrap: wrap;
+		flex-direction: column;
 		gap: 10px;
-		padding: 14px;
-		border: 1px solid var(--border-color);
-		border-radius: 20px;
-		background: rgba(9, 14, 22, 0.32);
 	}
 
-	.audit-url-combobox:focus-within {
-		border-color: var(--goldenweb-primary);
-	}
-
-	.audit-url-combobox input {
-		min-width: min(260px, 100%);
-		flex: 1;
-		border: 0;
-		padding: 8px 2px;
-		background: transparent;
-	}
-
-	.audit-url-combobox input:focus {
-		outline: 0;
-	}
-
-	.audit-url-chip {
-		display: inline-flex;
-		max-width: 100%;
+	.audit-url-field {
+		display: grid;
+		grid-template-columns: 1fr auto;
+		gap: 10px;
 		align-items: center;
-		gap: 8px;
-		border: 1px solid rgba(255, 197, 61, 0.35);
-		border-radius: 999px;
-		padding: 8px 10px 8px 12px;
-		color: var(--text-primary);
-		font-size: 0.92rem;
-		font-weight: 800;
 	}
 
-	.audit-url-chip button {
-		color: var(--goldenweb-primary);
+	.audit-url-field input {
+		width: 100%;
+	}
+
+	.field-remove {
+		width: 44px;
+		height: 44px;
+		border: 1px solid var(--border-color);
+		border-radius: 999px;
+		color: var(--text-muted);
+	}
+
+	.field-remove:disabled {
+		cursor: not-allowed;
+		opacity: 0.35;
 	}
 
 	.sheet-error {
@@ -374,7 +391,9 @@
 
 	@media (max-width: 640px) {
 		.audit-create-sheet {
+			width: calc(100% - 24px);
 			padding: 22px;
+			border-radius: 22px;
 		}
 
 		.sheet-actions {
