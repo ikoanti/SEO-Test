@@ -1,5 +1,6 @@
 import PocketBase, { cookieParse, getTokenPayload } from 'pocketbase';
 import { env } from '$env/dynamic/private';
+import { listProblemCatalogTemplates } from '$lib/server/problem-catalog';
 
 const AUTH_COOKIE = 'pb_auth';
 const PB_URL = env.POCKETBASE_URL || 'http://127.0.0.1:8090';
@@ -545,14 +546,38 @@ export async function listAuditReportTemplates(token?: string) {
 	const pb = createAuthedClient(token);
 
 	try {
-		return (await pb.collection(AUDIT_REPORT_TEMPLATES_COLLECTION).getFullList({
+		const storedTemplates = (await pb.collection(AUDIT_REPORT_TEMPLATES_COLLECTION).getFullList({
 			filter: 'enabled = true',
 			sort: 'sort_order',
 			expand: 'audit_finding_type'
 		})) as unknown as AuditReportTemplateRecord[];
+		const storedByKey = new Map(storedTemplates.map((template) => [template.key, template]));
+
+		return listProblemCatalogTemplates().map((catalogTemplate) => {
+			const storedTemplate = storedByKey.get(catalogTemplate.key);
+			const storedFindingType = storedTemplate?.expand?.audit_finding_type;
+			const catalogFindingType = catalogTemplate.expand?.audit_finding_type;
+
+			return {
+				...storedTemplate,
+				...catalogTemplate,
+				id: storedTemplate?.id || catalogTemplate.id,
+				audit_finding_type:
+					storedTemplate?.audit_finding_type || catalogTemplate.audit_finding_type,
+				expand:
+					catalogFindingType || storedFindingType
+						? {
+								audit_finding_type: {
+									key: catalogFindingType?.key || storedFindingType?.key,
+									label: storedFindingType?.label || catalogFindingType?.label
+								}
+							}
+						: undefined
+			};
+		});
 	} catch (error) {
 		const response = (error as { response?: { status?: number } }).response;
-		if (response?.status === 400 || response?.status === 404) return [];
+		if (response?.status === 400 || response?.status === 404) return listProblemCatalogTemplates();
 		throw error;
 	}
 }

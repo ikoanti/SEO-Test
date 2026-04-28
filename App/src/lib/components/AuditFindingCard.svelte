@@ -34,6 +34,7 @@
 		title: string;
 		subtitle?: string;
 		mini?: boolean;
+		priority?: 'Urgent' | 'High' | 'Medium';
 	};
 
 	let {
@@ -305,7 +306,11 @@
 	<div class="audit-finding-section-heading">
 		<div class="audit-finding-title-row">
 			<h2>{section.title}</h2>
-			{#if item?.runStatus}
+			{#if section.priority}
+				<span class={`audit-priority audit-priority-${section.priority.toLowerCase()}`}>
+					{section.priority}
+				</span>
+			{:else if item?.runStatus}
 				<span class={`audit-run-status audit-run-status-${item.runStatus}`}>{item.runStatus}</span>
 			{/if}
 		</div>
@@ -500,7 +505,8 @@
 		font-weight: 800;
 	}
 
-	.audit-run-status {
+	.audit-run-status,
+	.audit-priority {
 		flex: 0 0 auto;
 		border: 1px solid var(--border);
 		border-radius: 999px;
@@ -509,6 +515,21 @@
 		font-size: 0.75rem;
 		font-weight: 800;
 		text-transform: uppercase;
+	}
+
+	.audit-priority-urgent {
+		border-color: color-mix(in srgb, var(--status-fail) 45%, transparent);
+		color: var(--status-fail);
+	}
+
+	.audit-priority-high {
+		border-color: color-mix(in srgb, var(--status-warn) 45%, transparent);
+		color: var(--status-warn);
+	}
+
+	.audit-priority-medium {
+		border-color: color-mix(in srgb, var(--goldenweb-primary) 45%, transparent);
+		color: var(--goldenweb-primary);
 	}
 
 	.check-list {

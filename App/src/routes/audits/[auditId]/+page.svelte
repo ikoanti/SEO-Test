@@ -101,6 +101,7 @@
 		title: string;
 		subtitle?: string;
 		mini?: boolean;
+		priority?: 'Urgent' | 'High' | 'Medium';
 	};
 	type RenderedAuditSection = {
 		section: LegacySection;
@@ -113,69 +114,6 @@
 		title: string;
 		href: string;
 	};
-
-	const legacySections: LegacySection[] = [
-		{ key: 'h1Tags', title: 'H1 Elements', subtitle: 'Scanning exactly 50 pages…', mini: true },
-		{ key: 'metaTitles', title: 'Meta Titles', subtitle: 'Scanning exactly 50 pages…', mini: true },
-		{ key: 'internalLinks', title: 'Internal Links', mini: true },
-		{
-			key: 'imageAltTags',
-			title: 'Image Alt Tags',
-			subtitle: 'Scanning exactly 50 pages…',
-			mini: true
-		},
-		{
-			key: 'canonicalUrls',
-			title: 'Canonical URL',
-			subtitle: 'Scanning exactly 50 pages…',
-			mini: true
-		},
-		{ key: 'sitemap', title: 'Sitemap.xml' },
-		{
-			key: 'robotsTxt',
-			title: 'Robots.txt Analysis',
-			subtitle: 'Checking crawler directives and sitemap'
-		},
-		{
-			key: 'aiVisibility',
-			title: 'AI Bot Visibility',
-			subtitle: 'Analyzing AI crawler rules in robots.txt'
-		},
-		{ key: 'llmsTxt', title: 'LLMs.txt Inspector' },
-		{ key: 'structuredData', title: 'Structured Data' },
-		{
-			key: 'security',
-			title: 'Security (HTTPS)',
-			subtitle: 'Scanning exactly 50 pages…',
-			mini: true
-		},
-		{
-			key: 'mixedContent',
-			title: 'Mixed Content',
-			subtitle: 'Scanning exactly 50 pages…',
-			mini: true
-		},
-		{
-			key: 'contentQuality',
-			title: 'Content Quality',
-			subtitle: 'Scanning exactly 50 pages…',
-			mini: true
-		},
-		{ key: 'webIcons', title: 'Web Icons' },
-		{ key: 'ssl', title: 'SSL Certificate Check' },
-		{ key: 'mobileUsability', title: 'Mobile Usability' },
-		{ key: 'flash', title: 'Flash Usage' },
-		{ key: 'charset', title: 'Character Encoding' },
-		{ key: 'loremIpsum', title: 'Lorem Ipsum Test' },
-		{ key: 'openGraph', title: 'OpenGraph Tags' },
-		{ key: 'shopifyUrls', title: 'Shopify URL Structure', mini: true },
-		{ key: 'internationalDomains', title: 'International Domains & Hreflang' },
-		{ key: 'trailingSlash', title: 'Trailing Slash Consistency' },
-		{ key: 'wwwResolve', title: 'WWW vs Non-WWW Resolution' },
-		{ key: 'trustSignals', title: 'Contact & Trust Signals' },
-		{ key: 'tapTargets', title: 'Mobile Tap Targets', subtitle: 'Analyzing DOM heuristics' },
-		{ key: 'lazyLoadImages', title: 'Lazy Loading Images', mini: true }
-	];
 
 	let { data, form }: { data: AuditPageViewData; form?: ActionData } = $props();
 	let liveData = $state<AuditPageViewData | null>(null);
@@ -211,7 +149,6 @@
 	let activeAuditSection = $state('openPageRank');
 
 	const itemByKey = (key: string) => pageData.normalizedItems?.find((item) => item.key === key);
-	const splitFindingSectionKeys = new Set(['h1Tags', 'metaTitles']);
 	const getRecord = (value: unknown): Record<string, unknown> =>
 		value && typeof value === 'object' && !Array.isArray(value)
 			? (value as Record<string, unknown>)
@@ -226,50 +163,24 @@
 		value === undefined || value === null || value === '' ? fallback : String(value);
 	const openPageRank = () => metricSection('openPageRank');
 	const pageSpeed = () => metricSection('pageSpeed');
-	const slugifyAuditSectionKey = (value: string) =>
-		value
-			.toLowerCase()
-			.replace(/[^a-z0-9]+/g, '-')
-			.replace(/^-+|-+$/g, '') || 'finding';
-	const findingSectionTitle = (finding: AuditFindingView) =>
-		finding.detail || finding.title || finding.status || 'Finding';
 	const renderedAuditSections = $derived.by<RenderedAuditSection[]>(() => {
-		const sections: RenderedAuditSection[] = [];
-
-		for (const section of legacySections) {
-			const item = itemByKey(section.key);
-			const shouldSplit = splitFindingSectionKeys.has(section.key) && (item?.findings?.length ?? 0) > 0;
-
-			if (!shouldSplit || !item) {
-				sections.push({ section, item });
-				continue;
+		return (pageData.reportPreviewItems || []).map((problem) => ({
+			section: {
+				key: problem.key,
+				title: problem.title,
+				priority: problem.priority,
+				mini: true
+			},
+			item: {
+				id: problem.key,
+				key: problem.key,
+				label: problem.title,
+				status: problem.status,
+				summary: `${problem.count} affected ${problem.count === 1 ? 'item' : 'items'}`,
+				screenshot: problem.screenshot,
+				findings: problem.findings
 			}
-
-			const groups = new Map<string, AuditFindingView[]>();
-			for (const finding of item.findings) {
-				const title = findingSectionTitle(finding);
-				groups.set(title, [...(groups.get(title) || []), finding]);
-			}
-
-			for (const [title, findings] of groups) {
-				sections.push({
-					section: {
-						...section,
-						key: `${section.key}-${slugifyAuditSectionKey(title)}`,
-						title
-					},
-					item: {
-						...item,
-						key: `${item.key}-${slugifyAuditSectionKey(title)}`,
-						label: title,
-						summary: `${findings.length} finding${findings.length === 1 ? '' : 's'}`,
-						findings
-					}
-				});
-			}
-		}
-
-		return sections;
+		}));
 	});
 	const auditNavItems = $derived.by<AuditNavItem[]>(() => [
 		{ key: 'openPageRank', title: 'Open Page Rank', href: '#section-opr' },
@@ -447,7 +358,11 @@
 	<section class:report-results={activeTab === 'findings'} class="results-grid audit-results">
 		{#if activeTab === 'findings'}
 			<div class="audit-report-layout">
-				<nav bind:this={auditSectionNavElement} class="audit-section-nav" aria-label="Audit findings">
+				<nav
+					bind:this={auditSectionNavElement}
+					class="audit-section-nav"
+					aria-label="Audit findings"
+				>
 					{#each auditNavItems as navItem (navItem.key)}
 						<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
 						<a
@@ -471,7 +386,10 @@
 						screenshot={itemByKey('openPageRank')?.screenshot}
 					/>
 
-					<PageSpeedCard pageSpeedData={pageSpeed()} screenshot={itemByKey('pageSpeed')?.screenshot} />
+					<PageSpeedCard
+						pageSpeedData={pageSpeed()}
+						screenshot={itemByKey('pageSpeed')?.screenshot}
+					/>
 
 					{#each renderedAuditSections as renderedSection (renderedSection.section.key)}
 						<AuditFindingCard
