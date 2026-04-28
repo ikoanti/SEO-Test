@@ -13,6 +13,10 @@ function getWebsiteUrl(audit: Record<string, unknown>) {
 	return website?.url || '';
 }
 
+function auditSortTimestamp(audit: Record<string, unknown>) {
+	return String(audit.queued_at || audit.created_at || audit.updated_at || audit.id || '');
+}
+
 export const load = async ({ locals, url }) => {
 	const query = String(url.searchParams.get('q') || '').trim();
 	const audits = await listAudits(query, locals.pbToken);
@@ -26,6 +30,7 @@ export const load = async ({ locals, url }) => {
 					...audit,
 					url: getWebsiteUrl(audit),
 					status: workflow.status || audit.status,
+					queued_at: workflow.queued_at,
 					targetHref: `/audits/${audit.id}`
 				};
 			} catch {
@@ -38,7 +43,12 @@ export const load = async ({ locals, url }) => {
 		})
 	);
 
-	return { audits: hydratedAudits, query };
+	return {
+		audits: hydratedAudits.sort((left, right) =>
+			auditSortTimestamp(right).localeCompare(auditSortTimestamp(left))
+		),
+		query
+	};
 };
 
 export const actions = {
