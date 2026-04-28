@@ -655,7 +655,6 @@ export async function listAuditScreenshots(auditId: string, token?: string) {
 	try {
 		screenshots = await pb.collection(AUDIT_SCREENSHOTS_COLLECTION).getFullList({
 			filter: `audit = "${escapeFilterValue(auditId)}"`,
-			sort: '-created',
 			expand: 'audit_finding_type,run'
 		});
 	} catch (error) {
