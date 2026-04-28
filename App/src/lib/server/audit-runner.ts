@@ -438,12 +438,6 @@ function uniqueCaptureEntries(entries: CaptureEntry[]) {
 	return result;
 }
 
-function auditPageCandidates(audit: AuditSummaryResult, rootUrl: string) {
-	const crawl = getRecord(audit.crawl);
-	const discoveredLinks = Array.isArray(crawl?.discoveredLinks) ? crawl.discoveredLinks : [];
-	return homeLast(uniquePageUrls([rootUrl, ...discoveredLinks]));
-}
-
 function requestEntryPages(request: AuditCaptureRequest) {
 	if (
 		request.kind === 'headings' ||
@@ -534,12 +528,7 @@ function reorderEntriesBySelectedPage<
 	};
 }
 
-function allocateScreenshotPages(
-	jobs: ScreenshotJob[],
-	audit: AuditSummaryResult,
-	rootUrl: string
-) {
-	const auditPages = auditPageCandidates(audit, rootUrl);
+function allocateScreenshotPages(jobs: ScreenshotJob[]) {
 	const usedPageKeys = new Set<string>();
 	const allocatedJobs = new Map<ScreenshotJob, ScreenshotJob>();
 	const allocationOrder = [...jobs].sort(
@@ -965,7 +954,7 @@ function collectScreenshotJobs(
 		}
 	}
 
-	return allocateScreenshotPages(jobs, audit, url);
+	return allocateScreenshotPages(jobs);
 }
 
 async function processAuditScreenshots(
