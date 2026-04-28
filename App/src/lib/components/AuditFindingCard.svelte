@@ -71,6 +71,12 @@
 		indented?: boolean;
 	};
 
+	type RenderGroup = {
+		key: string;
+		title: string;
+		rows: RenderRow[];
+	};
+
 	function isUrlLike(value?: string) {
 		if (!value) return false;
 		try {
@@ -164,6 +170,32 @@
 		return rows;
 	}
 
+	function issueGroupTitle(finding: AuditFindingView) {
+		return finding.detail || finding.title || finding.status || 'Findings';
+	}
+
+	function groupedIssueSections(prefix: string, findings: AuditFindingView[]) {
+		const groupedFindings: Record<string, AuditFindingView[]> = {};
+		const order: string[] = [];
+
+		for (const finding of findings) {
+			const title = issueGroupTitle(finding);
+			if (!groupedFindings[title]) {
+				groupedFindings[title] = [];
+				order.push(title);
+			}
+			groupedFindings[title].push(finding);
+		}
+
+		return order
+			.map((title) => ({
+				key: `${prefix}-${title}`,
+				title,
+				rows: groupedRows(`${prefix}-${title}`, groupedFindings[title] || [])
+			}))
+			.filter((group) => group.rows.length > 0);
+	}
+
 	const pills = $derived(statPills(item));
 	const visiblePillStatuses = $derived.by(() => {
 		const statuses: AuditFindingStatusFilter[] = [];
@@ -202,7 +234,7 @@
 	const hiddenFailCount = $derived.by(() =>
 		Math.max(findingsByStatus.fail.length - visibleFailFindings.length, 0)
 	);
-	const failRows = $derived(groupedRows('fail', visibleFailFindings));
+	const failGroups = $derived(groupedIssueSections('fail', visibleFailFindings));
 	const visibleWarnFindings = $derived.by(() => {
 		if (selectedStatus === 'warn' || showAllWarnFindings) {
 			return findingsByStatus.warn;
@@ -214,7 +246,7 @@
 	const hiddenWarnCount = $derived.by(() =>
 		Math.max(findingsByStatus.warn.length - visibleWarnFindings.length, 0)
 	);
-	const warnRows = $derived(groupedRows('warn', visibleWarnFindings));
+	const warnGroups = $derived(groupedIssueSections('warn', visibleWarnFindings));
 	const visibleInfoFindings = $derived.by(() => {
 		if (showAllInfoFindings) {
 			return findingsByStatus.info;
@@ -226,7 +258,7 @@
 	const hiddenInfoCount = $derived.by(() =>
 		Math.max(findingsByStatus.info.length - visibleInfoFindings.length, 0)
 	);
-	const infoRows = $derived(groupedRows('info', visibleInfoFindings));
+	const infoGroups = $derived(groupedIssueSections('info', visibleInfoFindings));
 	const visiblePassFindings = $derived.by(() => {
 		if (selectedStatus === 'pass' || showPassedFindings) {
 			return findingsByStatus.pass;
@@ -238,7 +270,7 @@
 	const hiddenPassCount = $derived.by(() =>
 		Math.max(findingsByStatus.pass.length - visiblePassFindings.length, 0)
 	);
-	const passRows = $derived(groupedRows('pass', visiblePassFindings));
+	const passGroups = $derived(groupedIssueSections('pass', visiblePassFindings));
 	const hasVisibleFindings = $derived.by(
 		() =>
 			findingsByStatus.fail.length > 0 ||
@@ -292,17 +324,20 @@
 	{/if}
 	<ul class={`check-list ${section.mini ? 'mini-list' : ''}`}>
 		{#if hasVisibleFindings}
-			{#each failRows as row (row.key)}
-				<AuditFindingRow
-					status={row.status}
-					title={row.title}
-					detail={row.detail}
-					href={row.href}
-					urlList={row.urlList}
-					codeSnippet={row.codeSnippet}
-					sectionHeader={row.sectionHeader}
-					indented={row.indented}
-				/>
+			{#each failGroups as group (group.key)}
+				<li class="issue-group-heading issue-group-heading-fail">{group.title}</li>
+				{#each group.rows as row (row.key)}
+					<AuditFindingRow
+						status={row.status}
+						title={row.title}
+						detail={row.detail}
+						href={row.href}
+						urlList={row.urlList}
+						codeSnippet={row.codeSnippet}
+						sectionHeader={row.sectionHeader}
+						indented={row.indented}
+					/>
+				{/each}
 			{/each}
 			{#if isFailSectionExpandable}
 				<li class="group-toggle-item">
@@ -317,17 +352,20 @@
 					</button>
 				</li>
 			{/if}
-			{#each warnRows as row (row.key)}
-				<AuditFindingRow
-					status={row.status}
-					title={row.title}
-					detail={row.detail}
-					href={row.href}
-					urlList={row.urlList}
-					codeSnippet={row.codeSnippet}
-					sectionHeader={row.sectionHeader}
-					indented={row.indented}
-				/>
+			{#each warnGroups as group (group.key)}
+				<li class="issue-group-heading issue-group-heading-warn">{group.title}</li>
+				{#each group.rows as row (row.key)}
+					<AuditFindingRow
+						status={row.status}
+						title={row.title}
+						detail={row.detail}
+						href={row.href}
+						urlList={row.urlList}
+						codeSnippet={row.codeSnippet}
+						sectionHeader={row.sectionHeader}
+						indented={row.indented}
+					/>
+				{/each}
 			{/each}
 			{#if isWarnSectionExpandable}
 				<li class="group-toggle-item">
@@ -342,17 +380,20 @@
 					</button>
 				</li>
 			{/if}
-			{#each infoRows as row (row.key)}
-				<AuditFindingRow
-					status={row.status}
-					title={row.title}
-					detail={row.detail}
-					href={row.href}
-					urlList={row.urlList}
-					codeSnippet={row.codeSnippet}
-					sectionHeader={row.sectionHeader}
-					indented={row.indented}
-				/>
+			{#each infoGroups as group (group.key)}
+				<li class="issue-group-heading issue-group-heading-info">{group.title}</li>
+				{#each group.rows as row (row.key)}
+					<AuditFindingRow
+						status={row.status}
+						title={row.title}
+						detail={row.detail}
+						href={row.href}
+						urlList={row.urlList}
+						codeSnippet={row.codeSnippet}
+						sectionHeader={row.sectionHeader}
+						indented={row.indented}
+					/>
+				{/each}
 			{/each}
 			{#if isInfoSectionExpandable}
 				<li class="group-toggle-item">
@@ -367,17 +408,20 @@
 					</button>
 				</li>
 			{/if}
-			{#each passRows as row (row.key)}
-				<AuditFindingRow
-					status={row.status}
-					title={row.title}
-					detail={row.detail}
-					href={row.href}
-					urlList={row.urlList}
-					codeSnippet={row.codeSnippet}
-					sectionHeader={row.sectionHeader}
-					indented={row.indented}
-				/>
+			{#each passGroups as group (group.key)}
+				<li class="issue-group-heading issue-group-heading-pass">{group.title}</li>
+				{#each group.rows as row (row.key)}
+					<AuditFindingRow
+						status={row.status}
+						title={row.title}
+						detail={row.detail}
+						href={row.href}
+						urlList={row.urlList}
+						codeSnippet={row.codeSnippet}
+						sectionHeader={row.sectionHeader}
+						indented={row.indented}
+					/>
+				{/each}
 			{/each}
 			{#if isPassSectionExpandable}
 				<li class="group-toggle-item">
@@ -460,10 +504,39 @@
 	.check-list {
 		display: flex;
 		flex-direction: column;
-		gap: 0.75rem;
+		gap: 0.65rem;
 		padding: 0;
 		margin: 0;
 		list-style: none;
+	}
+
+	.issue-group-heading {
+		margin: 0.4rem 0 0;
+		padding: 0.35rem 0 0.15rem;
+		color: var(--text-main);
+		font-size: 0.95rem;
+		font-weight: 800;
+		list-style: none;
+	}
+
+	.issue-group-heading:first-child {
+		margin-top: 0;
+	}
+
+	.issue-group-heading-pass {
+		color: var(--status-pass);
+	}
+
+	.issue-group-heading-warn {
+		color: var(--status-warn);
+	}
+
+	.issue-group-heading-fail {
+		color: var(--status-fail);
+	}
+
+	.issue-group-heading-info {
+		color: var(--status-info);
 	}
 
 	.audit-evidence {

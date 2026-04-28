@@ -9,7 +9,7 @@
 	import PageSpeedCard from '$lib/components/PageSpeedCard.svelte';
 	import SegmentedPicker from '$lib/components/SegmentedPicker.svelte';
 	import { FileText, FileUp } from 'lucide-svelte';
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import AuditHeader from './AuditHeader.svelte';
 	import type { ActionData } from './$types';
 
@@ -104,6 +104,11 @@
 	};
 
 	type AuditTab = 'findings' | 'ai-visibility' | 'report';
+	type AuditNavItem = {
+		key: string;
+		title: string;
+		href: string;
+	};
 
 	const legacySections: LegacySection[] = [
 		{ key: 'h1Tags', title: 'H1 Elements', subtitle: 'Scanning exactly 50 pages…', mini: true },
@@ -176,6 +181,7 @@
 	let reportSelectionSeed = $state('');
 	let fallbackInterval: number | undefined;
 	let stream: EventSource | undefined;
+	let cleanupScrollSpy: (() => void) | undefined;
 
 	const pendingStatuses = new Set(['queued', 'running']);
 	const runStatus = () => pageData.runRecord.status || 'queued';
@@ -192,11 +198,21 @@
 		{ key: 'ai-visibility', label: 'AI Visibility' },
 		{ key: 'report', label: 'Export' }
 	];
+	const auditNavItems: AuditNavItem[] = [
+		{ key: 'openPageRank', title: 'Open Page Rank', href: '#section-opr' },
+		{ key: 'pageSpeed', title: 'PageSpeed Insights', href: '#section-speed' },
+		...legacySections.map((section) => ({
+			key: section.key,
+			title: section.title,
+			href: `#section-${section.key}`
+		}))
+	];
 	const pageTitle = () =>
 		pageData.auditRecord?.name ||
 		pageData.runRecord?.name ||
 		pageData.auditRecord?.url ||
 		pageData.runRecord?.url;
+	let activeAuditSection = $state(auditNavItems[0]?.key || '');
 
 	const itemByKey = (key: string) => pageData.normalizedItems?.find((item) => item.key === key);
 	const getRecord = (value: unknown): Record<string, unknown> =>
@@ -279,12 +295,51 @@
 		};
 	}
 
+	function sectionIdFromHref(href: string) {
+		return href.replace(/^#/, '');
+	}
+
+	function updateActiveAuditSection() {
+		if (activeTab !== 'findings') return;
+
+		let currentKey = auditNavItems[0]?.key || '';
+		const threshold = 140;
+
+		for (const item of auditNavItems) {
+			const element = document.getElementById(sectionIdFromHref(item.href));
+			if (!element) continue;
+			if (element.getBoundingClientRect().top <= threshold) {
+				currentKey = item.key;
+			}
+		}
+
+		activeAuditSection = currentKey;
+	}
+
+	function setupScrollSpy() {
+		cleanupScrollSpy?.();
+		window.addEventListener('scroll', updateActiveAuditSection, { passive: true });
+		window.addEventListener('resize', updateActiveAuditSection);
+		updateActiveAuditSection();
+		cleanupScrollSpy = () => {
+			window.removeEventListener('scroll', updateActiveAuditSection);
+			window.removeEventListener('resize', updateActiveAuditSection);
+		};
+	}
+
 	onMount(() => {
 		ensureLiveUpdates();
+		void tick().then(setupScrollSpy);
 
 		return () => {
 			stopLiveUpdates();
+			cleanupScrollSpy?.();
 		};
+	});
+
+	$effect(() => {
+		if (activeTab !== 'findings') return;
+		void tick().then(updateActiveAuditSection);
 	});
 </script>
 
@@ -309,17 +364,36 @@
 
 	<section class:report-results={activeTab === 'findings'} class="results-grid audit-results">
 		{#if activeTab === 'findings'}
-			<OpenPageRankCard
-				pageRank={displayValue(openPageRank().pageRank)}
-				globalRank={displayValue(openPageRank().globalRank)}
-				screenshot={itemByKey('openPageRank')?.screenshot}
-			/>
+			<div class="audit-report-layout">
+				<nav class="audit-section-nav" aria-label="Audit findings">
+					{#each auditNavItems as navItem (navItem.key)}
+						<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+						<a
+							href={navItem.href}
+							class:active={activeAuditSection === navItem.key}
+							onclick={() => {
+								activeAuditSection = navItem.key;
+							}}
+						>
+							<span>{navItem.title}</span>
+						</a>
+					{/each}
+				</nav>
 
-			<PageSpeedCard pageSpeedData={pageSpeed()} screenshot={itemByKey('pageSpeed')?.screenshot} />
+				<div class="audit-report-sections">
+					<OpenPageRankCard
+						pageRank={displayValue(openPageRank().pageRank)}
+						globalRank={displayValue(openPageRank().globalRank)}
+						screenshot={itemByKey('openPageRank')?.screenshot}
+					/>
 
-			{#each legacySections as section (section.key)}
-				<AuditFindingCard {section} item={itemByKey(section.key)} />
-			{/each}
+					<PageSpeedCard pageSpeedData={pageSpeed()} screenshot={itemByKey('pageSpeed')?.screenshot} />
+
+					{#each legacySections as section (section.key)}
+						<AuditFindingCard {section} item={itemByKey(section.key)} />
+					{/each}
+				</div>
+			</div>
 		{:else if activeTab === 'ai-visibility'}
 			<div class="card audit-card" id="card-ai-visibility">
 				<h3 class="audit-card-title">AI Visibility Analysis</h3>
@@ -486,9 +560,45 @@
 
 	.report-results {
 		align-items: stretch;
-		width: min(100%, 960px);
+		width: min(100%, 1180px);
 		margin: 0 auto;
 		gap: 0;
+	}
+
+	.audit-report-layout {
+		display: grid;
+		grid-template-columns: 220px minmax(0, 1fr);
+		gap: 2rem;
+		align-items: start;
+	}
+
+	.audit-section-nav {
+		position: sticky;
+		top: 1.25rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.15rem;
+		padding: 0.25rem 0;
+		font-size: 0.9rem;
+	}
+
+	.audit-section-nav a {
+		display: block;
+		padding: 0.35rem 0;
+		border-left: 2px solid transparent;
+		padding-left: 0.75rem;
+		color: var(--text-muted);
+		line-height: 1.25;
+	}
+
+	.audit-section-nav a.active {
+		border-left-color: var(--goldenweb-primary);
+		color: var(--text-main);
+		font-weight: 800;
+	}
+
+	.audit-report-sections {
+		min-width: 0;
 	}
 
 	.highlight-yellow {
@@ -620,5 +730,34 @@
 	.ai-visibility-results {
 		margin-top: 1rem;
 		margin-bottom: 0;
+	}
+
+	@media (max-width: 980px) {
+		.audit-report-layout {
+			grid-template-columns: 1fr;
+			gap: 1rem;
+		}
+
+		.audit-section-nav {
+			position: sticky;
+			z-index: 2;
+			top: 0;
+			flex-direction: row;
+			overflow-x: auto;
+			border-bottom: 1px solid var(--border);
+			background: var(--goldenweb-background);
+		}
+
+		.audit-section-nav a {
+			flex: 0 0 auto;
+			border-left: 0;
+			border-bottom: 2px solid transparent;
+			padding: 0.65rem 0.75rem;
+			white-space: nowrap;
+		}
+
+		.audit-section-nav a.active {
+			border-bottom-color: var(--goldenweb-primary);
+		}
 	}
 </style>
