@@ -1,7 +1,8 @@
 <script lang="ts">
+	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { Plus, Search, X } from 'lucide-svelte';
-	import { tick } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import type { ActionData } from './$types';
 
 	type AuditListItem = {
@@ -14,8 +15,14 @@
 
 	let { data, form }: { data: { audits: AuditListItem[]; query: string }; form?: ActionData } =
 		$props();
+	let refreshInterval: number | undefined;
 	let createSheetOpen = $state(false);
 	let auditUrls = $state<string[]>(['']);
+	const pendingAuditStatuses = new Set(['queued', 'running']);
+
+	const hasPendingAudits = $derived(
+		data.audits.some((audit) => pendingAuditStatuses.has(auditStatus(audit)))
+	);
 
 	$effect(() => {
 		if (form?.createError) {
@@ -88,6 +95,38 @@
 		auditUrls = auditUrls.filter((_, itemIndex) => itemIndex !== index);
 		if (!auditUrls.length) auditUrls = [''];
 	}
+
+	function auditStatus(audit: AuditListItem) {
+		return audit.status || 'queued';
+	}
+
+	function statusLabel(status: string) {
+		return status.replaceAll('_', ' ');
+	}
+
+	function stopStatusRefresh() {
+		if (!refreshInterval) return;
+		window.clearInterval(refreshInterval);
+		refreshInterval = undefined;
+	}
+
+	$effect(() => {
+		if (!hasPendingAudits) {
+			stopStatusRefresh();
+			return;
+		}
+
+		if (refreshInterval) return;
+		refreshInterval = window.setInterval(() => {
+			void invalidateAll();
+		}, 2500);
+	});
+
+	onMount(() => {
+		return () => {
+			stopStatusRefresh();
+		};
+	});
 </script>
 
 <section class="page-head">
@@ -137,7 +176,9 @@
 					<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
 					<a href={audit.targetHref}>
 						<strong>{audit.url}</strong>
-						<span class="muted">Status: {audit.status || 'queued'}</span>
+						<span class={`audit-status-chip audit-status-${auditStatus(audit)}`}>
+							{statusLabel(auditStatus(audit))}
+						</span>
 					</a>
 				</li>
 			{/each}
@@ -246,8 +287,52 @@
 	}
 
 	.audit-list li a {
-		display: grid;
-		gap: 4px;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+	}
+
+	.audit-list li strong {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.audit-status-chip {
+		flex: 0 0 auto;
+		border: 1px solid var(--border-color);
+		border-radius: 999px;
+		padding: 0.4rem 0.7rem;
+		color: var(--text-muted);
+		font-size: 0.78rem;
+		font-weight: 900;
+		text-transform: capitalize;
+	}
+
+	.audit-status-queued {
+		border-color: rgba(148, 163, 184, 0.28);
+		background: rgba(148, 163, 184, 0.1);
+		color: var(--text-muted);
+	}
+
+	.audit-status-running {
+		border-color: rgba(96, 165, 250, 0.36);
+		background: rgba(96, 165, 250, 0.12);
+		color: var(--status-info);
+	}
+
+	.audit-status-completed {
+		border-color: rgba(87, 191, 133, 0.34);
+		background: rgba(87, 191, 133, 0.12);
+		color: var(--status-pass);
+	}
+
+	.audit-status-failed {
+		border-color: rgba(239, 83, 80, 0.36);
+		background: rgba(239, 83, 80, 0.12);
+		color: var(--status-fail);
 	}
 
 	.empty-state {

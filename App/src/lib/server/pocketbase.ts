@@ -266,7 +266,8 @@ export async function createAuditRecord(
 export async function listAudits(searchQuery: string, token?: string) {
 	const pb = createAuthedClient(token);
 	const audits = await pb.collection(AUDITS_COLLECTION).getFullList({
-		expand: 'website'
+		expand: 'website',
+		sort: '-created'
 	});
 
 	const query = searchQuery.trim().toLowerCase();
