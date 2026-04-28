@@ -41,7 +41,7 @@ echo "📦 Pulling infrastructure images"
 docker compose -f "$COMPOSE_FILE" pull caddy
 
 echo "🐳 Rebuilding application image"
-docker_compose_build_with_cache_repair "$COMPOSE_FILE" --pull app
+docker_compose_build_with_cache_repair "$COMPOSE_FILE" --pull pocketbase app
 
 echo "🚀 Starting stack"
 docker compose -f "$COMPOSE_FILE" up -d pocketbase app caddy

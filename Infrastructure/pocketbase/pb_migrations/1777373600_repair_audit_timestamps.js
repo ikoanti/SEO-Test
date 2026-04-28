@@ -1,6 +1,7 @@
 migrate(
   (app) => {
     const audits = app.findCollectionByNameOrId("audits");
+
     audits.indexes = audits.indexes.filter(
       (index) =>
         !String(index).includes("idx_audits_created_at") &&
