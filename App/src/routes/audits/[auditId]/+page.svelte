@@ -578,8 +578,12 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.15rem;
+		max-height: calc(100vh - 2.5rem);
+		overflow-y: auto;
+		overscroll-behavior: contain;
 		padding: 0.25rem 0;
 		font-size: 0.9rem;
+		scrollbar-width: thin;
 	}
 
 	.audit-section-nav a {
@@ -743,6 +747,8 @@
 			z-index: 2;
 			top: 0;
 			flex-direction: row;
+			max-height: none;
+			overflow-y: hidden;
 			overflow-x: auto;
 			border-bottom: 1px solid var(--border);
 			background: var(--goldenweb-background);
