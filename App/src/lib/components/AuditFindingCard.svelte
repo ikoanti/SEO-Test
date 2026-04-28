@@ -267,13 +267,18 @@
 	});
 </script>
 
-<div class="card audit-finding-card" id={`card-${section.key}`}>
-	<div class="audit-finding-card-heading">
-		<h3>{section.title}</h3>
+<section class="audit-finding-section" id={`section-${section.key}`}>
+	<div class="audit-finding-section-heading">
+		<div class="audit-finding-title-row">
+			<h2>{section.title}</h2>
+			{#if item?.runStatus}
+				<span class={`audit-run-status audit-run-status-${item.runStatus}`}>{item.runStatus}</span>
+			{/if}
+		</div>
 		{#if cardScreenshot}
-			<div class="card-image-proof">
+			<figure class="audit-evidence">
 				<img src={cardScreenshot.src} alt={cardScreenshot.alt} loading="lazy" />
-			</div>
+			</figure>
 		{/if}
 	</div>
 	{#if section.mini}
@@ -408,29 +413,48 @@
 			</li>
 		{/if}
 	</ul>
-</div>
+</section>
 
 <style>
-	.audit-finding-card {
+	.audit-finding-section {
 		width: 100%;
-		max-width: 800px;
-		padding: 1.5rem;
-		border-radius: 1rem;
+		padding: 1.5rem 0;
+		border-top: 1px solid var(--border);
 	}
 
-	.audit-finding-card-heading {
+	.audit-finding-section:first-child {
+		border-top: 0;
+		padding-top: 0;
+	}
+
+	.audit-finding-section-heading {
+		display: grid;
+		gap: 1rem;
 		margin: 0 0 1rem;
-		padding-bottom: 1rem;
-		border-bottom: 1px solid var(--border);
 	}
 
-	.audit-finding-card h3 {
+	.audit-finding-title-row {
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
+		justify-content: space-between;
+		gap: 1rem;
+	}
+
+	.audit-finding-section h2 {
 		margin: 0;
-		font-size: 1.25rem;
-		font-weight: 600;
+		font-size: 1.35rem;
+		font-weight: 800;
+	}
+
+	.audit-run-status {
+		flex: 0 0 auto;
+		border: 1px solid var(--border);
+		border-radius: 999px;
+		padding: 0.35rem 0.65rem;
+		color: var(--text-muted);
+		font-size: 0.75rem;
+		font-weight: 800;
+		text-transform: uppercase;
 	}
 
 	.check-list {
@@ -442,15 +466,15 @@
 		list-style: none;
 	}
 
-	.card-image-proof {
-		margin: 1rem 0 0;
+	.audit-evidence {
+		margin: 0;
 		overflow: hidden;
 		border: 1px solid var(--border);
-		border-radius: 0.9rem;
+		border-radius: 0.5rem;
 		background: rgba(15, 23, 42, 0.72);
 	}
 
-	.card-image-proof img {
+	.audit-evidence img {
 		display: block;
 		width: 100%;
 		height: auto;
@@ -487,5 +511,12 @@
 
 	.group-toggle-info {
 		color: var(--status-info);
+	}
+
+	@media (max-width: 640px) {
+		.audit-finding-title-row {
+			align-items: flex-start;
+			flex-direction: column;
+		}
 	}
 </style>

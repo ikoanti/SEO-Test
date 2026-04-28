@@ -42,16 +42,16 @@
 	}
 </script>
 
-<div class="card page-speed-card" id="card-speed">
-	<h3>PageSpeed Insights</h3>
+<section class="page-speed-section" id="section-speed">
+	<h2>PageSpeed Insights</h2>
 	{#if screenshot?.image_url}
-		<div class="card-image-proof">
+		<figure class="audit-evidence">
 			<img
 				src={screenshot.image_url}
 				alt={screenshot.title || 'PageSpeed Insights evidence screenshot'}
 				loading="lazy"
 			/>
-		</div>
+		</figure>
 	{/if}
 	<div class="speed-container">
 		{#each pageSpeedStrategies as strategy (strategy)}
@@ -82,36 +82,30 @@
 			{/if}
 		{/each}
 	</div>
-</div>
+</section>
 
 <style>
-	.page-speed-card {
+	.page-speed-section {
 		width: 100%;
-		max-width: 800px;
-		padding: 1.5rem;
-		border-radius: 1rem;
+		padding: 1.5rem 0;
+		border-top: 1px solid var(--border);
 	}
 
-	.page-speed-card h3 {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
+	.page-speed-section h2 {
 		margin: 0 0 1rem;
-		padding-bottom: 0.5rem;
-		border-bottom: 1px solid var(--border);
-		font-size: 1.25rem;
-		font-weight: 600;
+		font-size: 1.35rem;
+		font-weight: 800;
 	}
 
-	.card-image-proof {
+	.audit-evidence {
 		margin: 0 0 1rem;
 		overflow: hidden;
 		border: 1px solid var(--border);
-		border-radius: 0.9rem;
+		border-radius: 0.5rem;
 		background: rgba(15, 23, 42, 0.72);
 	}
 
-	.card-image-proof img {
+	.audit-evidence img {
 		display: block;
 		width: 100%;
 		height: auto;
@@ -122,7 +116,7 @@
 		align-items: flex-start;
 		justify-content: space-around;
 		gap: 1rem;
-		padding: 0.75rem 0;
+		padding: 0.25rem 0 0;
 	}
 
 	.speed-item {
@@ -191,10 +185,8 @@
 	.speed-metric {
 		display: flex;
 		justify-content: space-between;
-		padding: 0.4rem 0.6rem;
-		border: 1px solid rgba(255, 255, 255, 0.05);
-		border-radius: 0.4rem;
-		background: rgba(255, 255, 255, 0.03);
+		padding: 0.45rem 0;
+		border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 	}
 
 	.speed-metric span:last-child {

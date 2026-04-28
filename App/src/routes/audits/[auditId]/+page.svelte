@@ -307,7 +307,7 @@
 
 	<SegmentedPicker options={tabs} bind:selected={activeTab} ariaLabel="Audit sections" />
 
-	<section class="results-grid audit-results">
+	<section class:report-results={activeTab === 'findings'} class="results-grid audit-results">
 		{#if activeTab === 'findings'}
 			<OpenPageRankCard
 				pageRank={displayValue(openPageRank().pageRank)}
@@ -482,6 +482,13 @@
 		flex-direction: column;
 		align-items: center;
 		gap: 1.5rem;
+	}
+
+	.report-results {
+		align-items: stretch;
+		width: min(100%, 960px);
+		margin: 0 auto;
+		gap: 0;
 	}
 
 	.highlight-yellow {
