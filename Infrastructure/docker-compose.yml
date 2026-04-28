@@ -1,3 +1,5 @@
+name: seo-mini-tool
+
 services:
   app:
     build:
