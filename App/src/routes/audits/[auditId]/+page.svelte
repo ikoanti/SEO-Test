@@ -602,15 +602,15 @@
 
 	.report-results {
 		align-items: stretch;
-		width: min(100%, 1040px);
+		width: min(100%, 1240px);
 		margin: 0 auto;
 		gap: 0;
 	}
 
 	.audit-report-layout {
 		display: grid;
-		grid-template-columns: 210px minmax(0, 760px);
-		gap: 1.75rem;
+		grid-template-columns: minmax(180px, 220px) minmax(0, 800px) minmax(180px, 220px);
+		gap: 1.25rem;
 		align-items: start;
 		justify-content: center;
 	}
@@ -646,6 +646,7 @@
 
 	.audit-report-sections {
 		min-width: 0;
+		grid-column: 2;
 	}
 
 	.highlight-yellow {
@@ -783,6 +784,10 @@
 		.audit-report-layout {
 			grid-template-columns: 1fr;
 			gap: 1rem;
+		}
+
+		.audit-report-sections {
+			grid-column: auto;
 		}
 
 		.audit-section-nav {
