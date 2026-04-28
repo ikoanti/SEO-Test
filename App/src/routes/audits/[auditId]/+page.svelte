@@ -70,7 +70,6 @@
 			domain?: string;
 			summary?: { passed?: number; warnings?: number; failed?: number };
 		} | null;
-		reportHtml: string;
 		reportPreviewItems: {
 			key: string;
 			title: string;
@@ -455,11 +454,6 @@
 							<FileText size={18} />
 							<span>Export DOCX</span>
 						</button>
-
-						{#if pageData.reportHtml}
-							<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-							<div class="report-output">{@html pageData.reportHtml}</div>
-						{/if}
 					</form>
 				{:else}
 					<p class="muted report-status-note">
@@ -598,14 +592,6 @@
 		object-fit: cover;
 		border: 1px solid var(--border-color);
 		border-radius: 12px;
-	}
-
-	.report-output {
-		padding: 20px;
-		overflow: auto;
-		border-radius: 16px;
-		background: #ffffff;
-		color: #0f172a;
 	}
 
 	.ai-visibility-results {
