@@ -194,6 +194,10 @@ function shouldIncludeMetricTemplate(
 	return item?.status === 'warn' || item?.status === 'fail';
 }
 
+function canUseItemScreenshot(template: AuditReportTemplateRecord, findingTypeKey: string) {
+	return template.key === findingTypeKey;
+}
+
 function isDisplayStatus(value: unknown): value is ReportProblemPreview['status'] {
 	return value === 'pass' || value === 'warn' || value === 'fail' || value === 'info';
 }
@@ -265,7 +269,7 @@ export function buildReportProblems(
 			status: statusFromFindings(findings, item),
 			priority: template.priority || 'Medium',
 			paragraphs: paragraphs(template.template_body || '', context),
-			screenshot: item?.screenshot,
+			screenshot: canUseItemScreenshot(template, findingTypeKey) ? item?.screenshot : undefined,
 			findings,
 			count: findings.length || 1
 		});
