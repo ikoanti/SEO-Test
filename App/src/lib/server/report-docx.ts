@@ -153,7 +153,7 @@ async function withDocxXmlFixes(body: Buffer) {
 	);
 	documentXml = documentXml.replace(
 		emptyLineMarkerPattern,
-		'<w:p$1><w:pPr><w:spacing w:before="0" w:after="0"/><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr></w:r></w:p>'
+		'<w:p$1><w:pPr><w:spacing w:before="0" w:after="0"/><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:color w:val="FFFFFF"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t xml:space="preserve"> </w:t></w:r></w:p>'
 	);
 
 	zip.file('word/document.xml', documentXml);
@@ -285,6 +285,7 @@ export async function generateTemplateReportDocx(
 	templates: AuditReportTemplateRecord[],
 	token?: string
 ) {
+	emptyLineIndex = 0;
 	const domain = domainName(pageData);
 	const problems = reportProblems(pageData, templates);
 	const header = await reportHeader();
@@ -385,6 +386,16 @@ export async function generateTemplateReportDocx(
 	const document = new Document({
 		creator: 'GoldenWeb',
 		title: `Mini Technical SEO Audit - ${domain}`,
+		styles: {
+			default: {
+				document: {
+					run: {
+						font: FONT,
+						size: BODY_SIZE
+					}
+				}
+			}
+		},
 		sections: [
 			{
 				properties: {
