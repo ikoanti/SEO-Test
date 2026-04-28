@@ -29,8 +29,8 @@ const BODY_SIZE = 24;
 const SMALL_SIZE = 24;
 const TITLE_SIZE = 32;
 const SUBTITLE_SIZE = 28;
-const LOGO_WIDTH_PX = 154;
-const LOGO_HEIGHT_PX = 38;
+const LOGO_WIDTH_PX = 242;
+const LOGO_HEIGHT_PX = 59;
 
 function text(value: unknown, fallback = '') {
 	const raw = String(value ?? '').trim();
@@ -56,6 +56,10 @@ function domainName(pageData: ReportPageData) {
 
 function emptyLine(size = BODY_SIZE) {
 	return new Paragraph({
+		spacing: {
+			before: 0,
+			after: 0
+		},
 		children: [
 			new TextRun({
 				text: '',
