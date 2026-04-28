@@ -266,16 +266,15 @@ export function buildNormalizedAuditItems(audit: AuditResult): NormalizedAuditFi
 	return items;
 }
 
-function attachScreenshotRequest(target: Record<string, unknown>, request: AuditCaptureRequest) {
-	if (target.screenshot || target.screenshotRequest) return;
-	target.screenshotRequest = request;
-}
-
 function snapshotRecord(value: Record<string, unknown>) {
 	const snapshot = { ...value };
 	delete snapshot.screenshot;
 	delete snapshot.screenshotRequest;
 	return snapshot;
+}
+
+function setScreenshotRequest(target: Record<string, unknown>, request: AuditCaptureRequest) {
+	target.screenshotRequest = request;
 }
 
 export function attachMetricScreenshots(
@@ -296,7 +295,7 @@ export function attachMetricScreenshots(
 
 	if (requestedKeys.has('pageSpeed') && audit.pageSpeed && typeof audit.pageSpeed === 'object') {
 		const pageSpeed = audit.pageSpeed as Record<string, unknown>;
-		attachScreenshotRequest(pageSpeed, {
+		setScreenshotRequest(pageSpeed, {
 			kind: 'pagespeed',
 			reportTemplateKey: 'unoptimized-page-speed',
 			title: 'Unoptimized page speed',
@@ -312,7 +311,7 @@ export function attachMetricScreenshots(
 		typeof audit.openPageRank === 'object'
 	) {
 		const openPageRank = audit.openPageRank as Record<string, unknown>;
-		attachScreenshotRequest(openPageRank, {
+		setScreenshotRequest(openPageRank, {
 			kind: 'open-page-rank',
 			reportTemplateKey: 'open-page-rank',
 			title: 'Open PageRank',

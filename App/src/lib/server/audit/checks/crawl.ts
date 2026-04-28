@@ -12,7 +12,9 @@ export async function gatherPages(urlObj: URL, logger: AuditLogger) {
 	while (queue.length > 0 && links.length < 50) {
 		const currentUrl = queue.shift();
 		if (!currentUrl) continue;
-		if (!robotsPolicy.isAllowed(currentUrl)) {
+		const isSubmittedUrl =
+			currentUrl === urlObj.href || currentUrl === urlObj.href.replace(/\/$/, '');
+		if (!isSubmittedUrl && !robotsPolicy.isAllowed(currentUrl)) {
 			logger.info(`crawl: skipped robots-disallowed URL ${currentUrl}`);
 			continue;
 		}
