@@ -102,6 +102,10 @@
 		subtitle?: string;
 		mini?: boolean;
 	};
+	type RenderedAuditSection = {
+		section: LegacySection;
+		item?: AuditItemView;
+	};
 
 	type AuditTab = 'findings' | 'ai-visibility' | 'report';
 	type AuditNavItem = {
@@ -199,23 +203,15 @@
 		{ key: 'ai-visibility', label: 'AI Visibility' },
 		{ key: 'report', label: 'Export' }
 	];
-	const auditNavItems: AuditNavItem[] = [
-		{ key: 'openPageRank', title: 'Open Page Rank', href: '#section-opr' },
-		{ key: 'pageSpeed', title: 'PageSpeed Insights', href: '#section-speed' },
-		...legacySections.map((section) => ({
-			key: section.key,
-			title: section.title,
-			href: `#section-${section.key}`
-		}))
-	];
 	const pageTitle = () =>
 		pageData.auditRecord?.name ||
 		pageData.runRecord?.name ||
 		pageData.auditRecord?.url ||
 		pageData.runRecord?.url;
-	let activeAuditSection = $state(auditNavItems[0]?.key || '');
+	let activeAuditSection = $state('openPageRank');
 
 	const itemByKey = (key: string) => pageData.normalizedItems?.find((item) => item.key === key);
+	const splitFindingSectionKeys = new Set(['h1Tags', 'metaTitles']);
 	const getRecord = (value: unknown): Record<string, unknown> =>
 		value && typeof value === 'object' && !Array.isArray(value)
 			? (value as Record<string, unknown>)
@@ -230,6 +226,60 @@
 		value === undefined || value === null || value === '' ? fallback : String(value);
 	const openPageRank = () => metricSection('openPageRank');
 	const pageSpeed = () => metricSection('pageSpeed');
+	const slugifyAuditSectionKey = (value: string) =>
+		value
+			.toLowerCase()
+			.replace(/[^a-z0-9]+/g, '-')
+			.replace(/^-+|-+$/g, '') || 'finding';
+	const findingSectionTitle = (finding: AuditFindingView) =>
+		finding.detail || finding.title || finding.status || 'Finding';
+	const renderedAuditSections = $derived.by<RenderedAuditSection[]>(() => {
+		const sections: RenderedAuditSection[] = [];
+
+		for (const section of legacySections) {
+			const item = itemByKey(section.key);
+			const shouldSplit = splitFindingSectionKeys.has(section.key) && (item?.findings?.length ?? 0) > 0;
+
+			if (!shouldSplit || !item) {
+				sections.push({ section, item });
+				continue;
+			}
+
+			const groups = new Map<string, AuditFindingView[]>();
+			for (const finding of item.findings) {
+				const title = findingSectionTitle(finding);
+				groups.set(title, [...(groups.get(title) || []), finding]);
+			}
+
+			for (const [title, findings] of groups) {
+				sections.push({
+					section: {
+						...section,
+						key: `${section.key}-${slugifyAuditSectionKey(title)}`,
+						title
+					},
+					item: {
+						...item,
+						key: `${item.key}-${slugifyAuditSectionKey(title)}`,
+						label: title,
+						summary: `${findings.length} finding${findings.length === 1 ? '' : 's'}`,
+						findings
+					}
+				});
+			}
+		}
+
+		return sections;
+	});
+	const auditNavItems = $derived.by<AuditNavItem[]>(() => [
+		{ key: 'openPageRank', title: 'Open Page Rank', href: '#section-opr' },
+		{ key: 'pageSpeed', title: 'PageSpeed Insights', href: '#section-speed' },
+		...renderedAuditSections.map(({ section }) => ({
+			key: section.key,
+			title: section.title,
+			href: `#section-${section.key}`
+		}))
+	]);
 
 	$effect(() => {
 		const previewKeys = (pageData.reportPreviewItems || []).map((item) => item.key).join('|');
@@ -423,8 +473,12 @@
 
 					<PageSpeedCard pageSpeedData={pageSpeed()} screenshot={itemByKey('pageSpeed')?.screenshot} />
 
-					{#each legacySections as section (section.key)}
-						<AuditFindingCard {section} item={itemByKey(section.key)} />
+					{#each renderedAuditSections as renderedSection (renderedSection.section.key)}
+						<AuditFindingCard
+							section={renderedSection.section}
+							item={renderedSection.item}
+							showIssueHeadings={false}
+						/>
 					{/each}
 				</div>
 			</div>

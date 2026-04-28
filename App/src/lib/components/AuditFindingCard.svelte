@@ -38,10 +38,12 @@
 
 	let {
 		section,
-		item
+		item,
+		showIssueHeadings = true
 	}: {
 		section: LegacySection;
 		item?: AuditItemView;
+		showIssueHeadings?: boolean;
 	} = $props();
 	const previewLimit = 5;
 	let selectedStatus = $state<AuditFindingStatusFilter | null>(null);
@@ -325,7 +327,9 @@
 	<ul class={`check-list ${section.mini ? 'mini-list' : ''}`}>
 		{#if hasVisibleFindings}
 			{#each failGroups as group (group.key)}
-				<li class="issue-group-heading issue-group-heading-fail">{group.title}</li>
+				{#if showIssueHeadings}
+					<li class="issue-group-heading issue-group-heading-fail">{group.title}</li>
+				{/if}
 				{#each group.rows as row (row.key)}
 					<AuditFindingRow
 						status={row.status}
@@ -353,7 +357,9 @@
 				</li>
 			{/if}
 			{#each warnGroups as group (group.key)}
-				<li class="issue-group-heading issue-group-heading-warn">{group.title}</li>
+				{#if showIssueHeadings}
+					<li class="issue-group-heading issue-group-heading-warn">{group.title}</li>
+				{/if}
 				{#each group.rows as row (row.key)}
 					<AuditFindingRow
 						status={row.status}
@@ -381,7 +387,9 @@
 				</li>
 			{/if}
 			{#each infoGroups as group (group.key)}
-				<li class="issue-group-heading issue-group-heading-info">{group.title}</li>
+				{#if showIssueHeadings}
+					<li class="issue-group-heading issue-group-heading-info">{group.title}</li>
+				{/if}
 				{#each group.rows as row (row.key)}
 					<AuditFindingRow
 						status={row.status}
@@ -409,7 +417,9 @@
 				</li>
 			{/if}
 			{#each passGroups as group (group.key)}
-				<li class="issue-group-heading issue-group-heading-pass">{group.title}</li>
+				{#if showIssueHeadings}
+					<li class="issue-group-heading issue-group-heading-pass">{group.title}</li>
+				{/if}
 				{#each group.rows as row (row.key)}
 					<AuditFindingRow
 						status={row.status}
