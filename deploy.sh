@@ -2,6 +2,7 @@
 set -e
 
 COMPOSE_FILE="Infrastructure/docker-compose.yml"
+COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-seo-mini-tool}"
 DEPLOY_BRANCH="${DEPLOY_BRANCH:-main}"
 MIN_FREE_KB=$((4 * 1024 * 1024)) # 4 GB
 PRUNE_INTERVAL_SECONDS=$((24 * 60 * 60))
@@ -9,6 +10,7 @@ PRUNE_STAMP_FILE="/tmp/seo-mini-tool-docker-prune.stamp"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 source "$SCRIPT_DIR/Infrastructure/lib/deploy-common.sh"
+export COMPOSE_PROJECT_NAME
 
 load_env_file() {
   local env_file="$1"
@@ -27,6 +29,7 @@ cd "$SCRIPT_DIR"
 load_env_file "Infrastructure/.env"
 
 echo "🧹 Cleaning up stopped containers and unused images (volumes stay safe)..."
+assert_compose_file_does_not_delete_volumes "$COMPOSE_FILE"
 docker compose -f "$COMPOSE_FILE" down --remove-orphans || true
 
 maybe_prune
@@ -41,7 +44,7 @@ echo "🐳 Rebuilding application image"
 docker_compose_build_with_cache_repair "$COMPOSE_FILE" --pull app
 
 echo "🚀 Starting stack"
-docker compose -f "$COMPOSE_FILE" up -d app caddy
+docker compose -f "$COMPOSE_FILE" up -d pocketbase app caddy
 
 echo "✅ Deploy completed"
 docker compose -f "$COMPOSE_FILE" ps

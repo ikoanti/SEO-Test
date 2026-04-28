@@ -2,23 +2,54 @@
 
 safe_prune() {
   echo "🧹 Safe Docker prune (old unused images/build cache, keep volumes)"
+  assert_no_volume_prune_args image prune -af --filter "until=168h"
   docker image prune -af --filter "until=168h" || true
+  assert_no_volume_prune_args builder prune -af --filter "until=168h"
   docker builder prune -af --filter "until=168h" || true
+  assert_no_volume_prune_args container prune -f
   docker container prune -f || true
+  assert_no_volume_prune_args network prune -f
   docker network prune -f || true
 }
 
 aggressive_prune() {
   echo "🧨 Low disk detected, running aggressive prune (still keeping volumes)"
+  assert_no_volume_prune_args image prune -af
   docker image prune -af || true
+  assert_no_volume_prune_args builder prune -af
   docker builder prune -af || true
+  assert_no_volume_prune_args container prune -f
   docker container prune -f || true
+  assert_no_volume_prune_args network prune -f
   docker network prune -f || true
 }
 
 repair_buildkit_cache() {
   echo "🧹 Clearing Docker builder cache to avoid BuildKit snapshot corruption"
+  assert_no_volume_prune_args builder prune -af
   docker builder prune -af || true
+}
+
+assert_no_volume_prune_args() {
+  local arg
+
+  for arg in "$@"; do
+    case "$arg" in
+      --volumes|-v|volume)
+        echo "❌ Refusing deploy cleanup with volume-deleting Docker arg: $arg" >&2
+        exit 1
+        ;;
+    esac
+  done
+}
+
+assert_compose_file_does_not_delete_volumes() {
+  local compose_file="$1"
+
+  if grep -Eq 'down[[:space:]].*(-v|--volumes)|docker[[:space:]]+volume[[:space:]]+rm|docker[[:space:]]+system[[:space:]]+prune.*--volumes' "$compose_file"; then
+    echo "❌ Refusing deploy: ${compose_file} contains volume deletion commands." >&2
+    exit 1
+  fi
 }
 
 is_buildkit_snapshot_error() {

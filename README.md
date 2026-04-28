@@ -73,6 +73,8 @@ This app is now designed to run as a single Docker Compose stack with:
 
 ### PocketBase behavior
 - PocketBase runs on `http://localhost:8090`
+- Production deploys preserve the named `pocketbase_data` Docker volume. A deploy may recreate the PocketBase container, but it must not recreate or delete the persisted PocketBase database.
+- Only local reset recipes (`just dev`, `just dev-reset`, `just dev-reset-no-build`) intentionally delete PocketBase data so migrations can rebuild a clean local database.
 - The shared migration in `Infrastructure/pocketbase/pb_migrations/1735689600_init_seo_tool.js` auto-creates:
   - `users` auth collection
   - `websites`
@@ -85,6 +87,20 @@ This app is now designed to run as a single Docker Compose stack with:
 - The SvelteKit app authenticates users against PocketBase and protects audit routes through server-side session validation.
 - The SvelteKit app saves websites, audits, workflows, runs, findings, and generated HTML reports into PocketBase.
 - You can seed the initial login with `APP_AUTH_EMAIL`, `APP_AUTH_PASSWORD`, and `APP_AUTH_NAME` in `Infrastructure/.env`.
+
+### Safe deployment
+Use the root deploy script from `SEO-Test/`:
+
+```bash
+./deploy.sh
+```
+
+The deploy script:
+- pulls the selected branch and rebuilds the app image
+- pins `COMPOSE_PROJECT_NAME=seo-mini-tool` by default so named volume names stay stable across deploy paths
+- starts `pocketbase`, `app`, and `caddy` explicitly
+- runs cleanup without `docker compose down -v`, `docker volume rm`, or `docker system prune --volumes`
+- refuses deploy cleanup if a volume-deleting command is introduced
 
 ### Useful endpoints
 - App health: `GET /api/health`
