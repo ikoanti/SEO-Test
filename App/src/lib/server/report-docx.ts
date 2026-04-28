@@ -1,6 +1,15 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { AlignmentType, Document, Header, ImageRun, Packer, Paragraph, ShadingType, TextRun } from 'docx';
+import {
+	AlignmentType,
+	Document,
+	Header,
+	ImageRun,
+	ImportedXmlComponent,
+	Packer,
+	Paragraph,
+	TextRun
+} from 'docx';
 import type { IRunOptions } from 'docx';
 import { getAuditScreenshotFile, type AuditReportTemplateRecord } from '$lib/server/pocketbase';
 import {
@@ -16,7 +25,7 @@ type ReportDocxPageData = ReportPageData & {
 const FONT = 'Arial';
 const PAGE_WIDTH_PX = 600;
 const BODY_SIZE = 24;
-const SMALL_SIZE = 20;
+const SMALL_SIZE = 24;
 const TITLE_SIZE = 32;
 const SUBTITLE_SIZE = 28;
 const LOGO_WIDTH_PX = 154;
@@ -101,33 +110,56 @@ function priorityStyle(priority: ReportProblemPreview['priority']) {
 	return { color: '473821', fill: 'ffe5a0' };
 }
 
+function priorityDropdown(index: number, priority: ReportProblemPreview['priority']) {
+	const style = priorityStyle(priority);
+	const controlId = 898116759 + index;
+
+	return ImportedXmlComponent.fromXmlString(`
+		<w:sdt xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+			<w:sdtPr>
+				<w:alias w:val="Priority" />
+				<w:id w:val="${controlId}" />
+				<w:dropDownList w:lastValue="${priority}">
+					<w:listItem w:displayText="Urgent" w:value="Urgent" />
+					<w:listItem w:displayText="High" w:value="High" />
+					<w:listItem w:displayText="Medium" w:value="Medium" />
+				</w:dropDownList>
+			</w:sdtPr>
+			<w:sdtContent>
+				<w:r>
+					<w:rPr>
+						<w:color w:val="${style.color}" />
+						<w:sz w:val="${SMALL_SIZE}" />
+						<w:szCs w:val="${SMALL_SIZE}" />
+						<w:shd w:fill="${style.fill}" w:val="clear" />
+					</w:rPr>
+					<w:t xml:space="preserve">${priority}</w:t>
+				</w:r>
+			</w:sdtContent>
+		</w:sdt>
+	`);
+}
+
 function problemHeading(index: number, problem: ReportProblemPreview) {
-	const priority = priorityStyle(problem.priority);
 	return new Paragraph({
 		children: [
 			textRun(`Problem ${index}: ${problem.title}`, { bold: true }),
 			textRun('Priority: ', { break: 1, size: SMALL_SIZE }),
-			textRun(problem.priority, {
-				size: SMALL_SIZE,
-				color: priority.color,
-				shading: {
-					type: ShadingType.CLEAR,
-					fill: priority.fill
-				}
-			})
+			priorityDropdown(index, problem.priority)
 		]
 	});
 }
 
 async function reportHeader() {
 	try {
-		const logoPath = process.env.REPORT_LOGO_PATH || resolve(process.cwd(), 'src/lib/assets/logo.png');
+		const logoPath =
+			process.env.REPORT_LOGO_PATH || resolve(process.cwd(), 'src/lib/assets/report-logo.png');
 		const logo = await readFile(logoPath);
 
 		return new Header({
 			children: [
 				new Paragraph({
-					alignment: AlignmentType.CENTER,
+					alignment: AlignmentType.RIGHT,
 					children: [
 						new ImageRun({
 							type: 'png',
@@ -322,20 +354,20 @@ export async function generateTemplateReportDocx(
 		creator: 'GoldenWeb',
 		title: `Mini Technical SEO Audit - ${domain}`,
 		sections: [
-				{
-					properties: {
+			{
+				properties: {
 					page: {
 						margin: {
 							top: 1440,
 							right: 1440,
 							bottom: 1440,
 							left: 1440
-							}
 						}
-					},
-					headers: header ? { default: header } : undefined,
-					children
-				}
+					}
+				},
+				headers: header ? { default: header } : undefined,
+				children
+			}
 		]
 	});
 
