@@ -6,6 +6,7 @@ import {
 	Header,
 	ImageRun,
 	ImportedXmlComponent,
+	PageBreak,
 	Packer,
 	Paragraph,
 	TextRun
@@ -97,6 +98,12 @@ function subtitleParagraph(textValue: string) {
 function sectionHeading(textValue: string) {
 	return new Paragraph({
 		children: [textRun(textValue, { bold: true, size: SUBTITLE_SIZE })]
+	});
+}
+
+function pageBreak() {
+	return new Paragraph({
+		children: [new PageBreak()]
 	});
 }
 
@@ -275,7 +282,7 @@ export async function generateTemplateReportDocx(
 			'The goal of this brief document is to provide an evaluation of challenges, which if resolved can be quick-win opportunities that can yield better rankings and higher organic traffic.'
 		),
 		emptyLine(),
-		emptyLine(),
+		pageBreak(),
 		sectionHeading('Challenges'),
 		emptyLine(),
 		paragraph(
