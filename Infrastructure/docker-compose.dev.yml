@@ -5,9 +5,5 @@ services:
     ports:
       - "3000:3000"
 
-  pocketbase:
-    ports:
-      - "8090:8090"
-
   caddy:
     profiles: ["disabled"]
