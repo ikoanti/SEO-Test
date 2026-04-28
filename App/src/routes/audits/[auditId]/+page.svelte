@@ -560,16 +560,17 @@
 
 	.report-results {
 		align-items: stretch;
-		width: min(100%, 1180px);
+		width: min(100%, 1040px);
 		margin: 0 auto;
 		gap: 0;
 	}
 
 	.audit-report-layout {
 		display: grid;
-		grid-template-columns: 220px minmax(0, 1fr);
-		gap: 2rem;
+		grid-template-columns: 210px minmax(0, 760px);
+		gap: 1.75rem;
 		align-items: start;
+		justify-content: center;
 	}
 
 	.audit-section-nav {
