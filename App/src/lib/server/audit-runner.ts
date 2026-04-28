@@ -29,6 +29,7 @@ type QueuePayload = {
 
 type AuditRunnerState = {
 	activeWorkflows: Set<string>;
+	activeScreenshotBackfills: Set<string>;
 };
 
 type AuditSummaryResult = AuditResult;
@@ -78,8 +79,10 @@ type WorkflowRecordLike = {
 const state = ((
 	globalThis as typeof globalThis & { __auditRunnerState?: AuditRunnerState }
 ).__auditRunnerState ??= {
-	activeWorkflows: new Set<string>()
+	activeWorkflows: new Set<string>(),
+	activeScreenshotBackfills: new Set<string>()
 });
+state.activeScreenshotBackfills ??= new Set<string>();
 
 const screenshotQueueState = ((
 	globalThis as typeof globalThis & { __auditScreenshotQueueState?: ScreenshotQueueState }
@@ -323,6 +326,7 @@ async function processScreenshotJob(input: ScreenshotJob, token?: string) {
 
 export function hasPendingScreenshotJobs(auditId?: string) {
 	const matchesAudit = (key: string) => !auditId || key.startsWith(`${auditId}:`);
+	if (auditId && state.activeScreenshotBackfills.has(auditId)) return true;
 	for (const key of screenshotQueueState.queuedKeys) {
 		if (matchesAudit(key)) return true;
 	}
@@ -1199,6 +1203,56 @@ async function processAuditScreenshots(
 	for (const job of jobs) {
 		await processScreenshotJob(job, token);
 	}
+}
+
+export function queueAuditScreenshotBackfill(input: {
+	auditId: string;
+	url: string;
+	audit: AuditSummaryResult | null;
+	runs: Array<Record<string, unknown>>;
+	token?: string;
+}) {
+	if (!input.audit || state.activeScreenshotBackfills.has(input.auditId)) return;
+	if (hasPendingScreenshotJobs(input.auditId)) return;
+
+	const runRegistry: RunRegistry = new Map();
+	for (const run of input.runs) {
+		const findingType = (
+			run.expand as
+				| {
+						audit_finding_type?: {
+							key?: string;
+							label?: string;
+							sort_order?: number;
+						};
+				  }
+				| undefined
+		)?.audit_finding_type;
+		const key = findingType?.key;
+		const runId = typeof run.id === 'string' ? run.id : '';
+		const findingTypeId = typeof run.audit_finding_type === 'string' ? run.audit_finding_type : '';
+		if (!key || !runId || !findingTypeId) continue;
+		runRegistry.set(key, {
+			runId,
+			findingTypeId,
+			label: findingType.label || key,
+			sortOrder: Number(findingType.sort_order || run.sort_order || 999)
+		});
+	}
+
+	if (runRegistry.size === 0) return;
+
+	state.activeScreenshotBackfills.add(input.auditId);
+	void processAuditScreenshots(input.auditId, input.url, input.audit, runRegistry, input.token)
+		.catch((error) => {
+			console.error(
+				`[audit-runner] screenshot backfill failed for ${input.auditId}:`,
+				error instanceof Error ? error.message : error
+			);
+		})
+		.finally(() => {
+			state.activeScreenshotBackfills.delete(input.auditId);
+		});
 }
 
 async function finalizeUnsyncedRuns(
