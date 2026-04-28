@@ -65,6 +65,7 @@ This app is now designed to run as a single Docker Compose stack with:
 
 ### Compose setup
 1. Configure real secrets and API keys in `Infrastructure/.env`
+   - Set `APP_ORIGIN` to the public HTTPS app URL, e.g. `https://seo.irakli.life`. If this is left as `http://localhost:3000` in production, SvelteKit will reject login/logout and other POST forms with `Cross-site POST form submissions are forbidden`.
 2. Start the stack:
    ```bash
    cd Infrastructure

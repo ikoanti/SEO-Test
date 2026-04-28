@@ -10,7 +10,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
-      ORIGIN: ${APP_ORIGIN:-http://localhost:3000}
+      ORIGIN: ${APP_ORIGIN:-https://seo.irakli.life}
       OPEN_PAGE_RANK_API_KEY: ${OPEN_PAGE_RANK_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       PAGESPEED_API_KEY: ${PAGESPEED_API_KEY:-}
