@@ -1,4 +1,6 @@
-import { AlignmentType, Document, ImageRun, Packer, Paragraph, ShadingType, TextRun } from 'docx';
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { AlignmentType, Document, Header, ImageRun, Packer, Paragraph, ShadingType, TextRun } from 'docx';
 import type { IRunOptions } from 'docx';
 import { getAuditScreenshotFile, type AuditReportTemplateRecord } from '$lib/server/pocketbase';
 import {
@@ -17,6 +19,8 @@ const BODY_SIZE = 24;
 const SMALL_SIZE = 20;
 const TITLE_SIZE = 32;
 const SUBTITLE_SIZE = 28;
+const LOGO_WIDTH_PX = 154;
+const LOGO_HEIGHT_PX = 38;
 
 function text(value: unknown, fallback = '') {
 	const raw = String(value ?? '').trim();
@@ -115,6 +119,33 @@ function problemHeading(index: number, problem: ReportProblemPreview) {
 	});
 }
 
+async function reportHeader() {
+	try {
+		const logoPath = process.env.REPORT_LOGO_PATH || resolve(process.cwd(), 'src/lib/assets/logo.png');
+		const logo = await readFile(logoPath);
+
+		return new Header({
+			children: [
+				new Paragraph({
+					alignment: AlignmentType.CENTER,
+					children: [
+						new ImageRun({
+							type: 'png',
+							data: logo,
+							transformation: {
+								width: LOGO_WIDTH_PX,
+								height: LOGO_HEIGHT_PX
+							}
+						})
+					]
+				})
+			]
+		});
+	} catch {
+		return null;
+	}
+}
+
 function pngDimensions(body: ArrayBuffer) {
 	const view = new DataView(body);
 	const pngSignature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
@@ -192,6 +223,7 @@ export async function generateTemplateReportDocx(
 ) {
 	const domain = domainName(pageData);
 	const problems = reportProblems(pageData, templates);
+	const header = await reportHeader();
 	const children: Paragraph[] = [
 		titleParagraph('Mini Technical SEO Audit'),
 		subtitleParagraph(domain),
@@ -290,19 +322,20 @@ export async function generateTemplateReportDocx(
 		creator: 'GoldenWeb',
 		title: `Mini Technical SEO Audit - ${domain}`,
 		sections: [
-			{
-				properties: {
+				{
+					properties: {
 					page: {
 						margin: {
 							top: 1440,
 							right: 1440,
 							bottom: 1440,
 							left: 1440
+							}
 						}
-					}
-				},
-				children
-			}
+					},
+					headers: header ? { default: header } : undefined,
+					children
+				}
 		]
 	});
 
