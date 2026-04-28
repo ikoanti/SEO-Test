@@ -1,11 +1,11 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import JSZip from 'jszip';
 import {
 	AlignmentType,
 	Document,
 	Header,
 	ImageRun,
-	ImportedXmlComponent,
 	PageBreak,
 	Packer,
 	Paragraph,
@@ -31,6 +31,7 @@ const TITLE_SIZE = 32;
 const SUBTITLE_SIZE = 28;
 const LOGO_WIDTH_PX = 242;
 const LOGO_HEIGHT_PX = 59;
+const PRIORITY_MARKER_PREFIX = 'GW_PRIORITY_DROPDOWN';
 
 function text(value: unknown, fallback = '') {
 	const raw = String(value ?? '').trim();
@@ -121,34 +122,15 @@ function priorityStyle(priority: ReportProblemPreview['priority']) {
 	return { color: '473821', fill: 'ffe5a0' };
 }
 
-function priorityDropdown(index: number, priority: ReportProblemPreview['priority']) {
+function priorityMarker(index: number, priority: ReportProblemPreview['priority']) {
+	return `${PRIORITY_MARKER_PREFIX}_${index}_${priority}`;
+}
+
+function priorityDropdownXml(index: number, priority: ReportProblemPreview['priority']) {
 	const style = priorityStyle(priority);
 	const controlId = 898116759 + index;
 
-	return ImportedXmlComponent.fromXmlString(`
-		<w:sdt xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
-			<w:sdtPr>
-				<w:alias w:val="Priority" />
-				<w:id w:val="${controlId}" />
-				<w:dropDownList w:lastValue="${priority}">
-					<w:listItem w:displayText="Urgent" w:value="Urgent" />
-					<w:listItem w:displayText="High" w:value="High" />
-					<w:listItem w:displayText="Medium" w:value="Medium" />
-				</w:dropDownList>
-			</w:sdtPr>
-			<w:sdtContent>
-				<w:r>
-					<w:rPr>
-						<w:color w:val="${style.color}" />
-						<w:sz w:val="${SMALL_SIZE}" />
-						<w:szCs w:val="${SMALL_SIZE}" />
-						<w:shd w:fill="${style.fill}" w:val="clear" />
-					</w:rPr>
-					<w:t xml:space="preserve">${priority}</w:t>
-				</w:r>
-			</w:sdtContent>
-		</w:sdt>
-	`);
+	return `<w:sdt><w:sdtPr><w:alias w:val="Priority"/><w:id w:val="${controlId}"/><w:dropDownList w:lastValue="${priority}"><w:listItem w:displayText="Urgent" w:value="Urgent"/><w:listItem w:displayText="High" w:value="High"/><w:listItem w:displayText="Medium" w:value="Medium"/></w:dropDownList></w:sdtPr><w:sdtContent><w:r><w:rPr><w:color w:val="${style.color}"/><w:sz w:val="${SMALL_SIZE}"/><w:szCs w:val="${SMALL_SIZE}"/><w:shd w:fill="${style.fill}" w:val="clear"/></w:rPr><w:t xml:space="preserve">${priority}</w:t></w:r></w:sdtContent></w:sdt>`;
 }
 
 function problemHeading(index: number, problem: ReportProblemPreview) {
@@ -156,9 +138,39 @@ function problemHeading(index: number, problem: ReportProblemPreview) {
 		children: [
 			textRun(`Problem ${index}: ${problem.title}`, { bold: true }),
 			textRun('Priority: ', { break: 1, size: SMALL_SIZE }),
-			priorityDropdown(index, problem.priority)
+			textRun(priorityMarker(index, problem.priority), { size: SMALL_SIZE })
 		]
 	});
+}
+
+function escapeRegex(value: string) {
+	return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+async function withPriorityDropdowns(body: Buffer, problems: ReportProblemPreview[]) {
+	const zip = await JSZip.loadAsync(body);
+	const documentFile = zip.file('word/document.xml');
+	if (!documentFile) return body;
+
+	let documentXml = await documentFile.async('string');
+
+	for (const [problemIndex, problem] of problems.entries()) {
+		const index = problemIndex + 1;
+		const marker = priorityMarker(index, problem.priority);
+		const markerPattern = escapeRegex(marker);
+		const markerRunPattern = new RegExp(
+			`<w:r\\b[^>]*>(?:(?!<\\/w:r>).)*<w:t\\b[^>]*>${markerPattern}<\\/w:t>(?:(?!<\\/w:r>).)*<\\/w:r>`,
+			'g'
+		);
+
+		documentXml = documentXml.replace(
+			markerRunPattern,
+			priorityDropdownXml(index, problem.priority)
+		);
+	}
+
+	zip.file('word/document.xml', documentXml);
+	return zip.generateAsync({ type: 'nodebuffer' });
 }
 
 async function reportHeader() {
@@ -384,6 +396,6 @@ export async function generateTemplateReportDocx(
 
 	return {
 		filename: documentFilename(pageData),
-		body: await Packer.toBuffer(document)
+		body: await withPriorityDropdowns(await Packer.toBuffer(document), problems)
 	};
 }
