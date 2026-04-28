@@ -13,6 +13,8 @@ import {
 	getOrCreateAuditFindingTypeRecord,
 	getOrCreateRunRecord,
 	getWorkflow,
+	listAuditReportTemplates,
+	type AuditReportTemplateRecord,
 	updateAuditRecord,
 	updateRunRecord,
 	updateWorkflowRecord
@@ -54,6 +56,7 @@ type ScreenshotQueueState = {
 };
 
 type CaptureEntry = Record<string, unknown> & { page: string };
+type NormalizedAuditItem = ReturnType<typeof buildNormalizedAuditItems>[number];
 
 type WorkflowRecordLike = {
 	id?: string;
@@ -707,6 +710,210 @@ function enrichCaptureRequestWithCandidates(
 	};
 }
 
+function templateFindingTypeKey(template: AuditReportTemplateRecord) {
+	return String(template.expand?.audit_finding_type?.key || '');
+}
+
+function templateIssueMatcher(pattern: string | undefined) {
+	if (!pattern?.trim()) return undefined;
+
+	try {
+		const regex = new RegExp(pattern, 'i');
+		return (finding: NormalizedFinding) =>
+			regex.test(`${finding.title || ''} ${finding.detail || ''}`);
+	} catch {
+		return undefined;
+	}
+}
+
+function issueFindingsForTemplate(item: NormalizedAuditItem, template: AuditReportTemplateRecord) {
+	const matcher = templateIssueMatcher(template.match_pattern);
+	return item.findings.filter((finding) => {
+		if (finding.status !== 'warn' && finding.status !== 'fail') return false;
+		return matcher ? matcher(finding) : true;
+	});
+}
+
+function domainFromAuditUrl(audit: AuditSummaryResult, url: string) {
+	if (audit.domain) return audit.domain;
+
+	try {
+		return new URL(url).hostname;
+	} catch {
+		return 'this domain';
+	}
+}
+
+function issueText(finding: NormalizedFinding, fallback: string) {
+	return String(finding.detail || finding.title || fallback);
+}
+
+function findingPage(finding: NormalizedFinding) {
+	return pageUrlFromFinding(finding, parseJsonRecord(finding.meta_json));
+}
+
+function findingEntryValue(finding: NormalizedFinding) {
+	const source = parseJsonRecord(finding.meta_json);
+	const nestedMeta = getRecord(source.meta) || {};
+	const candidates = [
+		source.value,
+		nestedMeta.value,
+		nestedMeta.duplicateValue,
+		source.duplicateValue,
+		source.metaTitle,
+		source.metaDescription
+	];
+
+	for (const candidate of candidates) {
+		if (typeof candidate === 'string' && candidate.trim()) return candidate.trim();
+	}
+
+	return '';
+}
+
+function templateCaptureRequest(
+	template: AuditReportTemplateRecord,
+	item: NormalizedAuditItem,
+	findings: NormalizedFinding[],
+	audit: AuditSummaryResult,
+	url: string
+): AuditCaptureRequest | null {
+	const domain = domainFromAuditUrl(audit, url);
+	const title = template.title || item.label;
+	const reportTemplateKey = template.key;
+
+	if (item.key === 'pageSpeed' && audit.pageSpeed && item.status !== 'pass') {
+		return {
+			kind: 'pagespeed',
+			reportTemplateKey,
+			title,
+			domain,
+			pageUrl: url,
+			pageSpeed: audit.pageSpeed as Record<string, unknown>
+		};
+	}
+
+	if (item.key === 'openPageRank' && audit.openPageRank && item.status !== 'pass') {
+		return {
+			kind: 'open-page-rank',
+			reportTemplateKey,
+			title,
+			domain,
+			pageUrl: url,
+			openPageRank: audit.openPageRank as Record<string, unknown>
+		};
+	}
+
+	if (!findings.length) return null;
+
+	if (item.key === 'h1Tags') {
+		const entries = findings
+			.map((finding) => {
+				const page = findingPage(finding);
+				return isValidPageUrl(page) ? { page, issue: issueText(finding, title) } : null;
+			})
+			.filter((entry): entry is { page: string; issue: string } => Boolean(entry));
+
+		return entries.length
+			? {
+					kind: 'headings',
+					reportTemplateKey,
+					title,
+					domain,
+					entries,
+					count: findings.length
+				}
+			: null;
+	}
+
+	if (item.key === 'imageAltTags') {
+		const entries = findings
+			.map((finding) => {
+				const source = parseJsonRecord(finding.meta_json);
+				const page = findingPage(finding);
+				const image = extractFirstHttpUrl(source.title) || extractFirstHttpUrl(finding.title);
+				return isValidPageUrl(page) && image
+					? { page, image, issue: issueText(finding, title) }
+					: null;
+			})
+			.filter((entry): entry is { page: string; image: string; issue: string } => Boolean(entry));
+
+		return entries.length
+			? {
+					kind: 'image-alts',
+					reportTemplateKey,
+					title,
+					domain,
+					entries,
+					count: findings.length
+				}
+			: null;
+	}
+
+	if (item.key === 'metaTitles') {
+		const entries = findings
+			.map((finding) => {
+				const page = findingPage(finding);
+				if (!isValidPageUrl(page)) return null;
+
+				const entry = {
+					page,
+					issue: issueText(finding, title),
+					value: findingEntryValue(finding)
+				};
+				return entry.value ? entry : { page: entry.page, issue: entry.issue };
+			})
+			.filter((entry): entry is { page: string; issue: string; value?: string } => Boolean(entry));
+
+		return entries.length
+			? {
+					kind: 'meta-tags',
+					reportTemplateKey,
+					title,
+					domain,
+					entries,
+					count: findings.length
+				}
+			: null;
+	}
+
+	if (item.key === 'shopifyUrls') {
+		const entries = findings
+			.map((finding) => {
+				const page = findingPage(finding);
+				return isValidPageUrl(page)
+					? {
+							page,
+							issue: issueText(finding, title),
+							pattern: '/collections/{collection}/products/{product}'
+						}
+					: null;
+			})
+			.filter((entry): entry is { page: string; issue: string; pattern: string } => Boolean(entry));
+
+		return entries.length
+			? {
+					kind: 'shopify-urls',
+					reportTemplateKey,
+					title,
+					domain,
+					entries,
+					count: findings.length
+				}
+			: null;
+	}
+
+	if (item.key === 'robotsTxt') {
+		const manualRequest = findings
+			.map((finding) => extractScreenshotFromMeta(finding.meta_json).screenshotRequests)
+			.flat()
+			.find((request) => request.reportTemplateKey === reportTemplateKey);
+		return manualRequest || null;
+	}
+
+	return null;
+}
+
 const STEP_KEYS: Record<string, string[]> = {
 	crawl: [],
 	homepage: [
@@ -892,13 +1099,22 @@ function collectScreenshotJobs(
 	auditId: string,
 	url: string,
 	audit: AuditSummaryResult,
-	runRegistry: RunRegistry
+	runRegistry: RunRegistry,
+	templates: AuditReportTemplateRecord[] = []
 ) {
 	attachMetricScreenshots(audit, url, ['pageSpeed', 'openPageRank']);
 
 	const jobs: ScreenshotJob[] = [];
 	const seen = new Set<string>();
 	const normalizedItems = buildNormalizedAuditItems(audit);
+	const templatesByFindingTypeKey = templates.reduce((map, template) => {
+		const key = templateFindingTypeKey(template);
+		if (!key) return map;
+		const existing = map.get(key) || [];
+		existing.push(template);
+		map.set(key, existing);
+		return map;
+	}, new Map<string, AuditReportTemplateRecord[]>());
 
 	for (const item of normalizedItems) {
 		const run = runRegistry.get(item.key);
@@ -952,6 +1168,17 @@ function collectScreenshotJobs(
 				);
 			}
 		}
+
+		for (const template of templatesByFindingTypeKey.get(item.key) || []) {
+			const findings = issueFindingsForTemplate(item, template);
+			const request = templateCaptureRequest(template, item, findings, audit, url);
+			addJob(
+				request,
+				template.title || item.label,
+				findings[0] ? findingPage(findings[0]) : url,
+				findings.length ? findings : item.findings
+			);
+		}
 	}
 
 	return allocateScreenshotPages(jobs);
@@ -964,7 +1191,8 @@ async function processAuditScreenshots(
 	runRegistry: RunRegistry,
 	token?: string
 ) {
-	const jobs = collectScreenshotJobs(auditId, url, audit, runRegistry);
+	const templates = await listAuditReportTemplates(token);
+	const jobs = collectScreenshotJobs(auditId, url, audit, runRegistry, templates);
 	for (const job of jobs) {
 		await processScreenshotJob(job, token);
 	}
