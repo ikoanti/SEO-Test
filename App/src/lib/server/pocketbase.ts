@@ -243,14 +243,19 @@ export async function createAuditRecord(
 		report_docx?: null;
 		selected_report_template_keys_json?: string;
 		ai_visibility_json?: string;
+		created_at?: string;
+		updated_at?: string;
 	},
 	token?: string
 ) {
 	const pb = createAuthedClient(token);
+	const timestamp = new Date().toISOString();
 	return pb.collection(AUDITS_COLLECTION).create({
 		website: input.website,
 		...(input.created_by ? { created_by: input.created_by } : {}),
 		status: input.status || 'queued',
+		created_at: input.created_at || timestamp,
+		updated_at: input.updated_at || timestamp,
 		audit_json: input.audit_json || '',
 		summary_json: input.summary_json || '',
 		...(input.completed_at ? { completed_at: input.completed_at } : {}),
@@ -267,7 +272,7 @@ export async function listAudits(searchQuery: string, token?: string) {
 	const pb = createAuthedClient(token);
 	const audits = await pb.collection(AUDITS_COLLECTION).getFullList({
 		expand: 'website',
-		sort: '-created'
+		sort: '-created_at'
 	});
 
 	const query = searchQuery.trim().toLowerCase();
@@ -301,11 +306,15 @@ export async function updateAuditRecord(
 		report_docx?: null;
 		selected_report_template_keys_json?: string;
 		ai_visibility_json?: string;
+		updated_at?: string;
 	},
 	token?: string
 ) {
 	const pb = createAuthedClient(token);
-	return pb.collection(AUDITS_COLLECTION).update(auditId, input);
+	return pb.collection(AUDITS_COLLECTION).update(auditId, {
+		...input,
+		updated_at: input.updated_at || new Date().toISOString()
+	});
 }
 
 export async function saveAuditReportDocx(
@@ -326,6 +335,7 @@ export async function saveAuditReportDocx(
 	formData.set('report_status', 'completed');
 	formData.set('report_error', '');
 	formData.set('report_completed_at', input.report_completed_at);
+	formData.set('updated_at', new Date().toISOString());
 	formData.set('report_docx', docxBlob, input.filename);
 
 	return pb.collection(AUDITS_COLLECTION).update(auditId, formData);

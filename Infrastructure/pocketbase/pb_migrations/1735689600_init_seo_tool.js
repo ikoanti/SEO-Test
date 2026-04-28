@@ -431,6 +431,8 @@ Currently, {{count}} {{domain}} images lack descriptions, affecting accessibilit
               maxSelect: 1,
               values: ["queued", "running", "completed", "failed"],
             },
+            { name: "created_at", type: "date", required: false },
+            { name: "updated_at", type: "date", required: false },
             { name: "completed_at", type: "date", required: false },
             { name: "summary_json", type: "editor", required: false },
             {
@@ -465,6 +467,8 @@ Currently, {{count}} {{domain}} images lack descriptions, affecting accessibilit
             "CREATE INDEX idx_audits_website ON audits (website)",
             "CREATE INDEX idx_audits_created_by ON audits (created_by)",
             "CREATE INDEX idx_audits_status ON audits (status)",
+            "CREATE INDEX idx_audits_created_at ON audits (created_at)",
+            "CREATE INDEX idx_audits_updated_at ON audits (updated_at)",
           ],
         }),
       );
