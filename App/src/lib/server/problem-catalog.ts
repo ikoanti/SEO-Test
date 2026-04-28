@@ -197,3 +197,14 @@ export function listProblemCatalogTemplates() {
 
 	return cachedCatalog;
 }
+
+export function listProblemCatalogSectionDefinitions() {
+	return listProblemCatalogTemplates()
+		.filter((template) => template.expand?.audit_finding_type?.key)
+		.map((template) => ({
+			key: template.key,
+			label: template.title,
+			sort_order: template.sort_order,
+			source_key: String(template.expand?.audit_finding_type?.key || '')
+		}));
+}

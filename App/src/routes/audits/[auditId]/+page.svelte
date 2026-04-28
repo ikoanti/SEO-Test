@@ -5,8 +5,6 @@
 	import AuditFindingCard from '$lib/components/AuditFindingCard.svelte';
 	import AuditOverviewCard from '$lib/components/AuditOverviewCard.svelte';
 	import CustomCheckmark from '$lib/components/CustomCheckmark.svelte';
-	import OpenPageRankCard from '$lib/components/OpenPageRankCard.svelte';
-	import PageSpeedCard from '$lib/components/PageSpeedCard.svelte';
 	import SegmentedPicker from '$lib/components/SegmentedPicker.svelte';
 	import { FileText, FileUp } from 'lucide-svelte';
 	import { onMount, tick } from 'svelte';
@@ -146,23 +144,7 @@
 		pageData.runRecord?.name ||
 		pageData.auditRecord?.url ||
 		pageData.runRecord?.url;
-	let activeAuditSection = $state('openPageRank');
-
-	const itemByKey = (key: string) => pageData.normalizedItems?.find((item) => item.key === key);
-	const getRecord = (value: unknown): Record<string, unknown> =>
-		value && typeof value === 'object' && !Array.isArray(value)
-			? (value as Record<string, unknown>)
-			: {};
-	const auditSection = (key: string) => getRecord(pageData.audit?.[key]);
-	const metricSection = (key: string) => {
-		const auditValue = auditSection(key);
-		if (Object.keys(auditValue).length > 0) return auditValue;
-		return getRecord(itemByKey(key)?.findings?.[0]?.meta);
-	};
-	const displayValue = (value: unknown, fallback = '-') =>
-		value === undefined || value === null || value === '' ? fallback : String(value);
-	const openPageRank = () => metricSection('openPageRank');
-	const pageSpeed = () => metricSection('pageSpeed');
+	let activeAuditSection = $state('');
 	const renderedAuditSections = $derived.by<RenderedAuditSection[]>(() => {
 		return (pageData.reportPreviewItems || []).map((problem) => ({
 			section: {
@@ -183,8 +165,6 @@
 		}));
 	});
 	const auditNavItems = $derived.by<AuditNavItem[]>(() => [
-		{ key: 'openPageRank', title: 'Open Page Rank', href: '#section-opr' },
-		{ key: 'pageSpeed', title: 'PageSpeed Insights', href: '#section-speed' },
 		...renderedAuditSections.map(({ section }) => ({
 			key: section.key,
 			title: section.title,
@@ -380,17 +360,6 @@
 				</nav>
 
 				<div class="audit-report-sections">
-					<OpenPageRankCard
-						pageRank={displayValue(openPageRank().pageRank)}
-						globalRank={displayValue(openPageRank().globalRank)}
-						screenshot={itemByKey('openPageRank')?.screenshot}
-					/>
-
-					<PageSpeedCard
-						pageSpeedData={pageSpeed()}
-						screenshot={itemByKey('pageSpeed')?.screenshot}
-					/>
-
 					{#each renderedAuditSections as renderedSection (renderedSection.section.key)}
 						<AuditFindingCard
 							section={renderedSection.section}

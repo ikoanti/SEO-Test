@@ -1,5 +1,6 @@
 import type { AuditFindingStatus } from '$lib/audit-status';
 import type { AuditCaptureRequest } from '$lib/server/audit-capture';
+import { listProblemCatalogSectionDefinitions, listProblemCatalogTemplates } from '$lib/server/problem-catalog';
 
 type AuditListItem = {
 	status?: AuditFindingStatus;
@@ -36,6 +37,7 @@ export type AuditResult = {
 export type NormalizedAuditFindingType = {
 	key: string;
 	label: string;
+	source_key?: string;
 	status: AuditFindingStatus;
 	summary: string;
 	stats_json: string;
@@ -82,11 +84,7 @@ export const SECTION_LABELS: Array<[string, string]> = [
 ];
 
 export function getNormalizedSectionDefinitions() {
-	return SECTION_LABELS.map(([key, label], index) => ({
-		key,
-		label,
-		sort_order: index + 1
-	}));
+	return listProblemCatalogSectionDefinitions();
 }
 
 function truncateText(value: string, maxLength: number) {
@@ -190,11 +188,13 @@ function buildMetricSection(
 	order: number,
 	summary: string,
 	stats: Record<string, unknown>,
-	status: AuditFindingStatus = 'info'
+	status: AuditFindingStatus = 'info',
+	sourceKey?: string
 ): NormalizedAuditFindingType {
 	return {
 		key,
 		label,
+		source_key: sourceKey,
 		status,
 		summary,
 		stats_json: JSON.stringify(stats),
@@ -203,9 +203,31 @@ function buildMetricSection(
 	};
 }
 
+function issueMatcher(pattern: string | undefined) {
+	if (!pattern?.trim()) return undefined;
+
+	try {
+		const regex = new RegExp(pattern, 'i');
+		return (finding: NormalizedAuditFindingType['findings'][number]) =>
+			regex.test(`${finding.title || ''} ${finding.detail || ''}`);
+	} catch {
+		return undefined;
+	}
+}
+
+function statusFromFindings(
+	findings: NormalizedAuditFindingType['findings'],
+	fallback: AuditFindingStatus = 'info'
+): AuditFindingStatus {
+	if (findings.some((finding) => finding.status === 'fail')) return 'fail';
+	if (findings.some((finding) => finding.status === 'warn')) return 'warn';
+	if (findings.some((finding) => finding.status === 'pass')) return 'pass';
+	return fallback;
+}
+
 export function buildNormalizedAuditItems(audit: AuditResult): NormalizedAuditFindingType[] {
 	const items: NormalizedAuditFindingType[] = [];
-	let order = 1;
+	const technicalItems = new Map<string, NormalizedAuditFindingType>();
 
 	for (const [key, label] of SECTION_LABELS) {
 		const value = audit[key];
@@ -231,13 +253,14 @@ export function buildNormalizedAuditItems(audit: AuditResult): NormalizedAuditFi
 				buildMetricSection(
 					key,
 					label,
-					order,
+					technicalItems.size + 1,
 					`Mobile ${metrics.mobile?.score ?? 'N/A'} / Desktop ${metrics.desktop?.score ?? 'N/A'}`,
 					metrics as Record<string, unknown>,
-					status
+					status,
+					key
 				)
 			);
-			order += 1;
+			technicalItems.set(key, items[items.length - 1]);
 			continue;
 		}
 
@@ -247,23 +270,65 @@ export function buildNormalizedAuditItems(audit: AuditResult): NormalizedAuditFi
 				buildMetricSection(
 					key,
 					label,
-					order,
+					technicalItems.size + 1,
 					`PageRank ${stats.pageRank ?? 'N/A'} / Global ${stats.globalRank ?? 'N/A'}`,
 					stats as Record<string, unknown>,
-					'info'
+					'info',
+					key
 				)
 			);
-			order += 1;
+			technicalItems.set(key, items[items.length - 1]);
 			continue;
 		}
 
 		if (value && typeof value === 'object' && Array.isArray((value as AuditListSection).items)) {
-			items.push(buildListSection(key, label, order, value as AuditListSection));
-			order += 1;
+			const item = buildListSection(key, label, technicalItems.size + 1, value as AuditListSection);
+			item.source_key = key;
+			items.push(item);
+			technicalItems.set(key, item);
 		}
 	}
 
-	return items;
+	const problemItems: NormalizedAuditFindingType[] = [];
+	for (const template of listProblemCatalogTemplates()) {
+		const sourceKey = String(template.expand?.audit_finding_type?.key || '');
+		if (!sourceKey) continue;
+
+		const sourceItem = technicalItems.get(sourceKey);
+		if (!sourceItem) continue;
+
+		if (sourceItem.findings.length === 0) {
+			if (sourceItem.status !== 'warn' && sourceItem.status !== 'fail') continue;
+			problemItems.push({
+				...sourceItem,
+				key: template.key,
+				label: template.title,
+				source_key: sourceKey,
+				sort_order: template.sort_order
+			});
+			continue;
+		}
+
+		const matcher = issueMatcher(template.match_pattern);
+		const findings = sourceItem.findings.filter((finding) => {
+			if (finding.status !== 'warn' && finding.status !== 'fail') return false;
+			return matcher ? matcher(finding) : true;
+		});
+		if (!findings.length) continue;
+
+		problemItems.push({
+			key: template.key,
+			label: template.title,
+			source_key: sourceKey,
+			status: statusFromFindings(findings, sourceItem.status),
+			summary: `${findings.length} finding${findings.length === 1 ? '' : 's'}`,
+			stats_json: JSON.stringify({ stats: sourceItem.summary, count: findings.length }),
+			sort_order: template.sort_order,
+			findings
+		});
+	}
+
+	return problemItems;
 }
 
 function snapshotRecord(value: Record<string, unknown>) {

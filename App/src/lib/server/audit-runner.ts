@@ -954,6 +954,7 @@ type RunRegistry = Map<
 		findingTypeId: string;
 		label: string;
 		sortOrder: number;
+		sourceKey?: string;
 	}
 >;
 
@@ -977,7 +978,8 @@ async function bootstrapRuns(workflowId: string, token?: string) {
 			runId: run.id,
 			findingTypeId: findingType.id,
 			label: definition.label,
-			sortOrder: definition.sort_order
+			sortOrder: definition.sort_order,
+			sourceKey: definition.source_key
 		});
 	}
 
@@ -985,9 +987,9 @@ async function bootstrapRuns(workflowId: string, token?: string) {
 }
 
 async function markStepRunning(runRegistry: RunRegistry, stepLabel: string, token?: string) {
-	for (const key of STEP_KEYS[stepLabel] || []) {
-		const entry = runRegistry.get(key);
-		if (!entry) continue;
+	const sourceKeys = new Set(STEP_KEYS[stepLabel] || []);
+	for (const entry of runRegistry.values()) {
+		if (!entry.sourceKey || !sourceKeys.has(entry.sourceKey)) continue;
 		await updateRunRecord(
 			entry.runId,
 			{
@@ -1012,7 +1014,7 @@ async function syncProgressSnapshot(
 	const keySet = keysToSync ? new Set(keysToSync) : null;
 	attachMetricScreenshots(partialAudit, url, keySet || ['pageSpeed', 'openPageRank']);
 	const normalizedItems = buildNormalizedAuditItems(partialAudit).filter(
-		(item) => !keySet || keySet.has(item.key)
+		(item) => !keySet || keySet.has(item.source_key || item.key)
 	);
 	for (const item of normalizedItems) {
 		const run = runRegistry.get(item.key);
