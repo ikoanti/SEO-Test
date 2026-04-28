@@ -4,6 +4,7 @@
 	import type { AuditFindingStatus } from '$lib/audit-status';
 	import AuditFindingCard from '$lib/components/AuditFindingCard.svelte';
 	import AuditOverviewCard from '$lib/components/AuditOverviewCard.svelte';
+	import CustomCheckmark from '$lib/components/CustomCheckmark.svelte';
 	import OpenPageRankCard from '$lib/components/OpenPageRankCard.svelte';
 	import PageSpeedCard from '$lib/components/PageSpeedCard.svelte';
 	import SegmentedPicker from '$lib/components/SegmentedPicker.svelte';
@@ -424,6 +425,10 @@
 											value={item.key}
 											bind:group={selectedReportKeys}
 										/>
+										<CustomCheckmark
+											checked={selectedReportKeys.includes(item.key)}
+											label={`${item.title} selected`}
+										/>
 										<div class="report-preview-body">
 											<div class="report-preview-heading">
 												<span>{item.title}</span>
@@ -548,8 +553,19 @@
 	}
 
 	.report-preview-item input {
-		margin-top: 0.3rem;
-		accent-color: var(--goldenweb-primary);
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+		border: 0;
+	}
+
+	.report-preview-item:has(input:focus-visible) {
+		border-color: var(--goldenweb-primary);
 	}
 
 	.report-preview-body {
