@@ -82,6 +82,8 @@
 	}
 
 	function displayHref(finding: AuditFindingView) {
+		const metaPageUrl = typeof finding.meta?.page_url === 'string' ? finding.meta.page_url : '';
+		if (isUrlLike(metaPageUrl)) return metaPageUrl;
 		if (finding.page_url) return finding.page_url;
 		if (isUrlLike(finding.title)) return finding.title;
 		return undefined;

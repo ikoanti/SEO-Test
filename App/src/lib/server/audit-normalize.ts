@@ -158,7 +158,9 @@ function buildListSection(
 		const rawTitle = String(item.title || item.detail || label);
 		const title = truncateText(rawTitle, 255);
 		const detail = String(item.detail || '');
-		const page_url = extractFirstHttpUrl(title) || extractFirstHttpUrl(detail);
+		const explicitPageUrl = typeof meta.page_url === 'string' ? meta.page_url : '';
+		const page_url =
+			extractFirstHttpUrl(explicitPageUrl) || extractFirstHttpUrl(title) || extractFirstHttpUrl(detail);
 
 		return {
 			status: (item.status || 'info') as AuditFindingStatus,
