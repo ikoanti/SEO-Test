@@ -70,6 +70,34 @@ function normalizeUrl(input: string) {
 	return url.href;
 }
 
+function normalizeOptionalUrl(input?: string) {
+	const value = String(input || '').trim();
+	if (!value) return undefined;
+
+	try {
+		const url = new URL(value);
+		if (url.protocol !== 'http:' && url.protocol !== 'https:') return undefined;
+
+		url.hash = '';
+		const href = url.href;
+		if (href.length > 2000) return undefined;
+		if (
+			[...href].some((character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127)
+		) {
+			return undefined;
+		}
+		if (/[\s<>"`{}|\\^]/.test(href)) return undefined;
+		return href;
+	} catch {
+		return undefined;
+	}
+}
+
+function hasFieldValidationError(error: unknown, field: string) {
+	const response = (error as { response?: { data?: Record<string, unknown> } }).response;
+	return Boolean(response?.data && field in response.data);
+}
+
 function publicPocketBaseFileUrl(
 	pb: PocketBase,
 	record: Record<string, unknown>,
@@ -189,7 +217,10 @@ export async function getOrCreateWebsiteRecord(url: string, token?: string) {
 		return await pb
 			.collection(WEBSITES_COLLECTION)
 			.getFirstListItem(`url = "${escapeFilterValue(normalizedUrl)}"`);
-	} catch {
+	} catch (error) {
+		const response = (error as { response?: { status?: number } }).response;
+		if (response?.status && response.status !== 404) throw error;
+
 		return pb.collection(WEBSITES_COLLECTION).create({
 			url: normalizedUrl,
 			domain: new URL(normalizedUrl).hostname
@@ -527,20 +558,8 @@ export async function createAuditFindingRecord(
 	token?: string
 ) {
 	const pb = createAuthedClient(token);
-	let pageUrl: string | undefined;
-
-	if (input.page_url) {
-		try {
-			const parsedUrl = new URL(input.page_url);
-			if (parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:') {
-				pageUrl = parsedUrl.href;
-			}
-		} catch {
-			pageUrl = undefined;
-		}
-	}
-
-	return pb.collection(AUDIT_FINDINGS_COLLECTION).create({
+	const pageUrl = normalizeOptionalUrl(input.page_url);
+	const payload = {
 		audit: input.audit,
 		audit_finding_type: input.audit_finding_type,
 		...(input.run ? { run: input.run } : {}),
@@ -549,7 +568,17 @@ export async function createAuditFindingRecord(
 		detail: input.detail,
 		...(pageUrl ? { page_url: pageUrl } : {}),
 		meta_json: input.meta_json || ''
-	});
+	};
+
+	try {
+		return await pb.collection(AUDIT_FINDINGS_COLLECTION).create(payload);
+	} catch (error) {
+		if (!pageUrl || !hasFieldValidationError(error, 'page_url')) throw error;
+
+		const fallbackPayload = { ...payload };
+		delete (fallbackPayload as { page_url?: string }).page_url;
+		return pb.collection(AUDIT_FINDINGS_COLLECTION).create(fallbackPayload);
+	}
 }
 
 export async function listAuditFindings(auditId: string, token?: string) {
@@ -586,31 +615,28 @@ export async function createAuditScreenshotRecord(
 	token?: string
 ) {
 	const pb = createAuthedClient(token);
-	let pageUrl: string | undefined;
-
-	if (input.page_url) {
-		try {
-			const parsedUrl = new URL(input.page_url);
-			if (parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:') {
-				pageUrl = parsedUrl.href;
-			}
-		} catch {
-			pageUrl = undefined;
-		}
-	}
+	const pageUrl = normalizeOptionalUrl(input.page_url);
 
 	const imageBuffer = Buffer.from(input.image_base64, 'base64');
 	const imageBlob = new Blob([imageBuffer], { type: input.content_type || 'image/png' });
-	const formData = new FormData();
-	formData.set('audit', input.audit);
-	formData.set('audit_finding_type', input.audit_finding_type);
-	if (input.run) formData.set('run', input.run);
-	if (input.report_template_key) formData.set('report_template_key', input.report_template_key);
-	formData.set('title', truncateText(input.title || 'Audit screenshot', 255));
-	if (pageUrl) formData.set('page_url', pageUrl);
-	formData.set('image', imageBlob, 'audit-screenshot.png');
+	const buildFormData = (includePageUrl: boolean) => {
+		const formData = new FormData();
+		formData.set('audit', input.audit);
+		formData.set('audit_finding_type', input.audit_finding_type);
+		if (input.run) formData.set('run', input.run);
+		if (input.report_template_key) formData.set('report_template_key', input.report_template_key);
+		formData.set('title', truncateText(input.title || 'Audit screenshot', 255));
+		if (includePageUrl && pageUrl) formData.set('page_url', pageUrl);
+		formData.set('image', imageBlob, 'audit-screenshot.png');
+		return formData;
+	};
 
-	return pb.collection(AUDIT_SCREENSHOTS_COLLECTION).create(formData);
+	try {
+		return await pb.collection(AUDIT_SCREENSHOTS_COLLECTION).create(buildFormData(true));
+	} catch (error) {
+		if (!pageUrl || !hasFieldValidationError(error, 'page_url')) throw error;
+		return pb.collection(AUDIT_SCREENSHOTS_COLLECTION).create(buildFormData(false));
+	}
 }
 
 export async function listAuditScreenshots(auditId: string, token?: string) {
