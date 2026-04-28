@@ -119,7 +119,7 @@ export async function buildAuditPageData(
 		listRunsByWorkflow(workflowRecord.id, token),
 		listAuditFindings(auditRecord.id, token),
 		listAuditScreenshots(auditRecord.id, token),
-		listAuditReportTemplates(token)
+		includeReportHtml ? listAuditReportTemplates(token) : Promise.resolve([])
 	]);
 	const findingsByRunId = new Map<string, typeof auditFindings>();
 	for (const finding of auditFindings) {
@@ -215,14 +215,14 @@ export async function buildAuditPageData(
 		aiVisibility,
 		normalizedItems
 	};
-	const reportPreviewItems = buildReportProblems(reportPageData, reportTemplates).map(
-		(problem) => ({
-			...problem,
-			screenshot:
-				screenshotView(auditRecord.id, screenshotsByReportTemplateKey.get(problem.key)) ||
-				problem.screenshot
-		})
-	);
+	const reportPreviewItems = includeReportHtml
+		? buildReportProblems(reportPageData, reportTemplates).map((problem) => ({
+				...problem,
+				screenshot:
+					screenshotView(auditRecord.id, screenshotsByReportTemplateKey.get(problem.key)) ||
+					problem.screenshot
+			}))
+		: [];
 	const selectedReportTemplateSet = new Set(selectedReportTemplateKeys);
 	const selectedReportTemplates = selectedReportTemplateSet.size
 		? reportTemplates.filter((template) => selectedReportTemplateSet.has(template.key))

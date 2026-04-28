@@ -61,6 +61,7 @@ type NormalizedAuditItem = ReturnType<typeof buildNormalizedAuditItems>[number];
 type WorkflowRecordLike = {
 	id?: string;
 	status?: string;
+	started_at?: string;
 	audit?: string;
 	expand?: {
 		audit?: {
@@ -88,6 +89,8 @@ const screenshotQueueState = ((
 	activeKeys: new Set<string>(),
 	completedKeys: new Set<string>()
 });
+
+const STALE_RUNNING_WORKFLOW_MS = 15 * 60 * 1000;
 
 function timestamp() {
 	return new Date().toISOString();
@@ -1323,7 +1326,23 @@ export function queueAuditWorkflow(payload: QueuePayload) {
 }
 
 export function ensureAuditWorkflowProcessing(record: WorkflowRecordLike, token?: string) {
-	if (!record?.id || !['queued', 'running'].includes(String(record.status || ''))) {
+	if (!record?.id) {
+		return;
+	}
+
+	const status = String(record.status || '');
+	if (state.activeWorkflows.has(record.id)) {
+		return;
+	}
+
+	if (status === 'running') {
+		const startedAtMs = record.started_at ? Date.parse(record.started_at) : 0;
+		const isStale =
+			!Number.isFinite(startedAtMs) || Date.now() - startedAtMs > STALE_RUNNING_WORKFLOW_MS;
+		if (!isStale) {
+			return;
+		}
+	} else if (status !== 'queued') {
 		return;
 	}
 

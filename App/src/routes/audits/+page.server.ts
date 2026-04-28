@@ -6,7 +6,7 @@ import {
 	getWorkflowByAuditId,
 	listAudits
 } from '$lib/server/pocketbase';
-import { ensureAuditWorkflowProcessing, queueAuditWorkflow } from '$lib/server/audit-runner';
+import { queueAuditWorkflow } from '$lib/server/audit-runner';
 
 function getWebsiteUrl(audit: Record<string, unknown>) {
 	const website = (audit.expand as { website?: { url?: string } } | undefined)?.website;
@@ -25,7 +25,6 @@ export const load = async ({ locals, url }) => {
 		audits.map(async (audit) => {
 			try {
 				const workflow = await getWorkflowByAuditId(audit.id, locals.pbToken);
-				ensureAuditWorkflowProcessing(workflow, locals.pbToken);
 				return {
 					...audit,
 					url: getWebsiteUrl(audit),

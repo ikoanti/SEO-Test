@@ -252,7 +252,7 @@
 		if (fallbackInterval || !needsLiveUpdates()) return;
 		fallbackInterval = window.setInterval(() => {
 			void invalidateAll();
-		}, 3000);
+		}, 5000);
 	}
 
 	function ensureLiveUpdates() {
