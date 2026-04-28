@@ -334,6 +334,177 @@ export function clearScreenshotQueueStateForAudit(auditId: string) {
 	}
 }
 
+function normalizedPageKey(value: string) {
+	try {
+		const url = new URL(value);
+		url.hash = '';
+		url.search = '';
+		url.hostname = url.hostname.toLowerCase();
+		const pathname = url.pathname.replace(/\/+$/, '') || '/';
+		return `${url.protocol}//${url.hostname}${pathname}`;
+	} catch {
+		return String(value || '')
+			.trim()
+			.replace(/\/+$/, '');
+	}
+}
+
+function isValidPageUrl(value: unknown): value is string {
+	if (typeof value !== 'string' || !value.trim()) return false;
+	try {
+		const url = new URL(value);
+		return url.protocol === 'http:' || url.protocol === 'https:';
+	} catch {
+		return false;
+	}
+}
+
+function isHomepageUrl(value: string) {
+	try {
+		const url = new URL(value);
+		const pathname = url.pathname.replace(/\/+$/, '') || '/';
+		return pathname === '/';
+	} catch {
+		return false;
+	}
+}
+
+function uniquePageUrls(values: unknown[]) {
+	const seen = new Set<string>();
+	const urls: string[] = [];
+
+	for (const value of values) {
+		if (!isValidPageUrl(value)) continue;
+		const key = normalizedPageKey(value);
+		if (seen.has(key)) continue;
+		seen.add(key);
+		urls.push(value);
+	}
+
+	return urls;
+}
+
+function auditPageCandidates(audit: AuditSummaryResult, rootUrl: string) {
+	const crawl = getRecord(audit.crawl);
+	const discoveredLinks = Array.isArray(crawl?.discoveredLinks) ? crawl.discoveredLinks : [];
+	return uniquePageUrls([rootUrl, ...discoveredLinks]);
+}
+
+function requestEntryPages(request: AuditCaptureRequest) {
+	if (
+		request.kind === 'headings' ||
+		request.kind === 'image-alts' ||
+		request.kind === 'meta-tags' ||
+		request.kind === 'canonicals' ||
+		request.kind === 'internal-links' ||
+		request.kind === 'lazy-loading' ||
+		request.kind === 'open-graph' ||
+		request.kind === 'content-quality' ||
+		request.kind === 'shopify-urls'
+	) {
+		return uniquePageUrls(request.entries.map((entry) => entry.page));
+	}
+
+	return [];
+}
+
+function requestPageCandidates(request: AuditCaptureRequest, auditPages: string[]) {
+	const entryPages = requestEntryPages(request);
+	if (entryPages.length) return entryPages;
+
+	if (request.kind === 'pagespeed') {
+		return uniquePageUrls([request.pageUrl, ...auditPages]);
+	}
+
+	if (request.kind === 'open-page-rank') {
+		return uniquePageUrls([request.pageUrl, ...auditPages]);
+	}
+
+	if (request.kind === 'robots') {
+		return uniquePageUrls([request.robotsUrl, request.storefrontUrl]);
+	}
+
+	return [];
+}
+
+function chooseScreenshotPage(candidates: string[], usedPageKeys: Set<string>) {
+	return (
+		candidates.find(
+			(candidate) => !isHomepageUrl(candidate) && !usedPageKeys.has(normalizedPageKey(candidate))
+		) ||
+		candidates.find((candidate) => !isHomepageUrl(candidate)) ||
+		candidates.find((candidate) => !usedPageKeys.has(normalizedPageKey(candidate))) ||
+		candidates[0]
+	);
+}
+
+function screenshotAllocationPriority(request: AuditCaptureRequest) {
+	if (requestEntryPages(request).length) return 0;
+	if (request.kind === 'pagespeed' || request.kind === 'open-page-rank') return 1;
+	return 2;
+}
+
+function reorderEntriesBySelectedPage<
+	TRequest extends AuditCaptureRequest & { entries?: Array<{ page: string }> }
+>(request: TRequest, selectedPage: string | undefined): TRequest {
+	if (!selectedPage || !Array.isArray(request.entries)) return request;
+	const selectedKey = normalizedPageKey(selectedPage);
+	return {
+		...request,
+		entries: [...request.entries].sort((first, second) => {
+			const firstMatches = normalizedPageKey(first.page) === selectedKey;
+			const secondMatches = normalizedPageKey(second.page) === selectedKey;
+			if (firstMatches === secondMatches) return 0;
+			return firstMatches ? -1 : 1;
+		})
+	};
+}
+
+function allocateScreenshotPages(
+	jobs: ScreenshotJob[],
+	audit: AuditSummaryResult,
+	rootUrl: string
+) {
+	const auditPages = auditPageCandidates(audit, rootUrl);
+	const usedPageKeys = new Set<string>();
+	const allocatedJobs = new Map<ScreenshotJob, ScreenshotJob>();
+	const allocationOrder = [...jobs].sort(
+		(first, second) =>
+			screenshotAllocationPriority(first.request) - screenshotAllocationPriority(second.request)
+	);
+
+	for (const job of allocationOrder) {
+		const candidates = requestPageCandidates(job.request, auditPages);
+		const selectedPage = chooseScreenshotPage(candidates, usedPageKeys);
+
+		if (!selectedPage) {
+			allocatedJobs.set(job, job);
+			continue;
+		}
+
+		const selectedKey = normalizedPageKey(selectedPage);
+		usedPageKeys.add(selectedKey);
+		const fallbackCapturePageUrls = candidates.filter(
+			(candidate) => normalizedPageKey(candidate) !== selectedKey
+		);
+
+		const allocatedJob = {
+			...job,
+			request: reorderEntriesBySelectedPage(
+				{
+					...job.request,
+					capturePageUrl: selectedPage,
+					fallbackCapturePageUrls
+				},
+				selectedPage
+			)
+		};
+		allocatedJobs.set(job, allocatedJob);
+	}
+
+	return jobs.map((job) => allocatedJobs.get(job) || job);
+}
+
 const STEP_KEYS: Record<string, string[]> = {
 	crawl: [],
 	homepage: [
@@ -573,7 +744,7 @@ function collectScreenshotJobs(
 		}
 	}
 
-	return jobs;
+	return allocateScreenshotPages(jobs, audit, url);
 }
 
 async function processAuditScreenshots(

@@ -4,6 +4,8 @@ type AuditCaptureRequestBase = {
 	reportTemplateKey?: string;
 	title?: string;
 	description?: string;
+	capturePageUrl?: string;
+	fallbackCapturePageUrls?: string[];
 };
 
 export type AuditCaptureRequest = AuditCaptureRequestBase &
@@ -125,7 +127,8 @@ function isHomepageUrl(value: string) {
 	}
 }
 
-function screenshotPageUrl(entries: Array<{ page: string }>) {
+function screenshotPageUrl(entries: Array<{ page: string }>, capturePageUrl?: string) {
+	if (capturePageUrl) return capturePageUrl;
 	const firstNonHomepage = entries.find((entry) => entry.page && !isHomepageUrl(entry.page));
 	return firstNonHomepage?.page || entries[0]?.page;
 }
@@ -135,10 +138,13 @@ export async function capturePageSpeedEvidence(
 	pageUrl: string,
 	pageSpeed: Record<string, unknown>,
 	title = 'PageSpeed Insights',
-	description = 'Google PageSpeed Insights scores and Core Web Vitals-style lab metrics for the audited page.'
+	description = 'Google PageSpeed Insights scores and Core Web Vitals-style lab metrics for the audited page.',
+	capturePageUrl?: string,
+	fallbackPageUrls: string[] = []
 ) {
 	return captureAuditSidebarScreenshot({
-		pageUrl,
+		pageUrl: capturePageUrl || pageUrl,
+		fallbackPageUrls,
 		sidebarData: buildSidebarData('pagespeed', {
 			kind: 'pagespeed',
 			title,
@@ -154,10 +160,13 @@ export async function captureOpenPageRankEvidence(
 	pageUrl: string,
 	openPageRank: Record<string, unknown>,
 	title = 'Open PageRank',
-	description = 'Domain authority and global ranking data from Open PageRank.'
+	description = 'Domain authority and global ranking data from Open PageRank.',
+	capturePageUrl?: string,
+	fallbackPageUrls: string[] = []
 ) {
 	return captureAuditSidebarScreenshot({
-		pageUrl,
+		pageUrl: capturePageUrl || pageUrl,
+		fallbackPageUrls,
 		sidebarData: buildSidebarData('open-page-rank', {
 			kind: 'open-page-rank',
 			title,
@@ -173,11 +182,14 @@ export async function captureHeadingEvidence(
 	entries: Array<{ page: string; issue: string }>,
 	count = entries.length,
 	title = 'Unoptimized Heading Tags',
-	description = 'Important pages are missing strong heading structure, which weakens topical clarity and makes page hierarchy less obvious to search engines.'
+	description = 'Important pages are missing strong heading structure, which weakens topical clarity and makes page hierarchy less obvious to search engines.',
+	capturePageUrl?: string,
+	fallbackPageUrls: string[] = []
 ) {
 	if (!entries.length) return null;
 	return captureAuditSidebarScreenshot({
-		pageUrl: screenshotPageUrl(entries),
+		pageUrl: screenshotPageUrl(entries, capturePageUrl),
+		fallbackPageUrls,
 		sidebarData: buildSidebarData('headings', {
 			kind: 'headings',
 			title,
@@ -194,11 +206,14 @@ export async function captureImageAltEvidence(
 	entries: Array<{ page: string; image: string; issue?: string }>,
 	count = entries.length,
 	title = 'Unoptimized Alt Tags',
-	description = 'Important product and collection images are missing descriptive alt text, reducing image search discoverability and weakening crawler context.'
+	description = 'Important product and collection images are missing descriptive alt text, reducing image search discoverability and weakening crawler context.',
+	capturePageUrl?: string,
+	fallbackPageUrls: string[] = []
 ) {
 	if (!entries.length) return null;
 	return captureAuditSidebarScreenshot({
-		pageUrl: screenshotPageUrl(entries),
+		pageUrl: screenshotPageUrl(entries, capturePageUrl),
+		fallbackPageUrls,
 		sidebarData: buildSidebarData('image-alts', {
 			kind: 'image-alts',
 			title,
@@ -215,12 +230,15 @@ export async function captureMetaEvidence(
 	entries: Array<{ page: string; issue: string; value?: string }>,
 	count = entries.length,
 	title = 'Unoptimized Meta Tags',
-	description = 'Important pages have missing, duplicated, or oversized metadata, which can weaken search result relevance and click-through clarity.'
+	description = 'Important pages have missing, duplicated, or oversized metadata, which can weaken search result relevance and click-through clarity.',
+	capturePageUrl?: string,
+	fallbackPageUrls: string[] = []
 ) {
 	if (!entries.length) return null;
-	const pageUrl = screenshotPageUrl(entries);
+	const pageUrl = screenshotPageUrl(entries, capturePageUrl);
 	return captureAuditSidebarScreenshot({
 		pageUrl,
+		fallbackPageUrls,
 		sidebarData: buildSidebarData('meta-tags', {
 			kind: 'meta-tags',
 			title,
@@ -238,11 +256,14 @@ export async function captureCanonicalEvidence(
 	entries: Array<{ page: string; issue: string; value?: string }>,
 	count = entries.length,
 	title = 'Unoptimized Canonicals',
-	description = 'Canonical tags help consolidate ranking signals and clarify the preferred URL for indexed pages.'
+	description = 'Canonical tags help consolidate ranking signals and clarify the preferred URL for indexed pages.',
+	capturePageUrl?: string,
+	fallbackPageUrls: string[] = []
 ) {
 	if (!entries.length) return null;
 	return captureAuditSidebarScreenshot({
-		pageUrl: screenshotPageUrl(entries),
+		pageUrl: screenshotPageUrl(entries, capturePageUrl),
+		fallbackPageUrls,
 		sidebarData: buildSidebarData('canonicals', {
 			kind: 'canonicals',
 			title,
@@ -259,11 +280,14 @@ export async function captureInternalLinksEvidence(
 	entries: Array<{ page: string; issue: string; count?: number }>,
 	count = entries.length,
 	title = 'Unoptimized Internal Links',
-	description = 'Pages with no crawlable internal links create dead ends for users and search crawlers.'
+	description = 'Pages with no crawlable internal links create dead ends for users and search crawlers.',
+	capturePageUrl?: string,
+	fallbackPageUrls: string[] = []
 ) {
 	if (!entries.length) return null;
 	return captureAuditSidebarScreenshot({
-		pageUrl: screenshotPageUrl(entries),
+		pageUrl: screenshotPageUrl(entries, capturePageUrl),
+		fallbackPageUrls,
 		sidebarData: buildSidebarData('internal-links', {
 			kind: 'internal-links',
 			title,
@@ -280,11 +304,14 @@ export async function captureLazyLoadingEvidence(
 	entries: Array<{ page: string; issue: string; image?: string }>,
 	count = entries.length,
 	title = 'Unoptimized Lazy Loading',
-	description = 'Images without native lazy loading can increase initial page weight and delay rendering on image-heavy pages.'
+	description = 'Images without native lazy loading can increase initial page weight and delay rendering on image-heavy pages.',
+	capturePageUrl?: string,
+	fallbackPageUrls: string[] = []
 ) {
 	if (!entries.length) return null;
 	return captureAuditSidebarScreenshot({
-		pageUrl: screenshotPageUrl(entries),
+		pageUrl: screenshotPageUrl(entries, capturePageUrl),
+		fallbackPageUrls,
 		sidebarData: buildSidebarData('lazy-loading', {
 			kind: 'lazy-loading',
 			title,
@@ -301,11 +328,14 @@ export async function captureOpenGraphEvidence(
 	entries: Array<{ page: string; issue: string; property?: string }>,
 	count = entries.length,
 	title = 'Unoptimized OpenGraph Tags',
-	description = 'OpenGraph tags control how pages appear when shared and help AI and social surfaces understand page context.'
+	description = 'OpenGraph tags control how pages appear when shared and help AI and social surfaces understand page context.',
+	capturePageUrl?: string,
+	fallbackPageUrls: string[] = []
 ) {
 	if (!entries.length) return null;
 	return captureAuditSidebarScreenshot({
-		pageUrl: screenshotPageUrl(entries),
+		pageUrl: screenshotPageUrl(entries, capturePageUrl),
+		fallbackPageUrls,
 		sidebarData: buildSidebarData('open-graph', {
 			kind: 'open-graph',
 			title,
@@ -322,11 +352,14 @@ export async function captureContentQualityEvidence(
 	entries: Array<{ page: string; issue: string; wordCount?: number }>,
 	count = entries.length,
 	title = 'Thin Content',
-	description = 'Pages with limited body copy can struggle to communicate topical depth and satisfy search intent.'
+	description = 'Pages with limited body copy can struggle to communicate topical depth and satisfy search intent.',
+	capturePageUrl?: string,
+	fallbackPageUrls: string[] = []
 ) {
 	if (!entries.length) return null;
 	return captureAuditSidebarScreenshot({
-		pageUrl: screenshotPageUrl(entries),
+		pageUrl: screenshotPageUrl(entries, capturePageUrl),
+		fallbackPageUrls,
 		sidebarData: buildSidebarData('content-quality', {
 			kind: 'content-quality',
 			title,
@@ -343,11 +376,14 @@ export async function captureShopifyUrlEvidence(
 	entries: Array<{ page: string; issue: string; pattern?: string }>,
 	count = entries.length,
 	title = 'Unoptimized Shopify URL Structure',
-	description = 'Duplicate Shopify collection/product URL paths can split ranking signals and create avoidable crawl duplication.'
+	description = 'Duplicate Shopify collection/product URL paths can split ranking signals and create avoidable crawl duplication.',
+	capturePageUrl?: string,
+	fallbackPageUrls: string[] = []
 ) {
 	if (!entries.length) return null;
 	return captureAuditSidebarScreenshot({
-		pageUrl: screenshotPageUrl(entries),
+		pageUrl: screenshotPageUrl(entries, capturePageUrl),
+		fallbackPageUrls,
 		sidebarData: buildSidebarData('shopify-urls', {
 			kind: 'shopify-urls',
 			title,
@@ -365,7 +401,9 @@ export async function captureRobotsEvidence({
 	storefrontUrl,
 	foundAgents,
 	title = 'Unoptimized Robots.txt',
-	description = 'Robots.txt is missing explicit coverage for important AI and search crawler user-agents, which can limit discovery in ChatGPT, Perplexity, Claude, and modern search tools.'
+	description = 'Robots.txt is missing explicit coverage for important AI and search crawler user-agents, which can limit discovery in ChatGPT, Perplexity, Claude, and modern search tools.',
+	capturePageUrl,
+	fallbackCapturePageUrls = []
 }: {
 	domain: string;
 	robotsUrl: string;
@@ -373,10 +411,15 @@ export async function captureRobotsEvidence({
 	foundAgents: string[];
 	title?: string;
 	description?: string;
+	capturePageUrl?: string;
+	fallbackCapturePageUrls?: string[];
 }) {
 	return captureAuditSidebarScreenshot({
-		pageUrl: robotsUrl,
-		fallbackPageUrls: [storefrontUrl],
+		pageUrl: capturePageUrl || robotsUrl,
+		fallbackPageUrls: [
+			...fallbackCapturePageUrls,
+			...(!fallbackCapturePageUrls.includes(storefrontUrl) ? [storefrontUrl] : [])
+		],
 		sidebarData: buildSidebarData('ai-bot-visibility', {
 			kind: 'ai-bot-visibility',
 			title,
@@ -395,7 +438,9 @@ export async function runAuditCaptureRequest(request: AuditCaptureRequest) {
 				request.entries,
 				request.count,
 				request.title,
-				request.description
+				request.description,
+				request.capturePageUrl,
+				request.fallbackCapturePageUrls
 			);
 		case 'image-alts':
 			return captureImageAltEvidence(
@@ -403,7 +448,9 @@ export async function runAuditCaptureRequest(request: AuditCaptureRequest) {
 				request.entries,
 				request.count,
 				request.title,
-				request.description
+				request.description,
+				request.capturePageUrl,
+				request.fallbackCapturePageUrls
 			);
 		case 'meta-tags':
 			return captureMetaEvidence(
@@ -411,7 +458,9 @@ export async function runAuditCaptureRequest(request: AuditCaptureRequest) {
 				request.entries,
 				request.count,
 				request.title,
-				request.description
+				request.description,
+				request.capturePageUrl,
+				request.fallbackCapturePageUrls
 			);
 		case 'canonicals':
 			return captureCanonicalEvidence(
@@ -419,7 +468,9 @@ export async function runAuditCaptureRequest(request: AuditCaptureRequest) {
 				request.entries,
 				request.count,
 				request.title,
-				request.description
+				request.description,
+				request.capturePageUrl,
+				request.fallbackCapturePageUrls
 			);
 		case 'internal-links':
 			return captureInternalLinksEvidence(
@@ -427,7 +478,9 @@ export async function runAuditCaptureRequest(request: AuditCaptureRequest) {
 				request.entries,
 				request.count,
 				request.title,
-				request.description
+				request.description,
+				request.capturePageUrl,
+				request.fallbackCapturePageUrls
 			);
 		case 'lazy-loading':
 			return captureLazyLoadingEvidence(
@@ -435,7 +488,9 @@ export async function runAuditCaptureRequest(request: AuditCaptureRequest) {
 				request.entries,
 				request.count,
 				request.title,
-				request.description
+				request.description,
+				request.capturePageUrl,
+				request.fallbackCapturePageUrls
 			);
 		case 'open-graph':
 			return captureOpenGraphEvidence(
@@ -443,7 +498,9 @@ export async function runAuditCaptureRequest(request: AuditCaptureRequest) {
 				request.entries,
 				request.count,
 				request.title,
-				request.description
+				request.description,
+				request.capturePageUrl,
+				request.fallbackCapturePageUrls
 			);
 		case 'content-quality':
 			return captureContentQualityEvidence(
@@ -451,7 +508,9 @@ export async function runAuditCaptureRequest(request: AuditCaptureRequest) {
 				request.entries,
 				request.count,
 				request.title,
-				request.description
+				request.description,
+				request.capturePageUrl,
+				request.fallbackCapturePageUrls
 			);
 		case 'shopify-urls':
 			return captureShopifyUrlEvidence(
@@ -459,7 +518,9 @@ export async function runAuditCaptureRequest(request: AuditCaptureRequest) {
 				request.entries,
 				request.count,
 				request.title,
-				request.description
+				request.description,
+				request.capturePageUrl,
+				request.fallbackCapturePageUrls
 			);
 		case 'pagespeed':
 			return capturePageSpeedEvidence(
@@ -467,7 +528,9 @@ export async function runAuditCaptureRequest(request: AuditCaptureRequest) {
 				request.pageUrl,
 				request.pageSpeed,
 				request.title,
-				request.description
+				request.description,
+				request.capturePageUrl,
+				request.fallbackCapturePageUrls
 			);
 		case 'open-page-rank':
 			return captureOpenPageRankEvidence(
@@ -475,7 +538,9 @@ export async function runAuditCaptureRequest(request: AuditCaptureRequest) {
 				request.pageUrl,
 				request.openPageRank,
 				request.title,
-				request.description
+				request.description,
+				request.capturePageUrl,
+				request.fallbackCapturePageUrls
 			);
 		case 'robots':
 			return captureRobotsEvidence(request);
