@@ -12,6 +12,10 @@ export type AuditLogger = {
 	info(message: string): void;
 	warn(message: string): void;
 };
+export type RobotsPolicy = {
+	isAllowed(url: string): boolean;
+	sitemap: string | null;
+};
 type FetchTextOptions = {
 	timeout?: number;
 	maxRedirects?: number;
@@ -114,6 +118,119 @@ export async function fetchText(url: string, options: FetchTextOptions = {}) {
 		headers: response.headers,
 		data: typeof response.data === 'string' ? response.data : String(response.data || '')
 	};
+}
+
+function escapeRegex(value: string) {
+	return value.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function robotsPatternMatches(pattern: string, path: string) {
+	if (!pattern) return false;
+	const anchored = pattern.endsWith('$');
+	const normalizedPattern = anchored ? pattern.slice(0, -1) : pattern;
+	const regex = new RegExp(
+		`^${normalizedPattern.split('*').map(escapeRegex).join('.*')}${anchored ? '$' : ''}`
+	);
+	return regex.test(path);
+}
+
+function agentMatches(agent: string, userAgent: string) {
+	const normalizedAgent = agent.trim().toLowerCase();
+	if (!normalizedAgent) return false;
+	if (normalizedAgent === '*') return true;
+	return userAgent.toLowerCase().includes(normalizedAgent);
+}
+
+export function parseRobotsPolicy(text: string, userAgent = USER_AGENT): RobotsPolicy {
+	type RobotsRule = { directive: 'allow' | 'disallow'; pattern: string };
+	type RobotsGroup = { agents: string[]; rules: RobotsRule[] };
+
+	const groups: RobotsGroup[] = [];
+	let current: RobotsGroup = { agents: [], rules: [] };
+	let sitemap: string | null = null;
+
+	const flush = () => {
+		if (current.agents.length || current.rules.length) groups.push(current);
+		current = { agents: [], rules: [] };
+	};
+
+	for (const rawLine of text.split(/\r?\n/)) {
+		const line = rawLine.replace(/#.*/, '').trim();
+		if (!line) continue;
+
+		const separatorIndex = line.indexOf(':');
+		if (separatorIndex === -1) continue;
+
+		const field = line.slice(0, separatorIndex).trim().toLowerCase();
+		const value = line.slice(separatorIndex + 1).trim();
+
+		if (field === 'sitemap' && value) {
+			sitemap = value;
+			continue;
+		}
+
+		if (field === 'user-agent') {
+			if (current.rules.length) flush();
+			current.agents.push(value);
+			continue;
+		}
+
+		if ((field === 'allow' || field === 'disallow') && current.agents.length) {
+			current.rules.push({ directive: field, pattern: value });
+		}
+	}
+
+	flush();
+
+	const matchingGroups = groups.filter((group) =>
+		group.agents.some((agent) => agentMatches(agent, userAgent))
+	);
+	const specificGroups = matchingGroups.filter((group) =>
+		group.agents.some((agent) => agent.trim() !== '*')
+	);
+	const applicableRules = (specificGroups.length ? specificGroups : matchingGroups).flatMap(
+		(group) => group.rules
+	);
+
+	return {
+		sitemap,
+		isAllowed(url: string) {
+			let path: string;
+			try {
+				const parsed = new URL(url);
+				path = `${parsed.pathname || '/'}${parsed.search || ''}`;
+			} catch {
+				path = url || '/';
+			}
+
+			let winner: RobotsRule | null = null;
+			for (const rule of applicableRules) {
+				if (rule.directive === 'disallow' && rule.pattern === '') continue;
+				if (!robotsPatternMatches(rule.pattern, path)) continue;
+				if (!winner || rule.pattern.length > winner.pattern.length) {
+					winner = rule;
+				} else if (winner.pattern.length === rule.pattern.length && rule.directive === 'allow') {
+					winner = rule;
+				}
+			}
+
+			return winner?.directive !== 'disallow';
+		}
+	};
+}
+
+export async function fetchRobotsPolicy(origin: string, logger?: AuditLogger) {
+	try {
+		const response = await fetchText(`${origin}/robots.txt`, {
+			validateStatus: (status) => status >= 200 && status < 500
+		});
+		if (response.status >= 400) return parseRobotsPolicy('');
+		return parseRobotsPolicy(response.data);
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		logger?.warn(`robots: policy fetch failed (${message})`);
+		return parseRobotsPolicy('');
+	}
 }
 
 export function loadDocument(html: string): cheerio.CheerioAPI {

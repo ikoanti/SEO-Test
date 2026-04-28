@@ -1,7 +1,8 @@
 import type { AuditLogger } from '../shared';
-import { extractInternalLinks, fetchText, loadDocument } from '../shared';
+import { extractInternalLinks, fetchRobotsPolicy, fetchText, loadDocument } from '../shared';
 
 export async function gatherPages(urlObj: URL, logger: AuditLogger) {
+	const robotsPolicy = await fetchRobotsPolicy(urlObj.origin, logger);
 	const queue = [urlObj.href];
 	const seen = new Set([urlObj.href, urlObj.href.replace(/\/$/, '')]);
 	const links = [];
@@ -11,6 +12,10 @@ export async function gatherPages(urlObj: URL, logger: AuditLogger) {
 	while (queue.length > 0 && links.length < 50) {
 		const currentUrl = queue.shift();
 		if (!currentUrl) continue;
+		if (!robotsPolicy.isAllowed(currentUrl)) {
+			logger.info(`crawl: skipped robots-disallowed URL ${currentUrl}`);
+			continue;
+		}
 		fetched += 1;
 
 		try {
@@ -20,6 +25,7 @@ export async function gatherPages(urlObj: URL, logger: AuditLogger) {
 			const found = extractInternalLinks($, currentUrl, urlObj.origin);
 
 			for (const link of found) {
+				if (!robotsPolicy.isAllowed(link)) continue;
 				const normalized = link.replace(/\/$/, '');
 				if (seen.has(link) || seen.has(normalized)) continue;
 				seen.add(link);
