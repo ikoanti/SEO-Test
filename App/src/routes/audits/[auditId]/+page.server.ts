@@ -109,7 +109,7 @@ export const actions = {
 
 		if (String(workflowRecord.status || '') !== 'completed') {
 			return fail(400, {
-				reportError: 'Report generation is available only after the audit run completes.'
+				reportError: 'Export is available only after the audit run completes.'
 			});
 		}
 
@@ -129,12 +129,12 @@ export const actions = {
 
 		if (availableKeys.size > 0 && uniqueSelectedKeys.length < minSelection) {
 			return fail(400, {
-				reportError: `Select at least ${minSelection} finding${minSelection === 1 ? '' : 's'} for the report.`
+				reportError: `Select at least ${minSelection} finding${minSelection === 1 ? '' : 's'} for the export.`
 			});
 		}
 
 		if (uniqueSelectedKeys.length > 10) {
-			return fail(400, { reportError: 'Select no more than 10 findings for the report.' });
+			return fail(400, { reportError: 'Select no more than 10 findings for the export.' });
 		}
 
 		await updateAuditRecord(

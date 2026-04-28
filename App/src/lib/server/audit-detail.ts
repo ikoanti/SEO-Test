@@ -74,7 +74,8 @@ function screenshotView(auditId: string, screenshot: unknown) {
 
 function buildDisplayedSummary(
 	summary: unknown,
-	auditFindings: Array<Record<string, unknown> & { status?: AuditFindingStatus }>
+	auditFindings: Array<Record<string, unknown> & { status?: AuditFindingStatus }>,
+	usePersistedFindingCounts: boolean
 ) {
 	const base = getRecord(summary);
 	const rawSummary = getRecord(base.summary);
@@ -87,7 +88,8 @@ function buildDisplayedSummary(
 		},
 		{ passed: 0, warnings: 0, failed: 0 }
 	);
-	const hasPersistedCounts = counts.passed + counts.warnings + counts.failed > 0;
+	const hasPersistedCounts =
+		usePersistedFindingCounts && counts.passed + counts.warnings + counts.failed > 0;
 
 	return {
 		...base,
@@ -196,6 +198,7 @@ export async function buildAuditPageData(
 	const selectedReportTemplateKeys = parseStoredStringArray(
 		auditRecord.selected_report_template_keys_json
 	);
+	const isPendingRun = ['queued', 'running'].includes(String(workflowRecord.status || ''));
 	const reportPageData = {
 		auditId: auditRecord.id,
 		runRecord: {
@@ -206,7 +209,8 @@ export async function buildAuditPageData(
 		audit,
 		summary: buildDisplayedSummary(
 			summary,
-			auditFindings as Array<Record<string, unknown> & { status?: AuditFindingStatus }>
+			auditFindings as Array<Record<string, unknown> & { status?: AuditFindingStatus }>,
+			!isPendingRun
 		),
 		aiVisibility,
 		normalizedItems
@@ -251,14 +255,15 @@ export async function buildAuditPageData(
 		audit,
 		summary: buildDisplayedSummary(
 			summary,
-			auditFindings as Array<Record<string, unknown> & { status?: AuditFindingStatus }>
+			auditFindings as Array<Record<string, unknown> & { status?: AuditFindingStatus }>,
+			!isPendingRun
 		),
 		reportHtml,
 		reportPreviewItems,
 		selectedReportTemplateKeys,
 		aiVisibility,
 		normalizedItems,
-		isPendingRun: ['queued', 'running'].includes(String(workflowRecord.status || '')),
+		isPendingRun,
 		isPendingReport: ['queued', 'running'].includes(String(auditRecord.report_status || '')),
 		isPendingScreenshots: hasPendingScreenshotJobs(auditRecord.id)
 	};

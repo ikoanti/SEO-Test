@@ -198,7 +198,7 @@
 	const tabs: { key: AuditTab; label: string }[] = [
 		{ key: 'findings', label: 'Findings' },
 		{ key: 'ai-visibility', label: 'AI Visibility' },
-		{ key: 'report', label: 'Report' }
+		{ key: 'report', label: 'Export' }
 	];
 	const pageTitle = () =>
 		pageData.auditRecord?.name ||
@@ -499,15 +499,15 @@
 			</div>
 		{:else if activeTab === 'report'}
 			<div class="card audit-card" id="card-report">
-				<h3 class="audit-card-title">Report Builder</h3>
+				<h3 class="audit-card-title">Export</h3>
 				{#if isReportPending()}
 					<div class="report-pending-indicator" aria-live="polite">
 						<Loader2 size={18} />
-						<span>Generating report</span>
+						<span>Generating export</span>
 					</div>
 				{:else if isReportFailed()}
 					<p class="report-error">
-						{pageData.reportRecord?.error_message || 'The last report generation attempt failed.'}
+						{pageData.reportRecord?.error_message || 'The last export attempt failed.'}
 					</p>
 					<form
 						method="POST"
@@ -520,7 +520,7 @@
 						{/if}
 						<button type="submit" class="audit-primary-button">
 							<Sparkles size={18} />
-							<span>Retry report generation</span>
+							<span>Retry export</span>
 						</button>
 					</form>
 				{:else if canGenerateReport()}
@@ -536,10 +536,10 @@
 
 						<div class="report-builder-header">
 							<div>
-								<p class="report-builder-title">Review report findings</p>
+								<p class="report-builder-title">Review export findings</p>
 								<p class="muted report-builder-copy">
 									Select {reportSelectionMin()}–10 findings. These previews are exactly what will
-									appear in the final report.
+									appear in the final export.
 								</p>
 							</div>
 							<span class="report-selection-count"
@@ -579,13 +579,13 @@
 							</div>
 						{:else}
 							<p class="muted report-status-note">
-								No report-ready findings are available for this audit.
+								No export-ready findings are available for this audit.
 							</p>
 						{/if}
 
 						<button type="submit" class="audit-primary-button" disabled={!reportSelectionIsValid()}>
 							<Sparkles size={18} />
-							<span>{hasReport() ? 'Regenerate report' : 'Generate report'}</span>
+							<span>{hasReport() ? 'Regenerate export' : 'Generate export'}</span>
 						</button>
 					</form>
 				{:else}
