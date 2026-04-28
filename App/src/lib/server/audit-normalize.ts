@@ -1,6 +1,5 @@
 import type { AuditFindingStatus } from '$lib/audit-status';
 import type { AuditCaptureRequest } from '$lib/server/audit-capture';
-import type { AuditReportTemplateRecord } from '$lib/server/pocketbase';
 
 type AuditListItem = {
 	status?: AuditFindingStatus;
@@ -37,7 +36,6 @@ export type AuditResult = {
 export type NormalizedAuditFindingType = {
 	key: string;
 	label: string;
-	source_key?: string;
 	status: AuditFindingStatus;
 	summary: string;
 	stats_json: string;
@@ -83,38 +81,12 @@ export const SECTION_LABELS: Array<[string, string]> = [
 	['aiVisibility', 'AI Visibility']
 ];
 
-const REPORT_TEMPLATE_SOURCE_KEYS: Record<string, string> = {
-	'ai-chatbots-llms-not-whitelisted': 'robotsTxt',
-	'unoptimized-page-speed': 'pageSpeed',
-	'multiple-h1-tags': 'h1Tags',
-	'missing-h1-tags': 'h1Tags',
-	'missing-product-schema': 'structuredData',
-	'unoptimized-heading-tags': 'h1Tags',
-	'meta-titles-too-long-unoptimized': 'metaTitles',
-	'unoptimized-shopify-url-structure': 'shopifyUrls',
-	'missing-faq-schema': 'structuredData',
-	'duplicated-page-titles': 'metaTitles',
-	'duplicated-meta-descriptions': 'metaTitles',
-	'4xx-broken-pages': 'internalLinks',
-	'missing-organization-schema': 'structuredData',
-	'overly-long-meta-descriptions': 'metaTitles',
-	'images-with-missing-alt-text': 'imageAltTags'
-};
-
-export function reportTemplateSourceKey(templateOrKey: AuditReportTemplateRecord | string) {
-	const key = typeof templateOrKey === 'string' ? templateOrKey : templateOrKey.key;
-	return REPORT_TEMPLATE_SOURCE_KEYS[key] || '';
-}
-
-export function getNormalizedSectionDefinitions(templates: AuditReportTemplateRecord[]) {
-	return templates
-		.map((template) => ({
-			key: template.key,
-			label: template.title,
-			sort_order: template.sort_order,
-			source_key: reportTemplateSourceKey(template)
-		}))
-		.filter((definition) => definition.source_key);
+export function getNormalizedSectionDefinitions() {
+	return SECTION_LABELS.map(([key, label], index) => ({
+		key,
+		label,
+		sort_order: index + 1
+	}));
 }
 
 function truncateText(value: string, maxLength: number) {
@@ -218,13 +190,11 @@ function buildMetricSection(
 	order: number,
 	summary: string,
 	stats: Record<string, unknown>,
-	status: AuditFindingStatus = 'info',
-	sourceKey?: string
+	status: AuditFindingStatus = 'info'
 ): NormalizedAuditFindingType {
 	return {
 		key,
 		label,
-		source_key: sourceKey,
 		status,
 		summary,
 		stats_json: JSON.stringify(stats),
@@ -233,34 +203,9 @@ function buildMetricSection(
 	};
 }
 
-function issueMatcher(pattern: string | undefined) {
-	if (!pattern?.trim()) return undefined;
-
-	try {
-		const regex = new RegExp(pattern, 'i');
-		return (finding: NormalizedAuditFindingType['findings'][number]) =>
-			regex.test(`${finding.title || ''} ${finding.detail || ''}`);
-	} catch {
-		return undefined;
-	}
-}
-
-function statusFromFindings(
-	findings: NormalizedAuditFindingType['findings'],
-	fallback: AuditFindingStatus = 'info'
-): AuditFindingStatus {
-	if (findings.some((finding) => finding.status === 'fail')) return 'fail';
-	if (findings.some((finding) => finding.status === 'warn')) return 'warn';
-	if (findings.some((finding) => finding.status === 'pass')) return 'pass';
-	return fallback;
-}
-
-export function buildNormalizedAuditItems(
-	audit: AuditResult,
-	templates: AuditReportTemplateRecord[] = []
-): NormalizedAuditFindingType[] {
+export function buildNormalizedAuditItems(audit: AuditResult): NormalizedAuditFindingType[] {
 	const items: NormalizedAuditFindingType[] = [];
-	const technicalItems = new Map<string, NormalizedAuditFindingType>();
+	let order = 1;
 
 	for (const [key, label] of SECTION_LABELS) {
 		const value = audit[key];
@@ -286,14 +231,13 @@ export function buildNormalizedAuditItems(
 				buildMetricSection(
 					key,
 					label,
-					technicalItems.size + 1,
+					order,
 					`Mobile ${metrics.mobile?.score ?? 'N/A'} / Desktop ${metrics.desktop?.score ?? 'N/A'}`,
 					metrics as Record<string, unknown>,
-					status,
-					key
+					status
 				)
 			);
-			technicalItems.set(key, items[items.length - 1]);
+			order += 1;
 			continue;
 		}
 
@@ -303,65 +247,23 @@ export function buildNormalizedAuditItems(
 				buildMetricSection(
 					key,
 					label,
-					technicalItems.size + 1,
+					order,
 					`PageRank ${stats.pageRank ?? 'N/A'} / Global ${stats.globalRank ?? 'N/A'}`,
 					stats as Record<string, unknown>,
-					'info',
-					key
+					'info'
 				)
 			);
-			technicalItems.set(key, items[items.length - 1]);
+			order += 1;
 			continue;
 		}
 
 		if (value && typeof value === 'object' && Array.isArray((value as AuditListSection).items)) {
-			const item = buildListSection(key, label, technicalItems.size + 1, value as AuditListSection);
-			item.source_key = key;
-			items.push(item);
-			technicalItems.set(key, item);
+			items.push(buildListSection(key, label, order, value as AuditListSection));
+			order += 1;
 		}
 	}
 
-	const problemItems: NormalizedAuditFindingType[] = [];
-	for (const template of templates) {
-		const sourceKey = reportTemplateSourceKey(template);
-		if (!sourceKey) continue;
-
-		const sourceItem = technicalItems.get(sourceKey);
-		if (!sourceItem) continue;
-
-		if (sourceItem.findings.length === 0) {
-			if (sourceItem.status !== 'warn' && sourceItem.status !== 'fail') continue;
-			problemItems.push({
-				...sourceItem,
-				key: template.key,
-				label: template.title,
-				source_key: sourceKey,
-				sort_order: template.sort_order
-			});
-			continue;
-		}
-
-		const matcher = issueMatcher(template.match_pattern);
-		const findings = sourceItem.findings.filter((finding) => {
-			if (finding.status !== 'warn' && finding.status !== 'fail') return false;
-			return matcher ? matcher(finding) : true;
-		});
-		if (!findings.length) continue;
-
-		problemItems.push({
-			key: template.key,
-			label: template.title,
-			source_key: sourceKey,
-			status: statusFromFindings(findings, sourceItem.status),
-			summary: `${findings.length} finding${findings.length === 1 ? '' : 's'}`,
-			stats_json: JSON.stringify({ stats: sourceItem.summary, count: findings.length }),
-			sort_order: template.sort_order,
-			findings
-		});
-	}
-
-	return problemItems;
+	return items;
 }
 
 function snapshotRecord(value: Record<string, unknown>) {

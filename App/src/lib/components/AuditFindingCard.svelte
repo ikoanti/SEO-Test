@@ -34,17 +34,14 @@
 		title: string;
 		subtitle?: string;
 		mini?: boolean;
-		priority?: 'Urgent' | 'High' | 'Medium';
 	};
 
 	let {
 		section,
-		item,
-		showIssueHeadings = true
+		item
 	}: {
 		section: LegacySection;
 		item?: AuditItemView;
-		showIssueHeadings?: boolean;
 	} = $props();
 	const previewLimit = 5;
 	let selectedStatus = $state<AuditFindingStatusFilter | null>(null);
@@ -300,11 +297,7 @@
 	<div class="audit-finding-section-heading">
 		<div class="audit-finding-title-row">
 			<h2>{section.title}</h2>
-			{#if section.priority}
-				<span class={`audit-priority audit-priority-${section.priority.toLowerCase()}`}>
-					{section.priority}
-				</span>
-			{:else if item?.runStatus}
+			{#if item?.runStatus}
 				<span class={`audit-run-status audit-run-status-${item.runStatus}`}>{item.runStatus}</span>
 			{/if}
 		</div>
@@ -326,9 +319,7 @@
 	<ul class={`check-list ${section.mini ? 'mini-list' : ''}`}>
 		{#if hasVisibleFindings}
 			{#each failGroups as group (group.key)}
-				{#if showIssueHeadings}
-					<li class="issue-group-heading issue-group-heading-fail">{group.title}</li>
-				{/if}
+				<li class="issue-group-heading issue-group-heading-fail">{group.title}</li>
 				{#each group.rows as row (row.key)}
 					<AuditFindingRow
 						status={row.status}
@@ -356,9 +347,7 @@
 				</li>
 			{/if}
 			{#each warnGroups as group (group.key)}
-				{#if showIssueHeadings}
-					<li class="issue-group-heading issue-group-heading-warn">{group.title}</li>
-				{/if}
+				<li class="issue-group-heading issue-group-heading-warn">{group.title}</li>
 				{#each group.rows as row (row.key)}
 					<AuditFindingRow
 						status={row.status}
@@ -386,9 +375,7 @@
 				</li>
 			{/if}
 			{#each infoGroups as group (group.key)}
-				{#if showIssueHeadings}
-					<li class="issue-group-heading issue-group-heading-info">{group.title}</li>
-				{/if}
+				<li class="issue-group-heading issue-group-heading-info">{group.title}</li>
 				{#each group.rows as row (row.key)}
 					<AuditFindingRow
 						status={row.status}
@@ -416,9 +403,7 @@
 				</li>
 			{/if}
 			{#each passGroups as group (group.key)}
-				{#if showIssueHeadings}
-					<li class="issue-group-heading issue-group-heading-pass">{group.title}</li>
-				{/if}
+				<li class="issue-group-heading issue-group-heading-pass">{group.title}</li>
 				{#each group.rows as row (row.key)}
 					<AuditFindingRow
 						status={row.status}
@@ -499,8 +484,7 @@
 		font-weight: 800;
 	}
 
-	.audit-run-status,
-	.audit-priority {
+	.audit-run-status {
 		flex: 0 0 auto;
 		border: 1px solid var(--border);
 		border-radius: 999px;
@@ -509,21 +493,6 @@
 		font-size: 0.75rem;
 		font-weight: 800;
 		text-transform: uppercase;
-	}
-
-	.audit-priority-urgent {
-		border-color: color-mix(in srgb, var(--status-fail) 45%, transparent);
-		color: var(--status-fail);
-	}
-
-	.audit-priority-high {
-		border-color: color-mix(in srgb, var(--status-warn) 45%, transparent);
-		color: var(--status-warn);
-	}
-
-	.audit-priority-medium {
-		border-color: color-mix(in srgb, var(--goldenweb-primary) 45%, transparent);
-		color: var(--goldenweb-primary);
 	}
 
 	.check-list {

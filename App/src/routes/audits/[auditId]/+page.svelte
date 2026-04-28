@@ -5,6 +5,8 @@
 	import AuditFindingCard from '$lib/components/AuditFindingCard.svelte';
 	import AuditOverviewCard from '$lib/components/AuditOverviewCard.svelte';
 	import CustomCheckmark from '$lib/components/CustomCheckmark.svelte';
+	import OpenPageRankCard from '$lib/components/OpenPageRankCard.svelte';
+	import PageSpeedCard from '$lib/components/PageSpeedCard.svelte';
 	import SegmentedPicker from '$lib/components/SegmentedPicker.svelte';
 	import { FileText, FileUp } from 'lucide-svelte';
 	import { onMount, tick } from 'svelte';
@@ -99,11 +101,6 @@
 		title: string;
 		subtitle?: string;
 		mini?: boolean;
-		priority?: 'Urgent' | 'High' | 'Medium';
-	};
-	type RenderedAuditSection = {
-		section: LegacySection;
-		item?: AuditItemView;
 	};
 
 	type AuditTab = 'findings' | 'ai-visibility' | 'report';
@@ -112,6 +109,69 @@
 		title: string;
 		href: string;
 	};
+
+	const legacySections: LegacySection[] = [
+		{ key: 'h1Tags', title: 'H1 Elements', subtitle: 'Scanning exactly 50 pages…', mini: true },
+		{ key: 'metaTitles', title: 'Meta Titles', subtitle: 'Scanning exactly 50 pages…', mini: true },
+		{ key: 'internalLinks', title: 'Internal Links', mini: true },
+		{
+			key: 'imageAltTags',
+			title: 'Image Alt Tags',
+			subtitle: 'Scanning exactly 50 pages…',
+			mini: true
+		},
+		{
+			key: 'canonicalUrls',
+			title: 'Canonical URL',
+			subtitle: 'Scanning exactly 50 pages…',
+			mini: true
+		},
+		{ key: 'sitemap', title: 'Sitemap.xml' },
+		{
+			key: 'robotsTxt',
+			title: 'Robots.txt Analysis',
+			subtitle: 'Checking crawler directives and sitemap'
+		},
+		{
+			key: 'aiVisibility',
+			title: 'AI Bot Visibility',
+			subtitle: 'Analyzing AI crawler rules in robots.txt'
+		},
+		{ key: 'llmsTxt', title: 'LLMs.txt Inspector' },
+		{ key: 'structuredData', title: 'Structured Data' },
+		{
+			key: 'security',
+			title: 'Security (HTTPS)',
+			subtitle: 'Scanning exactly 50 pages…',
+			mini: true
+		},
+		{
+			key: 'mixedContent',
+			title: 'Mixed Content',
+			subtitle: 'Scanning exactly 50 pages…',
+			mini: true
+		},
+		{
+			key: 'contentQuality',
+			title: 'Content Quality',
+			subtitle: 'Scanning exactly 50 pages…',
+			mini: true
+		},
+		{ key: 'webIcons', title: 'Web Icons' },
+		{ key: 'ssl', title: 'SSL Certificate Check' },
+		{ key: 'mobileUsability', title: 'Mobile Usability' },
+		{ key: 'flash', title: 'Flash Usage' },
+		{ key: 'charset', title: 'Character Encoding' },
+		{ key: 'loremIpsum', title: 'Lorem Ipsum Test' },
+		{ key: 'openGraph', title: 'OpenGraph Tags' },
+		{ key: 'shopifyUrls', title: 'Shopify URL Structure', mini: true },
+		{ key: 'internationalDomains', title: 'International Domains & Hreflang' },
+		{ key: 'trailingSlash', title: 'Trailing Slash Consistency' },
+		{ key: 'wwwResolve', title: 'WWW vs Non-WWW Resolution' },
+		{ key: 'trustSignals', title: 'Contact & Trust Signals' },
+		{ key: 'tapTargets', title: 'Mobile Tap Targets', subtitle: 'Analyzing DOM heuristics' },
+		{ key: 'lazyLoadImages', title: 'Lazy Loading Images', mini: true }
+	];
 
 	let { data, form }: { data: AuditPageViewData; form?: ActionData } = $props();
 	let liveData = $state<AuditPageViewData | null>(null);
@@ -139,38 +199,37 @@
 		{ key: 'ai-visibility', label: 'AI Visibility' },
 		{ key: 'report', label: 'Export' }
 	];
+	const auditNavItems: AuditNavItem[] = [
+		{ key: 'openPageRank', title: 'Open Page Rank', href: '#section-opr' },
+		{ key: 'pageSpeed', title: 'PageSpeed Insights', href: '#section-speed' },
+		...legacySections.map((section) => ({
+			key: section.key,
+			title: section.title,
+			href: `#section-${section.key}`
+		}))
+	];
 	const pageTitle = () =>
 		pageData.auditRecord?.name ||
 		pageData.runRecord?.name ||
 		pageData.auditRecord?.url ||
 		pageData.runRecord?.url;
-	let activeAuditSection = $state('');
-	const renderedAuditSections = $derived.by<RenderedAuditSection[]>(() => {
-		return (pageData.reportPreviewItems || []).map((problem) => ({
-			section: {
-				key: problem.key,
-				title: problem.title,
-				priority: problem.priority,
-				mini: true
-			},
-			item: {
-				id: problem.key,
-				key: problem.key,
-				label: problem.title,
-				status: problem.status,
-				summary: `${problem.count} affected ${problem.count === 1 ? 'item' : 'items'}`,
-				screenshot: problem.screenshot,
-				findings: problem.findings
-			}
-		}));
-	});
-	const auditNavItems = $derived.by<AuditNavItem[]>(() => [
-		...renderedAuditSections.map(({ section }) => ({
-			key: section.key,
-			title: section.title,
-			href: `#section-${section.key}`
-		}))
-	]);
+	let activeAuditSection = $state(auditNavItems[0]?.key || '');
+
+	const itemByKey = (key: string) => pageData.normalizedItems?.find((item) => item.key === key);
+	const getRecord = (value: unknown): Record<string, unknown> =>
+		value && typeof value === 'object' && !Array.isArray(value)
+			? (value as Record<string, unknown>)
+			: {};
+	const auditSection = (key: string) => getRecord(pageData.audit?.[key]);
+	const metricSection = (key: string) => {
+		const auditValue = auditSection(key);
+		if (Object.keys(auditValue).length > 0) return auditValue;
+		return getRecord(itemByKey(key)?.findings?.[0]?.meta);
+	};
+	const displayValue = (value: unknown, fallback = '-') =>
+		value === undefined || value === null || value === '' ? fallback : String(value);
+	const openPageRank = () => metricSection('openPageRank');
+	const pageSpeed = () => metricSection('pageSpeed');
 
 	$effect(() => {
 		const previewKeys = (pageData.reportPreviewItems || []).map((item) => item.key).join('|');
@@ -361,12 +420,19 @@
 				</nav>
 
 				<div class="audit-report-sections">
-					{#each renderedAuditSections as renderedSection (renderedSection.section.key)}
-						<AuditFindingCard
-							section={renderedSection.section}
-							item={renderedSection.item}
-							showIssueHeadings={false}
-						/>
+					<OpenPageRankCard
+						pageRank={displayValue(openPageRank().pageRank)}
+						globalRank={displayValue(openPageRank().globalRank)}
+						screenshot={itemByKey('openPageRank')?.screenshot}
+					/>
+
+					<PageSpeedCard
+						pageSpeedData={pageSpeed()}
+						screenshot={itemByKey('pageSpeed')?.screenshot}
+					/>
+
+					{#each legacySections as section (section.key)}
+						<AuditFindingCard {section} item={itemByKey(section.key)} />
 					{/each}
 				</div>
 			</div>

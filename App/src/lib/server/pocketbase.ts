@@ -544,11 +544,17 @@ export type AuditReportTemplateRecord = {
 export async function listAuditReportTemplates(token?: string) {
 	const pb = createAuthedClient(token);
 
-	return (await pb.collection(AUDIT_REPORT_TEMPLATES_COLLECTION).getFullList({
-		filter: 'enabled = true',
-		sort: 'sort_order',
-		expand: 'audit_finding_type'
-	})) as unknown as AuditReportTemplateRecord[];
+	try {
+		return (await pb.collection(AUDIT_REPORT_TEMPLATES_COLLECTION).getFullList({
+			filter: 'enabled = true',
+			sort: 'sort_order',
+			expand: 'audit_finding_type'
+		})) as unknown as AuditReportTemplateRecord[];
+	} catch (error) {
+		const response = (error as { response?: { status?: number } }).response;
+		if (response?.status === 400 || response?.status === 404) return [];
+		throw error;
+	}
 }
 
 export async function createRunRecord(

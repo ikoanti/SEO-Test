@@ -713,6 +713,10 @@ function enrichCaptureRequestWithCandidates(
 	};
 }
 
+function templateFindingTypeKey(template: AuditReportTemplateRecord) {
+	return String(template.expand?.audit_finding_type?.key || '');
+}
+
 function templateIssueMatcher(pattern: string | undefined) {
 	if (!pattern?.trim()) return undefined;
 
@@ -950,15 +954,13 @@ type RunRegistry = Map<
 		findingTypeId: string;
 		label: string;
 		sortOrder: number;
-		sourceKey?: string;
 	}
 >;
 
 async function bootstrapRuns(workflowId: string, token?: string) {
 	const registry: RunRegistry = new Map();
-	const templates = await listAuditReportTemplates(token);
 
-	for (const definition of getNormalizedSectionDefinitions(templates)) {
+	for (const definition of getNormalizedSectionDefinitions()) {
 		const findingType = await getOrCreateAuditFindingTypeRecord(definition, token);
 		const run = await getOrCreateRunRecord(
 			{
@@ -975,18 +977,17 @@ async function bootstrapRuns(workflowId: string, token?: string) {
 			runId: run.id,
 			findingTypeId: findingType.id,
 			label: definition.label,
-			sortOrder: definition.sort_order,
-			sourceKey: definition.source_key
+			sortOrder: definition.sort_order
 		});
 	}
 
-	return { registry, templates };
+	return registry;
 }
 
 async function markStepRunning(runRegistry: RunRegistry, stepLabel: string, token?: string) {
-	const sourceKeys = new Set(STEP_KEYS[stepLabel] || []);
-	for (const entry of runRegistry.values()) {
-		if (!entry.sourceKey || !sourceKeys.has(entry.sourceKey)) continue;
+	for (const key of STEP_KEYS[stepLabel] || []) {
+		const entry = runRegistry.get(key);
+		if (!entry) continue;
 		await updateRunRecord(
 			entry.runId,
 			{
@@ -1006,13 +1007,12 @@ async function syncProgressSnapshot(
 	partialAudit: AuditSummaryResult,
 	runRegistry: RunRegistry,
 	keysToSync?: Iterable<string>,
-	templates: AuditReportTemplateRecord[] = [],
 	token?: string
 ) {
 	const keySet = keysToSync ? new Set(keysToSync) : null;
 	attachMetricScreenshots(partialAudit, url, keySet || ['pageSpeed', 'openPageRank']);
-	const normalizedItems = buildNormalizedAuditItems(partialAudit, templates).filter(
-		(item) => !keySet || keySet.has(item.source_key || item.key)
+	const normalizedItems = buildNormalizedAuditItems(partialAudit).filter(
+		(item) => !keySet || keySet.has(item.key)
 	);
 	for (const item of normalizedItems) {
 		const run = runRegistry.get(item.key);
@@ -1109,9 +1109,9 @@ function collectScreenshotJobs(
 
 	const jobs: ScreenshotJob[] = [];
 	const seen = new Set<string>();
-	const normalizedItems = buildNormalizedAuditItems(audit, templates);
+	const normalizedItems = buildNormalizedAuditItems(audit);
 	const templatesByFindingTypeKey = templates.reduce((map, template) => {
-		const key = template.key;
+		const key = templateFindingTypeKey(template);
 		if (!key) return map;
 		const existing = map.get(key) || [];
 		existing.push(template);
@@ -1204,12 +1204,9 @@ async function processAuditScreenshots(
 async function finalizeUnsyncedRuns(
 	runRegistry: RunRegistry,
 	partialAudit: AuditSummaryResult,
-	templates: AuditReportTemplateRecord[] = [],
 	token?: string
 ) {
-	const completedKeys = new Set(
-		buildNormalizedAuditItems(partialAudit, templates).map((item) => item.key)
-	);
+	const completedKeys = new Set(buildNormalizedAuditItems(partialAudit).map((item) => item.key));
 	for (const [key, run] of runRegistry.entries()) {
 		if (completedKeys.has(key)) continue;
 		await updateRunRecord(
@@ -1228,7 +1225,7 @@ async function finalizeUnsyncedRuns(
 async function processAuditWorkflow({ workflowId, auditId, url, token }: QueuePayload) {
 	const workflowRecord = await getWorkflow(workflowId, token);
 	let runLog = appendLog(workflowRecord.run_log, 'Workflow started.');
-	const { registry: runRegistry, templates } = await bootstrapRuns(workflowId, token);
+	const runRegistry = await bootstrapRuns(workflowId, token);
 
 	await updateWorkflowRecord(
 		workflowId,
@@ -1258,15 +1255,14 @@ async function processAuditWorkflow({ workflowId, auditId, url, token }: QueuePa
 					partialAudit,
 					runRegistry,
 					STEP_KEYS[stepLabel] || [],
-					templates,
 					token
 				);
 			}
 		});
 		runLog = appendLog(runLog, 'Audit engine completed successfully.');
 		const completedAt = timestamp();
-		await syncProgressSnapshot(auditId, url, audit, runRegistry, undefined, templates, token);
-		await finalizeUnsyncedRuns(runRegistry, audit, templates, token);
+		await syncProgressSnapshot(auditId, url, audit, runRegistry, undefined, token);
+		await finalizeUnsyncedRuns(runRegistry, audit, token);
 		runLog = appendLog(runLog, 'Screenshot generation started.');
 		await updateWorkflowRecord(workflowId, { run_log: runLog }, token);
 		await processAuditScreenshots(auditId, url, audit, runRegistry, token);

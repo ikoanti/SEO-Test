@@ -244,7 +244,7 @@ export function buildReportProblems(
 
 	for (const template of templates) {
 		const findingTypeKey = template.expand?.audit_finding_type?.key || '';
-		const item = itemsByKey.get(template.key) || itemsByKey.get(findingTypeKey);
+		const item = itemsByKey.get(findingTypeKey);
 		const matcher = issueMatcher(template.match_pattern);
 		const findings = issueFindings(item).filter((finding) => !matcher || matcher(finding));
 
