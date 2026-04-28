@@ -182,6 +182,7 @@
 	let fallbackInterval: number | undefined;
 	let stream: EventSource | undefined;
 	let cleanupScrollSpy: (() => void) | undefined;
+	let auditSectionNavElement = $state<HTMLElement | undefined>();
 
 	const pendingStatuses = new Set(['queued', 'running']);
 	const runStatus = () => pageData.runRecord.status || 'queued';
@@ -313,7 +314,38 @@
 			}
 		}
 
-		activeAuditSection = currentKey;
+		if (activeAuditSection !== currentKey) {
+			activeAuditSection = currentKey;
+			void tick().then(scrollActiveNavItemIntoView);
+		}
+	}
+
+	function scrollActiveNavItemIntoView() {
+		if (!auditSectionNavElement || !activeAuditSection) return;
+
+		const activeLink = auditSectionNavElement.querySelector<HTMLAnchorElement>(
+			`a[data-section-key="${CSS.escape(activeAuditSection)}"]`
+		);
+		if (!activeLink) return;
+
+		const navRect = auditSectionNavElement.getBoundingClientRect();
+		const linkRect = activeLink.getBoundingClientRect();
+		const isVertical = auditSectionNavElement.scrollHeight > auditSectionNavElement.clientHeight;
+
+		if (isVertical) {
+			const isAbove = linkRect.top < navRect.top;
+			const isBelow = linkRect.bottom > navRect.bottom;
+			if (isAbove || isBelow) {
+				activeLink.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+			}
+			return;
+		}
+
+		const isLeft = linkRect.left < navRect.left;
+		const isRight = linkRect.right > navRect.right;
+		if (isLeft || isRight) {
+			activeLink.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+		}
 	}
 
 	function setupScrollSpy() {
@@ -365,14 +397,16 @@
 	<section class:report-results={activeTab === 'findings'} class="results-grid audit-results">
 		{#if activeTab === 'findings'}
 			<div class="audit-report-layout">
-				<nav class="audit-section-nav" aria-label="Audit findings">
+				<nav bind:this={auditSectionNavElement} class="audit-section-nav" aria-label="Audit findings">
 					{#each auditNavItems as navItem (navItem.key)}
 						<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
 						<a
 							href={navItem.href}
+							data-section-key={navItem.key}
 							class:active={activeAuditSection === navItem.key}
 							onclick={() => {
 								activeAuditSection = navItem.key;
+								void tick().then(scrollActiveNavItemIntoView);
 							}}
 						>
 							<span>{navItem.title}</span>
