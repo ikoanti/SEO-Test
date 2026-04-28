@@ -32,6 +32,8 @@ const SUBTITLE_SIZE = 28;
 const LOGO_WIDTH_PX = 242;
 const LOGO_HEIGHT_PX = 59;
 const PRIORITY_MARKER_PREFIX = 'GW_PRIORITY_DROPDOWN';
+const EMPTY_LINE_MARKER_PREFIX = 'GW_EMPTY_LINE';
+let emptyLineIndex = 0;
 
 function text(value: unknown, fallback = '') {
 	const raw = String(value ?? '').trim();
@@ -55,17 +57,13 @@ function domainName(pageData: ReportPageData) {
 	);
 }
 
-function emptyLine(size = BODY_SIZE) {
+function emptyLine() {
+	emptyLineIndex += 1;
 	return new Paragraph({
-		spacing: {
-			before: 0,
-			after: 0
-		},
 		children: [
-			new TextRun({
-				text: '',
-				size,
-				font: FONT
+			textRun(`${EMPTY_LINE_MARKER_PREFIX}_${emptyLineIndex}`, {
+				size: BODY_SIZE,
+				color: 'FFFFFF'
 			})
 		]
 	});
@@ -147,7 +145,7 @@ function escapeRegex(value: string) {
 	return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-async function withPriorityDropdowns(body: Buffer, problems: ReportProblemPreview[]) {
+async function withDocxXmlFixes(body: Buffer, problems: ReportProblemPreview[]) {
 	const zip = await JSZip.loadAsync(body);
 	const documentFile = zip.file('word/document.xml');
 	if (!documentFile) return body;
@@ -168,6 +166,15 @@ async function withPriorityDropdowns(body: Buffer, problems: ReportProblemPrevie
 			priorityDropdownXml(index, problem.priority)
 		);
 	}
+
+	const emptyLineMarkerPattern = new RegExp(
+		`<w:p\\b([^>]*)><w:r\\b[^>]*>(?:(?!<\\/w:r>).)*<w:t\\b[^>]*>${EMPTY_LINE_MARKER_PREFIX}_\\d+<\\/w:t>(?:(?!<\\/w:r>).)*<\\/w:r><\\/w:p>`,
+		'g'
+	);
+	documentXml = documentXml.replace(
+		emptyLineMarkerPattern,
+		'<w:p$1><w:pPr><w:spacing w:before="0" w:after="0"/><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr></w:r></w:p>'
+	);
 
 	zip.file('word/document.xml', documentXml);
 	return zip.generateAsync({ type: 'nodebuffer' });
@@ -396,6 +403,6 @@ export async function generateTemplateReportDocx(
 
 	return {
 		filename: documentFilename(pageData),
-		body: await withPriorityDropdowns(await Packer.toBuffer(document), problems)
+		body: await withDocxXmlFixes(await Packer.toBuffer(document), problems)
 	};
 }
