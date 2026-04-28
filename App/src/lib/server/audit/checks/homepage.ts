@@ -179,7 +179,8 @@ export async function analyzeHomePage(
 	} else {
 		for (const element of lazyImageElements) {
 			addItem(summary, lazyLoadImages, 'pass', 'Image uses loading="lazy"', {
-				title: resolveImageUrl(element)
+				title: resolveImageUrl(element),
+				page_url: urlObj.href
 			});
 		}
 
@@ -192,7 +193,8 @@ export async function analyzeHomePage(
 				});
 			}
 			addItem(summary, lazyLoadImages, 'warn', 'Image missing loading="lazy"', {
-				title: resolveImageUrl(element)
+				title: resolveImageUrl(element),
+				page_url: urlObj.href
 			});
 		}
 	}

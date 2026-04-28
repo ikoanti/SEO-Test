@@ -8,7 +8,7 @@
 	import OpenPageRankCard from '$lib/components/OpenPageRankCard.svelte';
 	import PageSpeedCard from '$lib/components/PageSpeedCard.svelte';
 	import SegmentedPicker from '$lib/components/SegmentedPicker.svelte';
-	import { FileText, FileUp } from 'lucide-svelte';
+	import { ArrowUp, FileText, FileUp } from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import AuditHeader from './AuditHeader.svelte';
 	import type { ActionData } from './$types';
@@ -174,6 +174,7 @@
 	let activeTab = $state<AuditTab>('findings');
 	let selectedReportKeys = $state<string[]>([]);
 	let reportSelectionSeed = $state('');
+	let showReturnToTop = $state(false);
 	let fallbackInterval: number | undefined;
 	let stream: EventSource | undefined;
 
@@ -279,10 +280,23 @@
 		};
 	}
 
+	function updateReturnToTopVisibility() {
+		showReturnToTop = window.scrollY > window.innerHeight / 2;
+	}
+
+	function returnToTop() {
+		window.scrollTo({ top: 0, behavior: 'smooth' });
+	}
+
 	onMount(() => {
 		ensureLiveUpdates();
+		updateReturnToTopVisibility();
+		window.addEventListener('scroll', updateReturnToTopVisibility, { passive: true });
+		window.addEventListener('resize', updateReturnToTopVisibility);
 
 		return () => {
+			window.removeEventListener('scroll', updateReturnToTopVisibility);
+			window.removeEventListener('resize', updateReturnToTopVisibility);
 			stopLiveUpdates();
 		};
 	});
@@ -476,6 +490,13 @@
 	</section>
 {/if}
 
+{#if showReturnToTop}
+	<button class="return-to-top" type="button" aria-label="Return to top" onclick={returnToTop}>
+		<ArrowUp size={20} />
+		<span>Top</span>
+	</button>
+{/if}
+
 <style>
 	.results-grid {
 		display: flex;
@@ -613,5 +634,42 @@
 	.ai-visibility-results {
 		margin-top: 1rem;
 		margin-bottom: 0;
+	}
+
+	.return-to-top {
+		position: fixed;
+		right: clamp(1rem, 3vw, 2rem);
+		bottom: clamp(1rem, 3vw, 2rem);
+		z-index: 30;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.45rem;
+		border: 1px solid var(--border-color);
+		border-radius: 999px;
+		padding: 0.75rem 1rem;
+		background: rgba(24, 31, 43, 0.94);
+		color: var(--text-primary);
+		font: inherit;
+		font-size: 0.92rem;
+		font-weight: 900;
+		cursor: pointer;
+		backdrop-filter: blur(12px);
+	}
+
+	.return-to-top :global(svg) {
+		color: var(--goldenweb-primary);
+	}
+
+	.return-to-top:focus-visible {
+		outline: 2px solid var(--goldenweb-primary);
+		outline-offset: 3px;
+	}
+
+	@media (max-width: 640px) {
+		.return-to-top {
+			right: 1rem;
+			bottom: 1rem;
+			padding: 0.7rem 0.9rem;
+		}
 	}
 </style>
