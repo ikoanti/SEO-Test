@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import type { AuditFindingStatus } from '$lib/audit-status';
@@ -8,7 +7,7 @@
 	import OpenPageRankCard from '$lib/components/OpenPageRankCard.svelte';
 	import PageSpeedCard from '$lib/components/PageSpeedCard.svelte';
 	import SegmentedPicker from '$lib/components/SegmentedPicker.svelte';
-	import { Copy, FileText, FileUp, Loader2, Sparkles } from 'lucide-svelte';
+	import { FileText, FileUp } from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import AuditHeader from './AuditHeader.svelte';
 	import type { ActionData } from './$types';
@@ -172,7 +171,6 @@
 	let { data, form }: { data: AuditPageViewData; form?: ActionData } = $props();
 	let liveData = $state<AuditPageViewData | null>(null);
 	const pageData = $derived(liveData ?? data);
-	let copyState = $state('Copy');
 	let activeTab = $state<AuditTab>('findings');
 	let selectedReportKeys = $state<string[]>([]);
 	let reportSelectionSeed = $state('');
@@ -180,21 +178,15 @@
 	let stream: EventSource | undefined;
 
 	const pendingStatuses = new Set(['queued', 'running']);
-	const reportPendingStatuses = new Set(['queued', 'running']);
 	const runStatus = () => pageData.runRecord.status || 'queued';
 	const isPending = () => pendingStatuses.has(runStatus());
 	const isFailed = () => runStatus() === 'failed';
-	const reportStatus = () => pageData.reportRecord?.status || 'idle';
-	const isReportPending = () => reportPendingStatuses.has(reportStatus());
-	const isReportFailed = () => reportStatus() === 'failed';
-	const canGenerateReport = () => runStatus() === 'completed' && !isReportPending();
-	const hasReport = () => Boolean(pageData.reportHtml);
+	const canExport = () => runStatus() === 'completed';
 	const reportSelectionMin = () => Math.min(5, pageData.reportPreviewItems?.length ?? 0);
 	const reportSelectionIsValid = () =>
 		(pageData.reportPreviewItems?.length ?? 0) === 0 ||
 		(selectedReportKeys.length >= reportSelectionMin() && selectedReportKeys.length <= 10);
-	const needsLiveUpdates = () =>
-		isPending() || isReportPending() || Boolean(pageData.isPendingScreenshots);
+	const needsLiveUpdates = () => isPending() || Boolean(pageData.isPendingScreenshots);
 	const tabs: { key: AuditTab; label: string }[] = [
 		{ key: 'findings', label: 'Findings' },
 		{ key: 'ai-visibility', label: 'AI Visibility' },
@@ -285,19 +277,6 @@
 		return `background: linear-gradient(to right, var(--status-pass) 0%, var(--status-pass) ${passedPct}%, var(--status-warn) ${passedPct}%, var(--status-warn) ${passedPct + warnPct}%, var(--status-fail) ${passedPct + warnPct}%, var(--status-fail) 100%)`;
 	}
 
-	async function copyReport() {
-		if (!pageData.reportHtml) return;
-
-		const container = document.createElement('div');
-		container.innerHTML = pageData.reportHtml;
-		const text = container.innerText || container.textContent || '';
-		await navigator.clipboard.writeText(text);
-		copyState = 'Copied';
-		window.setTimeout(() => {
-			copyState = 'Copy';
-		}, 2000);
-	}
-
 	function stopLiveUpdates() {
 		stream?.close();
 		stream = undefined;
@@ -326,11 +305,7 @@
 		stream.onmessage = (event) => {
 			const next = JSON.parse(event.data) as AuditPageViewData;
 			liveData = next;
-			if (
-				!pendingStatuses.has(next.runRecord.status || '') &&
-				!reportPendingStatuses.has(next.reportRecord?.status || '') &&
-				!next.isPendingScreenshots
-			) {
+			if (!pendingStatuses.has(next.runRecord.status || '') && !next.isPendingScreenshots) {
 				stopLiveUpdates();
 			}
 		};
@@ -341,43 +316,6 @@
 			}
 		};
 	}
-
-	const enhanceReportGeneration = () => {
-		return async ({
-			result,
-			update
-		}: {
-			result: { type: string };
-			update: (options?: { reset?: boolean; invalidateAll?: boolean }) => Promise<void>;
-		}) => {
-			if (result.type === 'failure') {
-				await update();
-				return;
-			}
-
-			await update({ reset: false, invalidateAll: false });
-			liveData = {
-				...pageData,
-				auditRecord: pageData.auditRecord
-					? {
-							...pageData.auditRecord,
-							report_status: 'queued'
-						}
-					: null,
-				reportRecord: {
-					...pageData.reportRecord,
-					status: 'queued',
-					error_message: '',
-					started_at: undefined,
-					completed_at: undefined
-				},
-				reportHtml: '',
-				selectedReportTemplateKeys: [...selectedReportKeys],
-				isPendingReport: true
-			};
-			ensureLiveUpdates();
-		};
-	};
 
 	onMount(() => {
 		ensureLiveUpdates();
@@ -500,40 +438,12 @@
 		{:else if activeTab === 'report'}
 			<div class="card audit-card" id="card-report">
 				<h3 class="audit-card-title">Export</h3>
-				{#if isReportPending()}
-					<div class="report-pending-indicator" aria-live="polite">
-						<Loader2 size={18} />
-						<span>Generating export</span>
-					</div>
-				{:else if isReportFailed()}
-					<p class="report-error">
-						{pageData.reportRecord?.error_message || 'The last export attempt failed.'}
-					</p>
+				{#if canExport()}
 					<form
-						method="POST"
-						action="?/generateReport"
-						class="stack"
-						use:enhance={enhanceReportGeneration}
-					>
-						{#if form?.reportError}
-							<p class="report-error">{form.reportError}</p>
-						{/if}
-						<button type="submit" class="audit-primary-button">
-							<Sparkles size={18} />
-							<span>Retry export</span>
-						</button>
-					</form>
-				{:else if canGenerateReport()}
-					<form
-						method="POST"
-						action="?/generateReport"
+						method="GET"
+						action={resolve(`/api/audits/${pageData.auditId}/export.docx`)}
 						class="report-builder"
-						use:enhance={enhanceReportGeneration}
 					>
-						{#if form?.reportError}
-							<p class="report-error">{form.reportError}</p>
-						{/if}
-
 						<div class="report-builder-header">
 							<div>
 								<p class="report-builder-title">Review export findings</p>
@@ -584,9 +494,14 @@
 						{/if}
 
 						<button type="submit" class="audit-primary-button" disabled={!reportSelectionIsValid()}>
-							<Sparkles size={18} />
-							<span>{hasReport() ? 'Regenerate export' : 'Generate export'}</span>
+							<FileText size={18} />
+							<span>Export DOCX</span>
 						</button>
+
+						{#if pageData.reportHtml}
+							<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+							<div class="report-output">{@html pageData.reportHtml}</div>
+						{/if}
 					</form>
 				{:else}
 					<p class="muted report-status-note">
@@ -598,30 +513,6 @@
 							Available after audit completion.
 						{/if}
 					</p>
-				{/if}
-
-				{#if hasReport()}
-					<div class="audit-inline-actions">
-						<button
-							type="button"
-							class="audit-action-button"
-							title="Copy to Clipboard"
-							onclick={copyReport}
-						>
-							<Copy size={16} />
-							<span>{copyState}</span>
-						</button>
-						<a
-							href={resolve(`/api/audits/${pageData.auditId}/report.docx`)}
-							class="audit-action-button"
-							title="Download as Word Doc"
-						>
-							<FileText size={16} />
-							<span>Download DOCX</span>
-						</a>
-					</div>
-					<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-					<div class="report-output">{@html pageData.reportHtml}</div>
 				{/if}
 			</div>
 		{/if}
@@ -651,18 +542,6 @@
 
 	.report-status-note {
 		margin: 0 0 1rem;
-	}
-
-	.report-pending-indicator {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.65rem;
-		color: var(--text-muted);
-	}
-
-	.report-pending-indicator :global(svg) {
-		color: var(--goldenweb-primary);
-		animation: report-spin 0.9s linear infinite;
 	}
 
 	.report-builder {
@@ -774,14 +653,5 @@
 	.ai-visibility-results {
 		margin-top: 1rem;
 		margin-bottom: 0;
-	}
-
-	@keyframes report-spin {
-		from {
-			transform: rotate(0deg);
-		}
-		to {
-			transform: rotate(360deg);
-		}
 	}
 </style>

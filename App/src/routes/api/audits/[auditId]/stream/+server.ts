@@ -36,9 +36,7 @@ export const GET = async ({ params, locals, request }) => {
 					});
 					ensureAuditWorkflowProcessing(slimPayload.workflowRecord, locals.pbToken);
 					const shouldClose =
-						!slimPayload.isPendingRun &&
-						!slimPayload.isPendingReport &&
-						!hasPendingScreenshotJobs(params.auditId);
+						!slimPayload.isPendingRun && !hasPendingScreenshotJobs(params.auditId);
 					const payload = shouldClose
 						? await buildAuditPageData(params.auditId, locals.pbToken)
 						: slimPayload;

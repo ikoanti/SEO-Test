@@ -228,7 +228,7 @@ export async function buildAuditPageData(
 		? reportTemplates.filter((template) => selectedReportTemplateSet.has(template.key))
 		: reportTemplates;
 	const reportHtml =
-		includeReportHtml && String(auditRecord.report_status || '') === 'completed'
+		includeReportHtml && String(workflowRecord.status || '') === 'completed'
 			? generateTemplateReportHtml(
 					{ ...reportPageData, reportPreviewItems },
 					selectedReportTemplates
