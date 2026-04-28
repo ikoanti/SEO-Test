@@ -74,12 +74,6 @@
 		indented?: boolean;
 	};
 
-	type RenderGroup = {
-		key: string;
-		title: string;
-		rows: RenderRow[];
-	};
-
 	function isUrlLike(value?: string) {
 		if (!value) return false;
 		try {

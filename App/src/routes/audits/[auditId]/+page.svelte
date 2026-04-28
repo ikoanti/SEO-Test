@@ -344,9 +344,10 @@
 					aria-label="Audit findings"
 				>
 					{#each auditNavItems as navItem (navItem.key)}
-						<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
 						<a
-							href={navItem.href}
+							href={resolve(
+								`/audits/${pageData.auditId}${navItem.href}` as `/audits/${string}#${string}`
+							)}
 							data-section-key={navItem.key}
 							class:active={activeAuditSection === navItem.key}
 							onclick={() => {

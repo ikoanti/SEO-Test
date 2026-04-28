@@ -1,6 +1,6 @@
 import type { AuditFindingStatus } from '$lib/audit-status';
 import type { AuditCaptureRequest } from '$lib/server/audit-capture';
-import { listProblemCatalogSectionDefinitions, listProblemCatalogTemplates } from '$lib/server/problem-catalog';
+import type { AuditReportTemplateRecord } from '$lib/server/pocketbase';
 
 type AuditListItem = {
 	status?: AuditFindingStatus;
@@ -83,8 +83,38 @@ export const SECTION_LABELS: Array<[string, string]> = [
 	['aiVisibility', 'AI Visibility']
 ];
 
-export function getNormalizedSectionDefinitions() {
-	return listProblemCatalogSectionDefinitions();
+const REPORT_TEMPLATE_SOURCE_KEYS: Record<string, string> = {
+	'ai-chatbots-llms-not-whitelisted': 'robotsTxt',
+	'unoptimized-page-speed': 'pageSpeed',
+	'multiple-h1-tags': 'h1Tags',
+	'missing-h1-tags': 'h1Tags',
+	'missing-product-schema': 'structuredData',
+	'unoptimized-heading-tags': 'h1Tags',
+	'meta-titles-too-long-unoptimized': 'metaTitles',
+	'unoptimized-shopify-url-structure': 'shopifyUrls',
+	'missing-faq-schema': 'structuredData',
+	'duplicated-page-titles': 'metaTitles',
+	'duplicated-meta-descriptions': 'metaTitles',
+	'4xx-broken-pages': 'internalLinks',
+	'missing-organization-schema': 'structuredData',
+	'overly-long-meta-descriptions': 'metaTitles',
+	'images-with-missing-alt-text': 'imageAltTags'
+};
+
+export function reportTemplateSourceKey(templateOrKey: AuditReportTemplateRecord | string) {
+	const key = typeof templateOrKey === 'string' ? templateOrKey : templateOrKey.key;
+	return REPORT_TEMPLATE_SOURCE_KEYS[key] || '';
+}
+
+export function getNormalizedSectionDefinitions(templates: AuditReportTemplateRecord[]) {
+	return templates
+		.map((template) => ({
+			key: template.key,
+			label: template.title,
+			sort_order: template.sort_order,
+			source_key: reportTemplateSourceKey(template)
+		}))
+		.filter((definition) => definition.source_key);
 }
 
 function truncateText(value: string, maxLength: number) {
@@ -225,7 +255,10 @@ function statusFromFindings(
 	return fallback;
 }
 
-export function buildNormalizedAuditItems(audit: AuditResult): NormalizedAuditFindingType[] {
+export function buildNormalizedAuditItems(
+	audit: AuditResult,
+	templates: AuditReportTemplateRecord[] = []
+): NormalizedAuditFindingType[] {
 	const items: NormalizedAuditFindingType[] = [];
 	const technicalItems = new Map<string, NormalizedAuditFindingType>();
 
@@ -290,8 +323,8 @@ export function buildNormalizedAuditItems(audit: AuditResult): NormalizedAuditFi
 	}
 
 	const problemItems: NormalizedAuditFindingType[] = [];
-	for (const template of listProblemCatalogTemplates()) {
-		const sourceKey = String(template.expand?.audit_finding_type?.key || '');
+	for (const template of templates) {
+		const sourceKey = reportTemplateSourceKey(template);
 		if (!sourceKey) continue;
 
 		const sourceItem = technicalItems.get(sourceKey);

@@ -713,10 +713,6 @@ function enrichCaptureRequestWithCandidates(
 	};
 }
 
-function templateFindingTypeKey(template: AuditReportTemplateRecord) {
-	return String(template.expand?.audit_finding_type?.key || '');
-}
-
 function templateIssueMatcher(pattern: string | undefined) {
 	if (!pattern?.trim()) return undefined;
 
@@ -960,8 +956,9 @@ type RunRegistry = Map<
 
 async function bootstrapRuns(workflowId: string, token?: string) {
 	const registry: RunRegistry = new Map();
+	const templates = await listAuditReportTemplates(token);
 
-	for (const definition of getNormalizedSectionDefinitions()) {
+	for (const definition of getNormalizedSectionDefinitions(templates)) {
 		const findingType = await getOrCreateAuditFindingTypeRecord(definition, token);
 		const run = await getOrCreateRunRecord(
 			{
@@ -983,7 +980,7 @@ async function bootstrapRuns(workflowId: string, token?: string) {
 		});
 	}
 
-	return registry;
+	return { registry, templates };
 }
 
 async function markStepRunning(runRegistry: RunRegistry, stepLabel: string, token?: string) {
@@ -1009,11 +1006,12 @@ async function syncProgressSnapshot(
 	partialAudit: AuditSummaryResult,
 	runRegistry: RunRegistry,
 	keysToSync?: Iterable<string>,
+	templates: AuditReportTemplateRecord[] = [],
 	token?: string
 ) {
 	const keySet = keysToSync ? new Set(keysToSync) : null;
 	attachMetricScreenshots(partialAudit, url, keySet || ['pageSpeed', 'openPageRank']);
-	const normalizedItems = buildNormalizedAuditItems(partialAudit).filter(
+	const normalizedItems = buildNormalizedAuditItems(partialAudit, templates).filter(
 		(item) => !keySet || keySet.has(item.source_key || item.key)
 	);
 	for (const item of normalizedItems) {
@@ -1111,9 +1109,9 @@ function collectScreenshotJobs(
 
 	const jobs: ScreenshotJob[] = [];
 	const seen = new Set<string>();
-	const normalizedItems = buildNormalizedAuditItems(audit);
+	const normalizedItems = buildNormalizedAuditItems(audit, templates);
 	const templatesByFindingTypeKey = templates.reduce((map, template) => {
-		const key = templateFindingTypeKey(template);
+		const key = template.key;
 		if (!key) return map;
 		const existing = map.get(key) || [];
 		existing.push(template);
@@ -1206,9 +1204,12 @@ async function processAuditScreenshots(
 async function finalizeUnsyncedRuns(
 	runRegistry: RunRegistry,
 	partialAudit: AuditSummaryResult,
+	templates: AuditReportTemplateRecord[] = [],
 	token?: string
 ) {
-	const completedKeys = new Set(buildNormalizedAuditItems(partialAudit).map((item) => item.key));
+	const completedKeys = new Set(
+		buildNormalizedAuditItems(partialAudit, templates).map((item) => item.key)
+	);
 	for (const [key, run] of runRegistry.entries()) {
 		if (completedKeys.has(key)) continue;
 		await updateRunRecord(
@@ -1227,7 +1228,7 @@ async function finalizeUnsyncedRuns(
 async function processAuditWorkflow({ workflowId, auditId, url, token }: QueuePayload) {
 	const workflowRecord = await getWorkflow(workflowId, token);
 	let runLog = appendLog(workflowRecord.run_log, 'Workflow started.');
-	const runRegistry = await bootstrapRuns(workflowId, token);
+	const { registry: runRegistry, templates } = await bootstrapRuns(workflowId, token);
 
 	await updateWorkflowRecord(
 		workflowId,
@@ -1257,14 +1258,15 @@ async function processAuditWorkflow({ workflowId, auditId, url, token }: QueuePa
 					partialAudit,
 					runRegistry,
 					STEP_KEYS[stepLabel] || [],
+					templates,
 					token
 				);
 			}
 		});
 		runLog = appendLog(runLog, 'Audit engine completed successfully.');
 		const completedAt = timestamp();
-		await syncProgressSnapshot(auditId, url, audit, runRegistry, undefined, token);
-		await finalizeUnsyncedRuns(runRegistry, audit, token);
+		await syncProgressSnapshot(auditId, url, audit, runRegistry, undefined, templates, token);
+		await finalizeUnsyncedRuns(runRegistry, audit, templates, token);
 		runLog = appendLog(runLog, 'Screenshot generation started.');
 		await updateWorkflowRecord(workflowId, { run_log: runLog }, token);
 		await processAuditScreenshots(auditId, url, audit, runRegistry, token);
