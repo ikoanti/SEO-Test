@@ -72,7 +72,7 @@ This app is now designed to run as a single Docker Compose stack with:
    ```
 
 ### PocketBase behavior
-- PocketBase runs on `http://localhost:8090`
+- PocketBase binds to `127.0.0.1:8090` on the host in production, so it is not publicly exposed.
 - Production deploys preserve the named `pocketbase_data` Docker volume. A deploy may recreate the PocketBase container, but it must not recreate or delete the persisted PocketBase database.
 - Only local reset recipes (`just dev`, `just dev-reset`, `just dev-reset-no-build`) intentionally delete PocketBase data so migrations can rebuild a clean local database.
 - The shared migration in `Infrastructure/pocketbase/pb_migrations/1735689600_init_seo_tool.js` auto-creates:
@@ -87,6 +87,14 @@ This app is now designed to run as a single Docker Compose stack with:
 - The SvelteKit app authenticates users against PocketBase and protects audit routes through server-side session validation.
 - The SvelteKit app saves websites, audits, workflows, runs, findings, and generated HTML reports into PocketBase.
 - You can seed the initial login with `APP_AUTH_EMAIL`, `APP_AUTH_PASSWORD`, and `APP_AUTH_NAME` in `Infrastructure/.env`.
+
+To access the PocketBase admin UI on production, open an SSH tunnel:
+
+```bash
+ssh -L 8090:127.0.0.1:8090 user@server
+```
+
+Then open `http://127.0.0.1:8090/_/` locally.
 
 ### Safe deployment
 Use the root deploy script from `SEO-Test/`:
