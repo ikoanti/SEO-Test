@@ -43,17 +43,29 @@ export async function analyzePageSpeed(
 		};
 	};
 
-	try {
-		const [mobile, desktop] = await Promise.all([
-			fetchStrategy('mobile'),
-			fetchStrategy('desktop')
-		]);
-		result.mobile = mobile;
-		result.desktop = desktop;
-	} catch (error) {
-		const message = error instanceof Error ? error.message : String(error);
-		logger.warn(`pagespeed: fallback due to ${message}`);
-		return result;
+	const [mobileResult, desktopResult] = await Promise.allSettled([
+		fetchStrategy('mobile'),
+		fetchStrategy('desktop')
+	]);
+
+	if (mobileResult.status === 'fulfilled') {
+		result.mobile = mobileResult.value;
+	} else {
+		const message =
+			mobileResult.reason instanceof Error
+				? mobileResult.reason.message
+				: String(mobileResult.reason);
+		logger.warn(`pagespeed:mobile: fallback due to ${message}`);
+	}
+
+	if (desktopResult.status === 'fulfilled') {
+		result.desktop = desktopResult.value;
+	} else {
+		const message =
+			desktopResult.reason instanceof Error
+				? desktopResult.reason.message
+				: String(desktopResult.reason);
+		logger.warn(`pagespeed:desktop: fallback due to ${message}`);
 	}
 
 	return result;
