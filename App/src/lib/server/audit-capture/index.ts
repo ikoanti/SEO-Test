@@ -6,6 +6,8 @@ type AuditCaptureRequestBase = {
 	description?: string;
 	capturePageUrl?: string;
 	fallbackCapturePageUrls?: string[];
+	captureCandidatePageUrls?: string[];
+	captureCandidateEntries?: Array<Record<string, unknown> & { page: string }>;
 };
 
 export type AuditCaptureRequest = AuditCaptureRequestBase &

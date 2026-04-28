@@ -53,6 +53,8 @@ type ScreenshotQueueState = {
 	completedKeys: Set<string>;
 };
 
+type CaptureEntry = Record<string, unknown> & { page: string };
+
 type WorkflowRecordLike = {
 	id?: string;
 	status?: string;
@@ -369,6 +371,36 @@ function isHomepageUrl(value: string) {
 	}
 }
 
+function extractFirstHttpUrl(value: unknown) {
+	if (typeof value !== 'string') return '';
+	const match = value.match(/https?:\/\/[^\s)]+/);
+	if (!match) return '';
+
+	try {
+		return new URL(match[0]).href;
+	} catch {
+		return '';
+	}
+}
+
+function parseJsonRecord(value: string) {
+	try {
+		const parsed = JSON.parse(value);
+		return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+			? (parsed as Record<string, unknown>)
+			: {};
+	} catch {
+		return {};
+	}
+}
+
+function homeLast(urls: string[]) {
+	return [
+		...urls.filter((url) => !isHomepageUrl(url)),
+		...urls.filter((url) => isHomepageUrl(url))
+	];
+}
+
 function uniquePageUrls(values: unknown[]) {
 	const seen = new Set<string>();
 	const urls: string[] = [];
@@ -384,10 +416,32 @@ function uniquePageUrls(values: unknown[]) {
 	return urls;
 }
 
+function uniqueCaptureEntries(entries: CaptureEntry[]) {
+	const seen = new Set<string>();
+	const result: CaptureEntry[] = [];
+
+	for (const entry of entries) {
+		if (!isValidPageUrl(entry.page)) continue;
+		const key = JSON.stringify([
+			normalizedPageKey(entry.page),
+			entry.issue || '',
+			entry.value || '',
+			entry.image || '',
+			entry.property || '',
+			entry.pattern || ''
+		]);
+		if (seen.has(key)) continue;
+		seen.add(key);
+		result.push(entry);
+	}
+
+	return result;
+}
+
 function auditPageCandidates(audit: AuditSummaryResult, rootUrl: string) {
 	const crawl = getRecord(audit.crawl);
 	const discoveredLinks = Array.isArray(crawl?.discoveredLinks) ? crawl.discoveredLinks : [];
-	return uniquePageUrls([rootUrl, ...discoveredLinks]);
+	return homeLast(uniquePageUrls([rootUrl, ...discoveredLinks]));
 }
 
 function requestEntryPages(request: AuditCaptureRequest) {
@@ -410,18 +464,21 @@ function requestEntryPages(request: AuditCaptureRequest) {
 
 function requestPageCandidates(request: AuditCaptureRequest, auditPages: string[]) {
 	const entryPages = requestEntryPages(request);
-	if (entryPages.length) return entryPages;
+	const explicitCandidates = homeLast(
+		uniquePageUrls([...(request.captureCandidatePageUrls || []), ...entryPages])
+	);
+	if (explicitCandidates.length) return explicitCandidates;
 
 	if (request.kind === 'pagespeed') {
-		return uniquePageUrls([request.pageUrl, ...auditPages]);
+		return homeLast(uniquePageUrls([request.pageUrl, ...auditPages]));
 	}
 
 	if (request.kind === 'open-page-rank') {
-		return uniquePageUrls([request.pageUrl, ...auditPages]);
+		return homeLast(uniquePageUrls([request.pageUrl, ...auditPages]));
 	}
 
 	if (request.kind === 'robots') {
-		return uniquePageUrls([request.robotsUrl, request.storefrontUrl]);
+		return homeLast(uniquePageUrls([request.robotsUrl, request.storefrontUrl]));
 	}
 
 	return [];
@@ -445,13 +502,30 @@ function screenshotAllocationPriority(request: AuditCaptureRequest) {
 }
 
 function reorderEntriesBySelectedPage<
-	TRequest extends AuditCaptureRequest & { entries?: Array<{ page: string }> }
+	TRequest extends AuditCaptureRequest & { entries?: Array<CaptureEntry> }
 >(request: TRequest, selectedPage: string | undefined): TRequest {
 	if (!selectedPage || !Array.isArray(request.entries)) return request;
 	const selectedKey = normalizedPageKey(selectedPage);
+	const candidateEntries = Array.isArray(request.captureCandidateEntries)
+		? request.captureCandidateEntries
+		: [];
+	const selectedCandidate = candidateEntries.find(
+		(entry) => normalizedPageKey(entry.page) === selectedKey
+	);
+	const selectedGroup =
+		selectedCandidate && selectedCandidate.value
+			? candidateEntries.filter(
+					(entry) =>
+						entry.issue === selectedCandidate.issue && entry.value === selectedCandidate.value
+				)
+			: selectedCandidate
+				? [selectedCandidate]
+				: [];
+	const entries = uniqueCaptureEntries([...selectedGroup, ...request.entries]);
+
 	return {
 		...request,
-		entries: [...request.entries].sort((first, second) => {
+		entries: entries.sort((first, second) => {
 			const firstMatches = normalizedPageKey(first.page) === selectedKey;
 			const secondMatches = normalizedPageKey(second.page) === selectedKey;
 			if (firstMatches === secondMatches) return 0;
@@ -503,6 +577,145 @@ function allocateScreenshotPages(
 	}
 
 	return jobs.map((job) => allocatedJobs.get(job) || job);
+}
+
+type NormalizedFinding = ReturnType<typeof buildNormalizedAuditItems>[number]['findings'][number];
+
+function findingMatchesCaptureRequest(request: AuditCaptureRequest, finding: NormalizedFinding) {
+	const detail = String(finding.detail || '');
+	const templateKey = request.reportTemplateKey || request.kind;
+
+	if (templateKey === 'missing-h1-tags') return detail === 'Missing H1 tag';
+	if (templateKey === 'multiple-h1-tags') return detail.toLowerCase().includes('multiple h1');
+	if (templateKey === 'meta-titles-too-long-unoptimized') {
+		return detail === 'Meta title too long' || detail === 'Missing meta title';
+	}
+	if (templateKey === 'duplicated-page-titles') return detail === 'Duplicate meta title detected';
+	if (templateKey === 'duplicated-meta-descriptions') {
+		return detail === 'Duplicate meta description detected';
+	}
+	if (templateKey === 'overly-long-meta-descriptions') {
+		return detail === 'Meta description too long';
+	}
+	if (templateKey === 'images-with-missing-alt-text') return detail === 'Image missing alt text';
+	if (templateKey === 'unoptimized-shopify-url-structure') {
+		return detail === 'Shopify URL pattern detected';
+	}
+
+	const issues =
+		'entries' in request && Array.isArray(request.entries)
+			? new Set(request.entries.map((entry) => String(entry.issue || '')).filter(Boolean))
+			: new Set<string>();
+
+	return issues.size > 0 && issues.has(detail);
+}
+
+function pageUrlFromFinding(finding: NormalizedFinding, source: Record<string, unknown>) {
+	const sourcePageUrl = typeof source.page_url === 'string' ? source.page_url : '';
+	if (isValidPageUrl(sourcePageUrl)) return sourcePageUrl;
+
+	if (isValidPageUrl(finding.page_url)) return finding.page_url;
+
+	const sourceTitleUrl = extractFirstHttpUrl(source.title);
+	if (sourceTitleUrl) return sourceTitleUrl;
+
+	return extractFirstHttpUrl(finding.title) || extractFirstHttpUrl(finding.detail);
+}
+
+function captureEntryFromFinding(
+	request: AuditCaptureRequest,
+	finding: NormalizedFinding
+): CaptureEntry | null {
+	const source = parseJsonRecord(finding.meta_json);
+	const nestedMeta = getRecord(source.meta) || {};
+	const page = pageUrlFromFinding(finding, source);
+	if (!isValidPageUrl(page)) return null;
+
+	const issue = String(source.detail || finding.detail || 'Audit issue');
+
+	if (request.kind === 'image-alts') {
+		const image = isValidPageUrl(source.title) ? String(source.title) : finding.page_url;
+		return { page, issue, image };
+	}
+
+	if (request.kind === 'meta-tags') {
+		const value =
+			typeof nestedMeta.duplicateValue === 'string'
+				? nestedMeta.duplicateValue
+				: typeof source.value === 'string'
+					? source.value
+					: '';
+		return value ? { page, issue, value } : { page, issue };
+	}
+
+	if (request.kind === 'canonicals') {
+		const value = typeof source.title === 'string' ? source.title : '';
+		return value && value !== page ? { page, issue, value } : { page, issue };
+	}
+
+	if (request.kind === 'internal-links') {
+		const countMatch = String(source.title || finding.title || '').match(/\((\d+)\s+links?\)/i);
+		return { page, issue, count: countMatch ? Number(countMatch[1]) : undefined };
+	}
+
+	if (request.kind === 'content-quality') {
+		const countMatch = String(source.title || finding.title || '').match(/\((\d+)\s+words?\)/i);
+		return { page, issue, wordCount: countMatch ? Number(countMatch[1]) : undefined };
+	}
+
+	if (request.kind === 'shopify-urls') {
+		return {
+			page,
+			issue,
+			pattern: '/collections/{collection}/products/{product}'
+		};
+	}
+
+	if (
+		request.kind === 'headings' ||
+		request.kind === 'lazy-loading' ||
+		request.kind === 'open-graph'
+	) {
+		return { page, issue };
+	}
+
+	return null;
+}
+
+function enrichCaptureRequestWithCandidates(
+	request: AuditCaptureRequest,
+	findings: NormalizedFinding[]
+): AuditCaptureRequest {
+	if (!('entries' in request) || !Array.isArray(request.entries)) return request;
+
+	const candidateEntries = uniqueCaptureEntries(
+		findings
+			.filter((finding) => finding.status === 'warn' || finding.status === 'fail')
+			.filter((finding) => findingMatchesCaptureRequest(request, finding))
+			.map((finding) => captureEntryFromFinding(request, finding))
+			.filter((entry): entry is CaptureEntry => Boolean(entry))
+	);
+	const existingEntries = request.entries as CaptureEntry[];
+	const existingCandidateEntries = Array.isArray(request.captureCandidateEntries)
+		? request.captureCandidateEntries
+		: [];
+	const captureCandidateEntries = uniqueCaptureEntries([
+		...existingCandidateEntries,
+		...candidateEntries
+	]);
+	const captureCandidatePageUrls = homeLast(
+		uniquePageUrls([
+			...(request.captureCandidatePageUrls || []),
+			...captureCandidateEntries.map((entry) => entry.page),
+			...existingEntries.map((entry) => entry.page)
+		])
+	);
+
+	return {
+		...request,
+		captureCandidatePageUrls,
+		captureCandidateEntries
+	};
 }
 
 const STEP_KEYS: Record<string, string[]> = {
@@ -702,9 +915,15 @@ function collectScreenshotJobs(
 		const run = runRegistry.get(item.key);
 		if (!run) continue;
 
-		const addJob = (request: AuditCaptureRequest | null, title: string, page_url?: string) => {
+		const addJob = (
+			request: AuditCaptureRequest | null,
+			title: string,
+			page_url?: string,
+			findings: NormalizedFinding[] = item.findings
+		) => {
 			if (!request) return;
-			const reportTemplateKey = request.reportTemplateKey || request.kind;
+			const enrichedRequest = enrichCaptureRequestWithCandidates(request, findings);
+			const reportTemplateKey = enrichedRequest.reportTemplateKey || enrichedRequest.kind;
 			const key = screenshotJobKey({
 				auditId,
 				findingTypeId: run.findingTypeId,
@@ -720,7 +939,7 @@ function collectScreenshotJobs(
 				reportTemplateKey,
 				title,
 				page_url,
-				request
+				request: enrichedRequest
 			});
 		};
 
@@ -738,7 +957,8 @@ function collectScreenshotJobs(
 				addJob(
 					screenshotRequest,
 					screenshotRequest.title || finding.detail || finding.title || item.label,
-					finding.page_url
+					finding.page_url,
+					item.findings
 				);
 			}
 		}
