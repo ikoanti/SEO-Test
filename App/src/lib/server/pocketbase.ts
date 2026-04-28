@@ -47,6 +47,18 @@ function createAuthedClient(token?: string) {
 	return pb;
 }
 
+async function createConfiguredSuperuserClient() {
+	const email = env.POCKETBASE_SUPERUSER_EMAIL || env.POCKETBASE_ADMIN_EMAIL;
+	const password = env.POCKETBASE_SUPERUSER_PASSWORD || env.POCKETBASE_ADMIN_PASSWORD;
+	if (!email || !password) {
+		throw new Error('PocketBase superuser credentials are not configured.');
+	}
+
+	const pb = createClient();
+	await pb.collection(SUPERUSER_COLLECTION).authWithPassword(email, password);
+	return pb;
+}
+
 function escapeFilterValue(value: string) {
 	return value.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
 }
@@ -207,6 +219,52 @@ export async function authenticateToken(token: string) {
 			auth.token
 		);
 	}
+}
+
+export async function failInterruptedAuditWork() {
+	const pb = await createConfiguredSuperuserClient();
+	const failedAt = new Date().toISOString();
+	const message = 'Interrupted by app service reload.';
+	const staleStatusFilter = 'status = "queued" || status = "running"';
+
+	const [audits, workflows, runs] = await Promise.all([
+		pb.collection(AUDITS_COLLECTION).getFullList({ filter: staleStatusFilter }),
+		pb.collection(WORKFLOWS_COLLECTION).getFullList({ filter: staleStatusFilter }),
+		pb.collection(RUNS_COLLECTION).getFullList({ filter: staleStatusFilter })
+	]);
+
+	await Promise.all([
+		...audits.map((audit) =>
+			pb.collection(AUDITS_COLLECTION).update(audit.id, {
+				status: 'failed',
+				updated_at: failedAt
+			})
+		),
+		...workflows.map((workflow) =>
+			pb.collection(WORKFLOWS_COLLECTION).update(workflow.id, {
+				status: 'failed',
+				completed_at: failedAt,
+				error_message: message,
+				run_log: workflow.run_log
+					? `${workflow.run_log}\n[${failedAt}] ${message}`
+					: `[${failedAt}] ${message}`
+			})
+		),
+		...runs.map((run) =>
+			pb.collection(RUNS_COLLECTION).update(run.id, {
+				status: 'failed',
+				completed_at: failedAt,
+				error_message: message,
+				run_log: run.run_log ? `${run.run_log}\n[${failedAt}] ${message}` : message
+			})
+		)
+	]);
+
+	return {
+		audits: audits.length,
+		workflows: workflows.length,
+		runs: runs.length
+	};
 }
 
 export async function getOrCreateWebsiteRecord(url: string, token?: string) {

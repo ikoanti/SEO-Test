@@ -2,12 +2,30 @@ import { redirect, type Handle } from '@sveltejs/kit';
 import {
 	authenticateToken,
 	exportAuthCookie,
+	failInterruptedAuditWork,
 	readAuthTokenFromCookie
 } from '$lib/server/pocketbase';
 
 const PROTECTED_PREFIXES = ['/audits'];
 
+const startupReconciliation = failInterruptedAuditWork()
+	.then((result) => {
+		if (result.audits || result.workflows || result.runs) {
+			console.info(
+				`[startup] failed interrupted audit work: ${result.audits} audit(s), ${result.workflows} workflow(s), ${result.runs} run(s).`
+			);
+		}
+	})
+	.catch((error) => {
+		console.warn(
+			'[startup] failed to reconcile interrupted audit work:',
+			error instanceof Error ? error.message : error
+		);
+	});
+
 export const handle: Handle = async ({ event, resolve }) => {
+	await startupReconciliation;
+
 	const token = readAuthTokenFromCookie(event.request.headers.get('cookie'));
 	let authCookieHeader: string | null = null;
 
