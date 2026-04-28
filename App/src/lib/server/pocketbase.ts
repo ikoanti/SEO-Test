@@ -420,6 +420,28 @@ export async function updateWorkflowRecord(
 	return pb.collection(WORKFLOWS_COLLECTION).update(workflowId, input);
 }
 
+async function deleteRecordsByFilter(collection: string, filter: string, token?: string) {
+	const pb = createAuthedClient(token);
+	const records = await pb.collection(collection).getFullList({ filter });
+	await Promise.all(records.map((record) => pb.collection(collection).delete(record.id)));
+}
+
+export async function deleteAuditDerivedRecords(
+	auditId: string,
+	workflowId: string | undefined,
+	token?: string
+) {
+	const escapedAuditId = escapeFilterValue(auditId);
+	await deleteRecordsByFilter(AUDIT_FINDINGS_COLLECTION, `audit = "${escapedAuditId}"`, token);
+	await deleteRecordsByFilter(AUDIT_SCREENSHOTS_COLLECTION, `audit = "${escapedAuditId}"`, token);
+
+	if (!workflowId) return;
+
+	const escapedWorkflowId = escapeFilterValue(workflowId);
+	await deleteRecordsByFilter(RUNS_COLLECTION, `workflow = "${escapedWorkflowId}"`, token);
+	await deleteRecordsByFilter(WORKFLOWS_COLLECTION, `id = "${escapedWorkflowId}"`, token);
+}
+
 export async function getOrCreateAuditFindingTypeRecord(
 	input: {
 		key: string;

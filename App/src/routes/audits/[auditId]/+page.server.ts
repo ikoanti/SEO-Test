@@ -7,14 +7,11 @@ import {
 } from '$lib/server/audit-runner';
 import { parsePdfMetrics } from '$lib/server/legacy-api';
 import {
-	deleteAuditFindingsByRunId,
-	deleteAuditScreenshotsByRunId,
+	createWorkflowRecord,
+	deleteAuditDerivedRecords,
 	getAudit,
 	getWorkflowByAuditId,
-	listRunsByWorkflow,
-	updateAuditRecord,
-	updateRunRecord,
-	updateWorkflowRecord
+	updateAuditRecord
 } from '$lib/server/pocketbase';
 
 export const load = async ({ params, locals }) => {
@@ -39,26 +36,8 @@ export const actions = {
 			throw redirect(303, `/audits/${params.auditId}`);
 		}
 
-		const runs = await listRunsByWorkflow(workflowRecord.id, locals.pbToken);
 		clearScreenshotQueueStateForAudit(auditRecord.id);
-		for (const run of runs) {
-			await deleteAuditFindingsByRunId(run.id, locals.pbToken);
-			await deleteAuditScreenshotsByRunId(run.id, locals.pbToken);
-			await updateRunRecord(
-				run.id,
-				{
-					status: 'queued',
-					started_at: queuedAt,
-					completed_at: null,
-					error_message: '',
-					run_log: `[${queuedAt}] ${
-						(run.expand as { audit_finding_type?: { label?: string } } | undefined)
-							?.audit_finding_type?.label || 'Audit check'
-					} queued.`
-				},
-				locals.pbToken
-			);
-		}
+		await deleteAuditDerivedRecords(auditRecord.id, workflowRecord.id, locals.pbToken);
 
 		await updateAuditRecord(
 			auditRecord.id,
@@ -77,20 +56,18 @@ export const actions = {
 			},
 			locals.pbToken
 		);
-		await updateWorkflowRecord(
-			workflowRecord.id,
+		const nextWorkflow = await createWorkflowRecord(
 			{
+				audit: auditRecord.id,
 				status: 'queued',
-				started_at: null,
-				completed_at: null,
-				error_message: '',
+				queued_at: queuedAt,
 				run_log: `[${queuedAt}] Workflow queued.`
 			},
 			locals.pbToken
 		);
 
 		queueAuditWorkflow({
-			workflowId: workflowRecord.id,
+			workflowId: nextWorkflow.id,
 			auditId: auditRecord.id,
 			url: website.url,
 			token: locals.pbToken
