@@ -7,7 +7,7 @@ import {
 	listAuditReportTemplates,
 	listRunsByWorkflow
 } from '$lib/server/pocketbase';
-import { hasPendingScreenshotJobs, queueAuditScreenshotBackfill } from '$lib/server/audit-runner';
+import { hasPendingScreenshotJobs } from '$lib/server/audit-runner';
 import { buildReportProblems, generateTemplateReportHtml } from '$lib/server/report-template';
 
 type BuildAuditPageDataOptions = {
@@ -234,23 +234,6 @@ export async function buildAuditPageData(
 					selectedReportTemplates
 				)
 			: '';
-	const websiteUrl = getWebsite(auditRecord)?.url;
-	const shouldBackfillScreenshots =
-		String(workflowRecord.status || '') === 'completed' &&
-		Boolean(websiteUrl) &&
-		Boolean(audit) &&
-		auditScreenshots.length === 0 &&
-		!hasPendingScreenshotJobs(auditRecord.id);
-
-	if (shouldBackfillScreenshots && websiteUrl) {
-		queueAuditScreenshotBackfill({
-			auditId: auditRecord.id,
-			url: websiteUrl,
-			audit: audit as Record<string, unknown>,
-			runs: runs as Array<Record<string, unknown>>,
-			token
-		});
-	}
 
 	return {
 		auditId: auditRecord.id,

@@ -134,10 +134,10 @@ function buildListSection(
 	section: AuditListSection
 ): NormalizedAuditFindingType {
 	const findings = (section.items || []).map((item) => {
-		const meta = item as Record<string, unknown>;
+		const meta = { ...(item as Record<string, unknown>) };
 		const nestedMeta =
 			meta.meta && typeof meta.meta === 'object' && !Array.isArray(meta.meta)
-				? (meta.meta as Record<string, unknown>)
+				? { ...(meta.meta as Record<string, unknown>) }
 				: null;
 		const screenshot = meta.screenshot || nestedMeta?.screenshot;
 		const screenshotRequest = meta.screenshotRequest || nestedMeta?.screenshotRequest;
@@ -169,7 +169,7 @@ function buildListSection(
 			title,
 			detail,
 			page_url,
-			meta_json: JSON.stringify(item)
+			meta_json: JSON.stringify(meta)
 		};
 	});
 
