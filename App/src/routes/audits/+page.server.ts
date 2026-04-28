@@ -44,48 +44,60 @@ export const load = async ({ locals, url }) => {
 export const actions = {
 	create: async ({ request, locals }) => {
 		const data = await request.formData();
-		const url = String(data.get('url') || '').trim();
+		const urls = [...data.getAll('urls'), data.get('url')]
+			.flatMap((value) =>
+				String(value || '')
+					.split(',')
+					.map((url) => url.trim())
+			)
+			.filter(Boolean);
+		const uniqueUrls = [...new Set(urls)];
 
-		if (!url) {
+		if (!uniqueUrls.length) {
 			return fail(400, {
-				createError: 'Audit URL is required.',
-				url
+				createError: 'At least one audit URL is required.',
+				urls: uniqueUrls
 			});
 		}
 
 		try {
 			const createdBy = locals.user?.isSuperuser ? undefined : locals.user?.id;
-			const website = await getOrCreateWebsiteRecord(url, locals.pbToken);
-			const audit = await createAuditRecord(
-				{
-					website: website.id,
-					created_by: createdBy,
-					status: 'queued'
-				},
-				locals.pbToken
-			);
-			const workflow = await createWorkflowRecord(
-				{
-					audit: audit.id,
-					status: 'queued',
-					run_log: `[${new Date().toISOString()}] Workflow queued.`
-				},
-				locals.pbToken
-			);
+			const audits = [];
 
-			queueAuditWorkflow({
-				workflowId: workflow.id,
-				auditId: audit.id,
-				url: website.url,
-				token: locals.pbToken
-			});
+			for (const url of uniqueUrls) {
+				const website = await getOrCreateWebsiteRecord(url, locals.pbToken);
+				const audit = await createAuditRecord(
+					{
+						website: website.id,
+						created_by: createdBy,
+						status: 'queued'
+					},
+					locals.pbToken
+				);
+				const workflow = await createWorkflowRecord(
+					{
+						audit: audit.id,
+						status: 'queued',
+						run_log: `[${new Date().toISOString()}] Workflow queued.`
+					},
+					locals.pbToken
+				);
 
-			throw redirect(302, `/audits/${audit.id}`);
+				queueAuditWorkflow({
+					workflowId: workflow.id,
+					auditId: audit.id,
+					url: website.url,
+					token: locals.pbToken
+				});
+				audits.push(audit);
+			}
+
+			throw redirect(302, audits.length === 1 ? `/audits/${audits[0].id}` : '/audits');
 		} catch (error) {
 			if (isRedirect(error)) throw error;
 			return fail(400, {
 				createError: error instanceof Error ? error.message : 'Failed to create audit.',
-				url
+				urls: uniqueUrls
 			});
 		}
 	}
