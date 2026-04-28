@@ -160,7 +160,9 @@ function buildListSection(
 		const detail = String(item.detail || '');
 		const explicitPageUrl = typeof meta.page_url === 'string' ? meta.page_url : '';
 		const page_url =
-			extractFirstHttpUrl(explicitPageUrl) || extractFirstHttpUrl(title) || extractFirstHttpUrl(detail);
+			extractFirstHttpUrl(explicitPageUrl) ||
+			extractFirstHttpUrl(title) ||
+			extractFirstHttpUrl(detail);
 
 		return {
 			status: (item.status || 'info') as AuditFindingStatus,

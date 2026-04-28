@@ -953,15 +953,15 @@ function collectScreenshotJobs(
 
 		for (const finding of item.findings) {
 			const { screenshotRequests } = extractScreenshotFromMeta(finding.meta_json);
-				for (const screenshotRequest of screenshotRequests) {
-					const source = parseJsonRecord(finding.meta_json);
-					addJob(
-						screenshotRequest,
-						screenshotRequest.title || finding.detail || finding.title || item.label,
-						pageUrlFromFinding(finding, source),
-						item.findings
-					);
-				}
+			for (const screenshotRequest of screenshotRequests) {
+				const source = parseJsonRecord(finding.meta_json);
+				addJob(
+					screenshotRequest,
+					screenshotRequest.title || finding.detail || finding.title || item.label,
+					pageUrlFromFinding(finding, source),
+					item.findings
+				);
+			}
 		}
 	}
 
