@@ -34,7 +34,6 @@ const TITLE_SIZE = 32;
 const SUBTITLE_SIZE = 28;
 const LOGO_WIDTH_PX = 242;
 const LOGO_HEIGHT_PX = 59;
-const PRIORITY_MARKER_PREFIX = 'GW_PRIORITY_DROPDOWN';
 const EMPTY_LINE_MARKER_PREFIX = 'GW_EMPTY_LINE';
 let emptyLineIndex = 0;
 
@@ -123,52 +122,30 @@ function priorityStyle(priority: ReportProblemPreview['priority']) {
 	return { color: '473821', fill: 'ffe5a0' };
 }
 
-function priorityMarker(index: number, priority: ReportProblemPreview['priority']) {
-	return `${PRIORITY_MARKER_PREFIX}_${index}_${priority}`;
-}
-
-function priorityDropdownXml(index: number, priority: ReportProblemPreview['priority']) {
-	const style = priorityStyle(priority);
-	const controlId = 898116759 + index;
-
-	return `<w:sdt><w:sdtPr><w:alias w:val="Priority"/><w:id w:val="${controlId}"/><w:dropDownList w:lastValue="${priority}"><w:listItem w:displayText="Urgent" w:value="Urgent"/><w:listItem w:displayText="High" w:value="High"/><w:listItem w:displayText="Medium" w:value="Medium"/></w:dropDownList></w:sdtPr><w:sdtContent><w:r><w:rPr><w:color w:val="${style.color}"/><w:sz w:val="${SMALL_SIZE}"/><w:szCs w:val="${SMALL_SIZE}"/><w:shd w:fill="${style.fill}" w:val="clear"/></w:rPr><w:t xml:space="preserve">${priority}</w:t></w:r></w:sdtContent></w:sdt>`;
-}
-
 function problemHeading(index: number, problem: ReportProblemPreview) {
+	const style = priorityStyle(problem.priority);
+
 	return new Paragraph({
 		children: [
 			textRun(`Problem ${index}: ${problem.title}`, { bold: true }),
 			textRun('Priority: ', { break: 1, size: SMALL_SIZE }),
-			textRun(priorityMarker(index, problem.priority), { size: SMALL_SIZE })
+			textRun(problem.priority, {
+				size: SMALL_SIZE,
+				color: style.color,
+				shading: {
+					fill: style.fill
+				}
+			})
 		]
 	});
 }
 
-function escapeRegex(value: string) {
-	return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-async function withDocxXmlFixes(body: Buffer, problems: ReportProblemPreview[]) {
+async function withDocxXmlFixes(body: Buffer) {
 	const zip = await JSZip.loadAsync(body);
 	const documentFile = zip.file('word/document.xml');
 	if (!documentFile) return body;
 
 	let documentXml = await documentFile.async('string');
-
-	for (const [problemIndex, problem] of problems.entries()) {
-		const index = problemIndex + 1;
-		const marker = priorityMarker(index, problem.priority);
-		const markerPattern = escapeRegex(marker);
-		const markerRunPattern = new RegExp(
-			`<w:r\\b[^>]*>(?:(?!<\\/w:r>).)*<w:t\\b[^>]*>${markerPattern}<\\/w:t>(?:(?!<\\/w:r>).)*<\\/w:r>`,
-			'g'
-		);
-
-		documentXml = documentXml.replace(
-			markerRunPattern,
-			priorityDropdownXml(index, problem.priority)
-		);
-	}
 
 	const emptyLineMarkerPattern = new RegExp(
 		`<w:p\\b([^>]*)><w:r\\b[^>]*>(?:(?!<\\/w:r>).)*<w:t\\b[^>]*>${EMPTY_LINE_MARKER_PREFIX}_\\d+<\\/w:t>(?:(?!<\\/w:r>).)*<\\/w:r><\\/w:p>`,
@@ -428,6 +405,6 @@ export async function generateTemplateReportDocx(
 
 	return {
 		filename: documentFilename(pageData),
-		body: await withDocxXmlFixes(await Packer.toBuffer(document), problems)
+		body: await withDocxXmlFixes(await Packer.toBuffer(document))
 	};
 }
