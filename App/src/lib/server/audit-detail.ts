@@ -227,7 +227,13 @@ export async function buildAuditPageData(
 		};
 	});
 	const normalizedItemsByKey = new Map(normalizedItems.map((item) => [item.key, item]));
-	const findingDisplayItems = reportTemplates.map((template) => {
+	const representedSourceKeys = new Set(
+		reportTemplates
+			.map((template) => template.expand?.audit_finding_type?.key || '')
+			.filter(Boolean)
+	);
+	const suppressedLegacyDisplayKeys = new Set(['h1Tags', 'structuredData', 'mobileUsability']);
+	const templateDisplayItems = reportTemplates.map((template) => {
 		const findingTypeKey = template.expand?.audit_finding_type?.key || '';
 		const sourceItem = normalizedItemsByKey.get(findingTypeKey);
 		const matcher = issueMatcher(template.match_pattern);
@@ -246,7 +252,10 @@ export async function buildAuditPageData(
 
 		return {
 			id: template.id,
-			key: findingTypeKey === 'pageSpeed' || findingTypeKey === 'openPageRank' ? findingTypeKey : template.key,
+			key:
+				findingTypeKey === 'pageSpeed' || findingTypeKey === 'openPageRank'
+					? findingTypeKey
+					: template.key,
 			label: template.title,
 			status,
 			runStatus: sourceItem?.runStatus,
@@ -262,6 +271,13 @@ export async function buildAuditPageData(
 			findings
 		};
 	});
+	const templateDisplayKeys = new Set(templateDisplayItems.map((item) => item.key));
+	const additionalCheckDisplayItems = normalizedItems
+		.filter((item) => !templateDisplayKeys.has(item.key))
+		.filter((item) => !representedSourceKeys.has(item.key))
+		.filter((item) => !suppressedLegacyDisplayKeys.has(item.key))
+		.sort((first, second) => (first.sortOrder || 999) - (second.sortOrder || 999));
+	const findingDisplayItems = [...templateDisplayItems, ...additionalCheckDisplayItems];
 	const selectedReportTemplateKeys = parseStoredStringArray(
 		auditRecord.selected_report_template_keys_json
 	);
