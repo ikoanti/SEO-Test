@@ -596,13 +596,24 @@
 			}
 		);
 
-		const robotsMeta =
-			itemMap.get('robotsTxt')?.findings
-				.map((finding) => parseMeta(finding.meta))
-				.find((meta) => Array.isArray(meta.foundAgents)) ??
-			getRecord(auditSection('robotsTxt'));
+		const robotsItem = itemMap.get('robotsTxt');
+		const robotsRequestMeta =
+			robotsItem?.findings
+				.map((finding) => {
+					const meta = parseMeta(finding.meta);
+					return parseMeta(meta.screenshotRequest);
+				})
+				.find((meta) => Array.isArray(meta.foundAgents)) ?? getRecord(auditSection('robotsTxt'));
+		const robotsEntries =
+			robotsItem?.findings
+				.filter((finding) => finding.status === 'warn' || finding.status === 'fail')
+				.filter((finding) => parseMeta(finding.meta).category === 'ai')
+				.map((finding) => ({
+					issue: issueText(finding, robotsItem.label),
+					status: finding.status
+				})) ?? [];
 
-		if (Array.isArray(robotsMeta.foundAgents)) {
+		if (Array.isArray(robotsRequestMeta.foundAgents) || robotsEntries.length) {
 			items.unshift({
 				key: 'ai-bot-visibility',
 				label: 'Robots.txt',
@@ -612,7 +623,11 @@
 					description:
 						'Robots.txt is missing explicit coverage for important AI and search crawler user-agents, which can limit discovery in ChatGPT, Perplexity, Claude, and modern search tools.',
 					domain,
-					foundAgents: robotsMeta.foundAgents
+					count: robotsEntries.length,
+					entries: robotsEntries,
+					foundAgents: Array.isArray(robotsRequestMeta.foundAgents)
+						? robotsRequestMeta.foundAgents
+						: []
 				})
 			});
 		}

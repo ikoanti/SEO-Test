@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { BasePanelData } from '../types';
+	import type { AuditEntry, BasePanelData } from '../types';
 	import amazonLogo from '$lib/assets/bot-logos/amazon.png';
 	import anthropicLogo from '$lib/assets/bot-logos/anthropic.png';
 	import appleLogo from '$lib/assets/bot-logos/apple.png';
@@ -91,7 +91,20 @@
 		);
 	}
 
+	function agentFromIssue(issue?: string) {
+		const normalizedIssue = String(issue ?? '').toLowerCase();
+		return EXPECTED_BOTS.find((bot) => normalizedIssue.includes(bot.toLowerCase()));
+	}
+
+	function issueRows(entries?: AuditEntry[]) {
+		if (!Array.isArray(entries)) return [];
+		return entries.filter((entry) => entry.issue);
+	}
+
 	let missingAgents = $derived(computeMissingAgents(panel?.foundAgents));
+	let rows = $derived(issueRows(panel?.entries));
+	let summaryCount = $derived(rows.length ? rows.length : missingAgents.length);
+	let summaryLabel = $derived(rows.length ? 'Issues' : 'Missing');
 </script>
 
 <section class="section">
@@ -100,14 +113,32 @@
 </section>
 <section class="section">
 	<div class="summary">
-		<p class="summary-label">Missing</p>
-		<p class="summary-count">{missingAgents.length}</p>
-		<p class="summary-note">AI crawler user-agents missing on {panel?.domain ?? 'this domain'}</p>
+		<p class="summary-label">{summaryLabel}</p>
+		<p class="summary-count">{panel?.count ?? summaryCount}</p>
+		<p class="summary-note">AI crawler robots.txt findings on {panel?.domain ?? 'this domain'}</p>
 	</div>
 </section>
 <section class="section">
 	<div class="list">
-		{#each missingAgents as agent}
+		{#if rows.length}
+			{#each rows as entry}
+				{@const agent = agentFromIssue(entry.issue)}
+				{@const icon = badgeFor(agent ?? entry.issue ?? '')}
+				<article class="card compact" class:blocked={entry.status === 'fail'}>
+					<div class="card-head">
+						<div class="bot-logo-wrap" aria-hidden="true">
+							{#if icon.logo}
+								<img class="bot-logo" src={icon.logo} alt="" />
+							{:else}
+								<div class="bot-logo bot-logo-fallback"></div>
+							{/if}
+						</div>
+						<p class="card-title">{entry.issue}</p>
+					</div>
+				</article>
+			{/each}
+		{:else}
+			{#each missingAgents as agent}
 			{@const icon = badgeFor(agent)}
 			<article class="card compact">
 				<div class="card-head">
@@ -121,7 +152,8 @@
 					<p class="card-title">Missing {icon.label}</p>
 				</div>
 			</article>
-		{/each}
+			{/each}
+		{/if}
 	</div>
 </section>
 

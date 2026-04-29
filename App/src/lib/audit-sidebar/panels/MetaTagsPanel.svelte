@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { X } from 'lucide-svelte';
 	import { isActivePage } from '../helpers';
 	import type { AuditEntry, BasePanelData } from '../types';
 	import FormattedValue from './FormattedValue.svelte';
@@ -73,7 +74,7 @@
 		{#each groups as entry}
 			<article class="card">
 				<div class="card-head">
-					<div class="badge">x</div>
+					<div class="badge"><X size={14} strokeWidth={3} aria-hidden="true" /></div>
 					<p class="card-title">{entry.issue ?? 'Meta tag issue'}</p>
 				</div>
 				<div class="meta">

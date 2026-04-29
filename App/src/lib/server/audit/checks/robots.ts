@@ -82,6 +82,13 @@ export async function analyzeRobots(origin: string, summary: AuditSummary, logge
 		});
 
 		if (aiIssues > 0) {
+			const aiIssueEntries = result.items
+				.filter((item) => item.category === 'ai' && (item.status === 'warn' || item.status === 'fail'))
+				.map((item) => ({
+					issue: item.detail,
+					status: item.status
+				}));
+
 			attachScreenshotRequest(
 				result.items.find(
 					(item) => item.category === 'ai' && (item.status === 'warn' || item.status === 'fail')
@@ -93,7 +100,9 @@ export async function analyzeRobots(origin: string, summary: AuditSummary, logge
 					domain: new URL(origin).hostname,
 					robotsUrl: `${origin}/robots.txt`,
 					storefrontUrl: `${origin}/`,
-					foundAgents
+					foundAgents,
+					entries: aiIssueEntries,
+					count: aiIssueEntries.length
 				}
 			);
 		}

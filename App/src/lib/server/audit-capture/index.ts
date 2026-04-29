@@ -85,6 +85,8 @@ export type AuditCaptureRequest = AuditCaptureRequestBase &
 				robotsUrl: string;
 				storefrontUrl: string;
 				foundAgents: string[];
+				entries?: Array<{ issue: string; status?: 'pass' | 'warn' | 'fail' | 'info' }>;
+				count?: number;
 		  }
 	);
 
@@ -371,6 +373,8 @@ export async function captureRobotsEvidence({
 	robotsUrl,
 	storefrontUrl,
 	foundAgents,
+	entries = [],
+	count,
 	title = 'Unoptimized Robots.txt',
 	description = 'Robots.txt is missing explicit coverage for important AI and search crawler user-agents, which can limit discovery in ChatGPT, Perplexity, Claude, and modern search tools.',
 	capturePageUrl,
@@ -380,6 +384,8 @@ export async function captureRobotsEvidence({
 	robotsUrl: string;
 	storefrontUrl: string;
 	foundAgents: string[];
+	entries?: Array<{ issue: string; status?: 'pass' | 'warn' | 'fail' | 'info' }>;
+	count?: number;
 	title?: string;
 	description?: string;
 	capturePageUrl?: string;
@@ -396,7 +402,9 @@ export async function captureRobotsEvidence({
 			title,
 			description,
 			domain,
-			foundAgents
+			foundAgents,
+			entries,
+			count: count ?? entries.length
 		})
 	});
 }

@@ -523,10 +523,22 @@ function screenshotAllocationPriority(request: AuditCaptureRequest) {
 	return 2;
 }
 
-function reorderEntriesBySelectedPage<
-	TRequest extends AuditCaptureRequest & { entries?: Array<CaptureEntry> }
->(request: TRequest, selectedPage: string | undefined): TRequest {
-	if (!selectedPage || !Array.isArray(request.entries)) return request;
+function isCaptureEntry(entry: unknown): entry is CaptureEntry {
+	return Boolean(
+		entry &&
+			typeof entry === 'object' &&
+			'page' in entry &&
+			typeof (entry as { page?: unknown }).page === 'string'
+	);
+}
+
+function reorderEntriesBySelectedPage<TRequest extends AuditCaptureRequest>(
+	request: TRequest,
+	selectedPage: string | undefined
+): TRequest {
+	if (!selectedPage || !('entries' in request) || !Array.isArray(request.entries)) return request;
+	const requestEntries = (request.entries as unknown[]).filter(isCaptureEntry);
+	if (!requestEntries.length) return request;
 	const selectedKey = normalizedPageKey(selectedPage);
 	const candidateEntries = Array.isArray(request.captureCandidateEntries)
 		? request.captureCandidateEntries
@@ -543,7 +555,7 @@ function reorderEntriesBySelectedPage<
 			: selectedCandidate
 				? [selectedCandidate]
 				: [];
-	const entries = uniqueCaptureEntries([...selectedGroup, ...request.entries]);
+	const entries = uniqueCaptureEntries([...selectedGroup, ...requestEntries]);
 
 	return {
 		...request,
@@ -704,6 +716,8 @@ function enrichCaptureRequestWithCandidates(
 	findings: NormalizedFinding[]
 ): AuditCaptureRequest {
 	if (!('entries' in request) || !Array.isArray(request.entries)) return request;
+	const existingEntries = (request.entries as unknown[]).filter(isCaptureEntry);
+	if (!existingEntries.length) return request;
 
 	const candidateEntries = uniqueCaptureEntries(
 		findings
@@ -712,7 +726,6 @@ function enrichCaptureRequestWithCandidates(
 			.map((finding) => captureEntryFromFinding(request, finding))
 			.filter((entry): entry is CaptureEntry => Boolean(entry))
 	);
-	const existingEntries = request.entries as CaptureEntry[];
 	const existingCandidateEntries = Array.isArray(request.captureCandidateEntries)
 		? request.captureCandidateEntries
 		: [];
