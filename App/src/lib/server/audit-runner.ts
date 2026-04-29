@@ -615,7 +615,10 @@ function findingMatchesCaptureRequest(request: AuditCaptureRequest, finding: Nor
 	const templateKey = request.reportTemplateKey || request.kind;
 
 	if (templateKey === 'missing-h1-tags') return detail === 'Missing H1 tag';
-	if (templateKey === 'multiple-h1-tags') return detail.toLowerCase().includes('multiple h1');
+	if (templateKey === 'multiple-h1-tags') {
+		const normalizedDetail = detail.toLowerCase();
+		return normalizedDetail.includes('multiple h1') || normalizedDetail.includes('empty or multiple');
+	}
 	if (templateKey === 'meta-titles-too-long-unoptimized') {
 		return detail === 'Meta title too long' || detail === 'Missing meta title';
 	}
