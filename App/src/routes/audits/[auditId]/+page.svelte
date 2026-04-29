@@ -8,7 +8,7 @@
 	import OpenPageRankCard from '$lib/components/OpenPageRankCard.svelte';
 	import PageSpeedCard from '$lib/components/PageSpeedCard.svelte';
 	import SegmentedPicker from '$lib/components/SegmentedPicker.svelte';
-	import { FileText, FileUp } from 'lucide-svelte';
+	import { FileText, FileUp, Image as ImageIcon } from 'lucide-svelte';
 	import { onMount, tick } from 'svelte';
 	import AuditHeader from './AuditHeader.svelte';
 	import type { ActionData } from './$types';
@@ -553,14 +553,19 @@
 											{#each item.paragraphs as paragraph, index (`${item.key}-paragraph-${index}`)}
 												<p>{paragraph}</p>
 											{/each}
-											{#if item.screenshot?.image_url}
-												<div class="report-preview-proof">
+											<div
+												class:report-preview-proof-placeholder={!item.screenshot?.image_url}
+												class="report-preview-proof"
+											>
+												{#if item.screenshot?.image_url}
 													<img
 														src={item.screenshot.image_url}
 														alt={item.screenshot.title || item.title}
 													/>
-												</div>
-											{/if}
+												{:else}
+													<ImageIcon size={34} strokeWidth={1.6} aria-hidden="true" />
+												{/if}
+											</div>
 										</div>
 									</label>
 								{/each}
@@ -764,15 +769,27 @@
 	}
 
 	.report-preview-proof {
+		display: flex;
+		align-items: center;
+		justify-content: center;
 		margin-top: 0.85rem;
+		aspect-ratio: 16 / 9;
+		max-height: 260px;
+		overflow: hidden;
+		border: 1px solid var(--border-color);
+		border-radius: 12px;
+		background: rgba(148, 163, 184, 0.08);
 	}
 
 	.report-preview-proof img {
 		width: 100%;
-		max-height: 260px;
+		height: 100%;
 		object-fit: cover;
-		border: 1px solid var(--border-color);
-		border-radius: 12px;
+		display: block;
+	}
+
+	.report-preview-proof-placeholder {
+		color: var(--text-muted);
 	}
 
 	.ai-visibility-results {
