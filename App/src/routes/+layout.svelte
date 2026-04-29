@@ -30,15 +30,19 @@
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
 
-<div class="shell">
-	<AppHeader user={data.user} />
+{#if data.isCaptureRoute}
+	{@render children()}
+{:else}
+	<div class="shell">
+		<AppHeader user={data.user} />
 
-	<main>
-		{@render children()}
-	</main>
-</div>
+		<main>
+			{@render children()}
+		</main>
+	</div>
+{/if}
 
-{#if showReturnToTop}
+{#if showReturnToTop && !data.isCaptureRoute}
 	<button class="return-to-top" type="button" aria-label="Return to top" onclick={returnToTop}>
 		<ArrowUp size={20} />
 		<span>Top</span>

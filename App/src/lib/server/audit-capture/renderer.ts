@@ -1,30 +1,17 @@
 import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
 import { spawn } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
 import type { Browser, Page } from 'playwright-core';
+import sharp from 'sharp';
+import {
+	deleteSidebarRenderData,
+	putSidebarRenderData
+} from '$lib/server/audit-capture/sidebar-store';
 
-function resolveAssetsDir() {
-	const candidates = [
-		process.env.AUDIT_CAPTURE_ASSETS_DIR,
-		path.join(fileURLToPath(new URL('.', import.meta.url)), 'assets'),
-		path.join(process.cwd(), 'src/lib/server/audit-capture/assets'),
-		path.join(process.cwd(), 'audit-capture-assets')
-	].filter((value): value is string => Boolean(value));
-
-	for (const candidate of candidates) {
-		if (fs.existsSync(path.join(candidate, 'styles/shell.css'))) {
-			return candidate;
-		}
-	}
-
-	return candidates[0];
-}
-
-const ASSETS_DIR = resolveAssetsDir();
 const SIDEBAR_WIDTH = 420;
+const SIDEBAR_MARGIN = 16;
+const SIDEBAR_RENDER_PADDING_X = 40;
+const SIDEBAR_RENDER_WIDTH = SIDEBAR_WIDTH + SIDEBAR_RENDER_PADDING_X * 2;
 const CAPTURE_HEIGHT = 900;
 const WINDOW_HEIGHT = 900;
 const WINDOW_WIDTH = 1365;
@@ -33,7 +20,6 @@ const DISPLAY_HEIGHT = 1200;
 const SESSION_IDLE_TIMEOUT_MS = Number(process.env.AUDIT_CAPTURE_IDLE_TIMEOUT_MS || 30000);
 const MAX_SESSION_CAPTURES = Number(process.env.AUDIT_CAPTURE_MAX_SESSION_CAPTURES || 50);
 
-const assetCache = new Map<string, string>();
 let captureQueue = Promise.resolve();
 let sessionIdleTimer: NodeJS.Timeout | null = null;
 let sessionCaptureCount = 0;
@@ -48,16 +34,13 @@ type CaptureSession = {
 let headfulSessionPromise: Promise<CaptureSession> | null = null;
 let headlessBrowserPromise: Promise<Browser> | null = null;
 
-function assetText(relativePath: string) {
-	const cached = assetCache.get(relativePath);
-	if (cached !== undefined) return cached;
-	const value = fs.readFileSync(path.join(ASSETS_DIR, relativePath), 'utf8');
-	assetCache.set(relativePath, value);
-	return value;
-}
-
-function escapeScriptTag(value: string) {
-	return value.replaceAll('</script>', '<\\/script>');
+function resolveAppOrigin() {
+	return (
+		process.env.AUDIT_CAPTURE_APP_ORIGIN ||
+		process.env.APP_ORIGIN ||
+		process.env.PUBLIC_APP_ORIGIN ||
+		`http://127.0.0.1:${process.env.PORT || 3000}`
+	).replace(/\/+$/, '');
 }
 
 function resolveChromeExecutable() {
@@ -99,41 +82,6 @@ async function terminateProcess(processRef: ReturnType<typeof spawn> | null) {
 	await Promise.race([new Promise((resolve) => processRef.once('exit', resolve)), delay(3000)]);
 	if (!exited) {
 		processRef.kill('SIGKILL');
-	}
-}
-
-async function runProcess(
-	command: string,
-	args: string[],
-	env: NodeJS.ProcessEnv,
-	timeoutMs = 10000
-) {
-	const processRef = spawn(command, args, { env, stdio: 'ignore' });
-	const exitCode = await new Promise<number | null>((resolve, reject) => {
-		const timeout = setTimeout(() => {
-			processRef.kill('SIGKILL');
-			reject(new Error(`${command} timed out after ${timeoutMs}ms`));
-		}, timeoutMs);
-		processRef.once('error', reject);
-		processRef.once('exit', (code) => {
-			clearTimeout(timeout);
-			resolve(code);
-		});
-	});
-	if (exitCode !== 0) {
-		throw new Error(`${command} exited with code ${exitCode ?? 'unknown'}`);
-	}
-}
-
-async function captureDesktop(display: string) {
-	const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), 'audit-capture-'));
-	const outputPath = path.join(outputDir, 'desktop.png');
-
-	try {
-		await runProcess('scrot', ['-z', '-u', '-b', outputPath], { ...process.env, DISPLAY: display });
-		return fs.readFileSync(outputPath);
-	} finally {
-		fs.rmSync(outputDir, { recursive: true, force: true });
 	}
 }
 
@@ -263,103 +211,6 @@ async function withCaptureQueue<T>(fn: () => Promise<T>) {
 	}
 }
 
-function buildSidebarSrcdoc(panelData: Record<string, unknown>) {
-	const panelJson = escapeScriptTag(JSON.stringify(panelData));
-	const styleMap = {
-		shell: assetText('styles/shell.css'),
-		'audit-sidebar': assetText('styles/audit-sidebar.css'),
-		'panels-shared': assetText('styles/panels/shared.css'),
-		'ai-bot-visibility-panel': assetText('styles/panels/ai-bot-visibility-panel.css'),
-		'broken-links-panel': assetText('styles/panels/broken-links-panel.css'),
-		'headings-panel': assetText('styles/panels/headings-panel.css'),
-		'image-alts-panel': assetText('styles/panels/image-alts-panel.css'),
-		'placeholder-panel': assetText('styles/panels/placeholder-panel.css')
-	};
-	const styleJson = escapeScriptTag(JSON.stringify(styleMap));
-	const scripts = [
-		'models/audit-models.js',
-		'utils/html.js',
-		'components/panels/ai-bot-visibility-panel.js',
-		'components/panels/broken-links-panel.js',
-		'components/panels/canonicals-panel.js',
-		'components/panels/content-quality-panel.js',
-		'components/panels/headings-panel.js',
-		'components/panels/image-alts-panel.js',
-		'components/panels/internal-links-panel.js',
-		'components/panels/lazy-loading-panel.js',
-		'components/panels/meta-tags-panel.js',
-		'components/panels/open-page-rank-panel.js',
-		'components/panels/open-graph-panel.js',
-		'components/panels/pagespeed-panel.js',
-		'components/panels/placeholder-panel.js',
-		'components/panels/shopify-urls-panel.js',
-		'components/audit-sidebar.js'
-	];
-	const scriptTags = scripts
-		.map((file) => `<script>${escapeScriptTag(assetText(file))}</script>`)
-		.join('\n');
-
-	return `<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Audit Sidebar Shell</title>
-  <style>${styleMap.shell}</style>
-</head>
-<body>
-  <audit-sidebar></audit-sidebar>
-  <script>window.AutomagicAuditStyles = ${styleJson};</script>
-  <script>window.auditSidebarData = ${panelJson};</script>
-  ${scriptTags}
-  <script>
-    const sidebar = document.querySelector('audit-sidebar');
-    if (sidebar) {
-      sidebar.data = window.auditSidebarData;
-    }
-  </script>
-</body>
-</html>`;
-}
-
-async function injectSidebar(page: Page, panelData: Record<string, unknown>) {
-	const srcdoc = buildSidebarSrcdoc(panelData);
-	await page.evaluate(
-		({ iframeSrcdoc, sidebarWidth }: { iframeSrcdoc: string; sidebarWidth: number }) => {
-			document.getElementById('__automagic_audit_sidebar_root')?.remove();
-
-			const root = document.createElement('div');
-			root.id = '__automagic_audit_sidebar_root';
-			root.style.position = 'fixed';
-			root.style.top = '16px';
-			root.style.right = '16px';
-			root.style.width = `${sidebarWidth}px`;
-			root.style.height = 'calc(100vh - 32px)';
-			root.style.zIndex = '2147483647';
-			root.style.pointerEvents = 'auto';
-			root.style.borderRadius = '28px';
-			root.style.overflow = 'hidden';
-			root.style.background = '#ffffff';
-			root.style.boxShadow = '0 18px 40px rgba(15, 23, 42, 0.16)';
-
-			const iframe = document.createElement('iframe');
-			iframe.setAttribute('title', 'Automagic Audit Sidebar');
-			iframe.setAttribute('aria-label', 'Automagic Audit Sidebar');
-			iframe.style.width = '100%';
-			iframe.style.height = '100%';
-			iframe.style.border = '0';
-			iframe.style.display = 'block';
-			iframe.style.background = '#ffffff';
-			iframe.srcdoc = iframeSrcdoc;
-
-			root.appendChild(iframe);
-			document.documentElement.appendChild(root);
-		},
-		{ iframeSrcdoc: srcdoc, sidebarWidth: SIDEBAR_WIDTH }
-	);
-	await page.waitForTimeout(1200);
-}
-
 async function openFirstAvailableUrl(page: Page, urls: string[]) {
 	let lastError: unknown;
 	for (const url of urls) {
@@ -374,6 +225,56 @@ async function openFirstAvailableUrl(page: Page, urls: string[]) {
 	throw lastError instanceof Error ? lastError : new Error('Failed to open capture URL.');
 }
 
+async function screenshotAuditedPage(browser: Browser, urls: string[]) {
+	const page = await browser.newPage({
+		viewport: { width: WINDOW_WIDTH, height: CAPTURE_HEIGHT }
+	});
+	try {
+		await openFirstAvailableUrl(page, urls);
+		return await page.screenshot({ type: 'png', fullPage: false });
+	} finally {
+		await page.close().catch(() => undefined);
+	}
+}
+
+async function screenshotSidebar(browser: Browser, sidebarData: Record<string, unknown>) {
+	const id = putSidebarRenderData(sidebarData);
+	const page = await browser.newPage({
+		viewport: { width: SIDEBAR_RENDER_WIDTH, height: CAPTURE_HEIGHT },
+		deviceScaleFactor: 1
+	});
+
+	try {
+		const url = `${resolveAppOrigin()}/__audit-sidebar-capture?id=${encodeURIComponent(id)}`;
+		await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 });
+		const frame = page.locator('[data-sidebar-frame]');
+		await frame.waitFor({ state: 'visible', timeout: 10000 });
+		await page.waitForTimeout(250);
+		return await page.locator('[data-sidebar-stage]').screenshot({
+			type: 'png',
+			omitBackground: true
+		});
+	} finally {
+		deleteSidebarRenderData(id);
+		await page.close().catch(() => undefined);
+	}
+}
+
+async function compositeSidebar(pageImage: Buffer, sidebarImage: Buffer) {
+	const left = WINDOW_WIDTH - SIDEBAR_WIDTH - SIDEBAR_MARGIN - SIDEBAR_RENDER_PADDING_X;
+
+	return sharp(pageImage)
+		.composite([
+			{
+				input: sidebarImage,
+				left,
+				top: SIDEBAR_MARGIN
+			}
+		])
+		.png()
+		.toBuffer();
+}
+
 export async function captureAuditSidebarScreenshot({
 	pageUrl,
 	sidebarData,
@@ -386,24 +287,17 @@ export async function captureAuditSidebarScreenshot({
 	const startedAt = Date.now();
 	const panel = typeof sidebarData.activeTab === 'string' ? sidebarData.activeTab : 'unknown-panel';
 	console.info(`[audit-capture] ${panel} capture started for ${pageUrl}`);
-	const runCapture = async ({ browser, display }: { browser: Browser; display?: string }) => {
-		const page = await browser.newPage({
-			viewport: { width: WINDOW_WIDTH, height: CAPTURE_HEIGHT }
-		});
-		try {
-			const urls = [pageUrl, ...fallbackPageUrls.filter((url) => url && url !== pageUrl)];
-			await openFirstAvailableUrl(page, urls);
-			await injectSidebar(page, sidebarData);
-			const image = display
-				? await captureDesktop(display)
-				: await page.screenshot({ type: 'png', fullPage: false });
-			return {
-				contentType: 'image/png',
-				imageBase64: image.toString('base64')
-			};
-		} finally {
-			await page.close().catch(() => undefined);
-		}
+	const runCapture = async ({ browser }: { browser: Browser; display?: string }) => {
+		const urls = [pageUrl, ...fallbackPageUrls.filter((url) => url && url !== pageUrl)];
+		const [pageImage, sidebarImage] = await Promise.all([
+			screenshotAuditedPage(browser, urls),
+			screenshotSidebar(browser, sidebarData)
+		]);
+		const image = await compositeSidebar(pageImage, sidebarImage);
+		return {
+			contentType: 'image/png',
+			imageBase64: image.toString('base64')
+		};
 	};
 
 	return withCaptureQueue(async () => {
