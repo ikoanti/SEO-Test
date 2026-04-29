@@ -8,9 +8,10 @@ ADD https://github.com/pocketbase/pocketbase/releases/download/v${PB_VERSION}/po
 
 RUN unzip /tmp/pocketbase.zip -d /pb/ \
     && rm /tmp/pocketbase.zip \
-    && mkdir -p /pb/pb_data /pb/pb_migrations
+    && mkdir -p /pb/pb_data /pb/pb_migrations /pb/pb_hooks
 
 COPY Infrastructure/pocketbase/pb_migrations /pb/pb_migrations
+COPY Infrastructure/pocketbase/pb_hooks /pb/pb_hooks
 
 WORKDIR /pb
 
