@@ -63,6 +63,18 @@ function normalizeFindingStatus(status: unknown): AuditFindingStatus {
 	return 'info';
 }
 
+function issueMatcher(pattern: string | undefined) {
+	if (!pattern?.trim()) return undefined;
+
+	try {
+		const regex = new RegExp(pattern, 'i');
+		return (finding: Record<string, unknown>) =>
+			regex.test(`${finding.title || ''} ${finding.detail || ''}`);
+	} catch {
+		return undefined;
+	}
+}
+
 function screenshotView(auditId: string, screenshot: unknown) {
 	const screenshotRecord = screenshot as (Record<string, unknown> & { image_url?: string }) | null;
 	if (!screenshotRecord) return null;
@@ -214,6 +226,42 @@ export async function buildAuditPageData(
 			findings
 		};
 	});
+	const normalizedItemsByKey = new Map(normalizedItems.map((item) => [item.key, item]));
+	const findingDisplayItems = reportTemplates.map((template) => {
+		const findingTypeKey = template.expand?.audit_finding_type?.key || '';
+		const sourceItem = normalizedItemsByKey.get(findingTypeKey);
+		const matcher = issueMatcher(template.match_pattern);
+		const findings = (sourceItem?.findings || []).filter((finding) => {
+			if (normalizeFindingStatus(finding.status) !== 'warn') return false;
+			return matcher ? matcher(finding) : true;
+		});
+		const status: AuditFindingStatus = findings.length
+			? 'warn'
+			: sourceItem?.runStatus === 'completed'
+				? 'pass'
+				: 'info';
+		const screenshot =
+			screenshotView(auditRecord.id, screenshotsByReportTemplateKey.get(template.key)) ||
+			(findingTypeKey === template.key ? sourceItem?.screenshot : null);
+
+		return {
+			id: template.id,
+			key: findingTypeKey === 'pageSpeed' || findingTypeKey === 'openPageRank' ? findingTypeKey : template.key,
+			label: template.title,
+			status,
+			runStatus: sourceItem?.runStatus,
+			summary: findings.length
+				? `${findings.length} issue${findings.length === 1 ? '' : 's'} found`
+				: sourceItem?.runStatus === 'completed'
+					? 'No findings.'
+					: '',
+			itemRun: sourceItem?.itemRun || null,
+			sortOrder: template.sort_order || sourceItem?.sortOrder || 999,
+			stats: findings.length ? { count: findings.length } : null,
+			screenshot,
+			findings
+		};
+	});
 	const selectedReportTemplateKeys = parseStoredStringArray(
 		auditRecord.selected_report_template_keys_json
 	);
@@ -232,7 +280,8 @@ export async function buildAuditPageData(
 			!isPendingRun
 		),
 		aiVisibility,
-		normalizedItems
+		normalizedItems,
+		findingDisplayItems
 	};
 	const reportPreviewItems = includeReportPreview
 		? buildReportProblems(reportPageData, reportTemplates).map((problem) => ({
@@ -292,6 +341,7 @@ export async function buildAuditPageData(
 		selectedReportTemplateKeys,
 		aiVisibility,
 		normalizedItems,
+		findingDisplayItems,
 		isPendingRun,
 		isPendingReport: ['queued', 'running'].includes(String(auditRecord.report_status || '')),
 		isPendingScreenshots: hasPendingScreenshotJobs(auditRecord.id)

@@ -108,6 +108,7 @@
 		selectedReportTemplateKeys: string[];
 		aiVisibility: Record<string, unknown> | null;
 		normalizedItems: AuditItemView[];
+		findingDisplayItems?: AuditItemView[];
 		isPendingReport?: boolean;
 		isPendingScreenshots?: boolean;
 	};
@@ -151,7 +152,7 @@
 		{ key: 'sidebar-preview', label: 'Sidebar' },
 		{ key: 'report', label: 'Export' }
 	];
-	const auditFindingItems = $derived(pageData.normalizedItems || []);
+	const auditFindingItems = $derived(pageData.findingDisplayItems || pageData.normalizedItems || []);
 	const auditNavItems: AuditNavItem[] = $derived(
 		auditFindingItems.map((item) => ({
 			key: item.key,
