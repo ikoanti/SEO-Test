@@ -16,11 +16,12 @@
 
 <style>
 	:global(html),
+	:global(:root),
 	:global(body) {
 		margin: 0;
 		width: 100%;
 		min-height: 100%;
-		background: transparent;
+		background: transparent !important;
 	}
 
 	.capture-stage {

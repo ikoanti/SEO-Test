@@ -1,4 +1,6 @@
 import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { chromium } from 'playwright-core';
 import type { Browser, Page } from 'playwright-core';
@@ -11,6 +13,7 @@ import {
 const SIDEBAR_WIDTH = 420;
 const SIDEBAR_MARGIN = 16;
 const SIDEBAR_RENDER_PADDING_X = 40;
+const SIDEBAR_RENDER_PADDING_TOP = 16;
 const SIDEBAR_RENDER_WIDTH = SIDEBAR_WIDTH + SIDEBAR_RENDER_PADDING_X * 2;
 const CAPTURE_HEIGHT = 900;
 const WINDOW_HEIGHT = 900;
@@ -82,6 +85,41 @@ async function terminateProcess(processRef: ReturnType<typeof spawn> | null) {
 	await Promise.race([new Promise((resolve) => processRef.once('exit', resolve)), delay(3000)]);
 	if (!exited) {
 		processRef.kill('SIGKILL');
+	}
+}
+
+async function runProcess(
+	command: string,
+	args: string[],
+	env: NodeJS.ProcessEnv,
+	timeoutMs = 10000
+) {
+	const processRef = spawn(command, args, { env, stdio: 'ignore' });
+	const exitCode = await new Promise<number | null>((resolve, reject) => {
+		const timeout = setTimeout(() => {
+			processRef.kill('SIGKILL');
+			reject(new Error(`${command} timed out after ${timeoutMs}ms`));
+		}, timeoutMs);
+		processRef.once('error', reject);
+		processRef.once('exit', (code) => {
+			clearTimeout(timeout);
+			resolve(code);
+		});
+	});
+	if (exitCode !== 0) {
+		throw new Error(`${command} exited with code ${exitCode ?? 'unknown'}`);
+	}
+}
+
+async function captureDesktop(display: string) {
+	const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), 'audit-capture-'));
+	const outputPath = path.join(outputDir, 'desktop.png');
+
+	try {
+		await runProcess('scrot', ['-z', '-u', '-b', outputPath], { ...process.env, DISPLAY: display });
+		return fs.readFileSync(outputPath);
+	} finally {
+		fs.rmSync(outputDir, { recursive: true, force: true });
 	}
 }
 
@@ -237,6 +275,27 @@ async function screenshotAuditedPage(browser: Browser, urls: string[]) {
 	}
 }
 
+async function screenshotAuditedChromeWindow(browser: Browser, display: string, urls: string[]) {
+	const page = await browser.newPage({
+		viewport: { width: WINDOW_WIDTH, height: CAPTURE_HEIGHT }
+	});
+	try {
+		await openFirstAvailableUrl(page, urls);
+		await page.bringToFront();
+		await page.waitForTimeout(300);
+		const viewportOffset = await page.evaluate(() => ({
+			top: Math.max(0, window.outerHeight - window.innerHeight),
+			left: Math.max(0, window.outerWidth - window.innerWidth)
+		}));
+		return {
+			image: await captureDesktop(display),
+			viewportOffset
+		};
+	} finally {
+		await page.close().catch(() => undefined);
+	}
+}
+
 async function screenshotSidebar(browser: Browser, sidebarData: Record<string, unknown>) {
 	const id = putSidebarRenderData(sidebarData);
 	const page = await browser.newPage({
@@ -260,15 +319,24 @@ async function screenshotSidebar(browser: Browser, sidebarData: Record<string, u
 	}
 }
 
-async function compositeSidebar(pageImage: Buffer, sidebarImage: Buffer) {
-	const left = WINDOW_WIDTH - SIDEBAR_WIDTH - SIDEBAR_MARGIN - SIDEBAR_RENDER_PADDING_X;
+async function compositeSidebar(
+	pageImage: Buffer,
+	sidebarImage: Buffer,
+	viewportOffset = { top: 0, left: 0 }
+) {
+	const pageMetadata = await sharp(pageImage).metadata();
+	const pageWidth = pageMetadata.width ?? WINDOW_WIDTH;
+	const viewportRight = viewportOffset.left + WINDOW_WIDTH;
+	const left =
+		Math.max(0, Math.min(pageWidth, viewportRight) - SIDEBAR_WIDTH - SIDEBAR_MARGIN - SIDEBAR_RENDER_PADDING_X);
+	const top = Math.max(0, viewportOffset.top + SIDEBAR_MARGIN - SIDEBAR_RENDER_PADDING_TOP);
 
 	return sharp(pageImage)
 		.composite([
 			{
 				input: sidebarImage,
 				left,
-				top: SIDEBAR_MARGIN
+				top
 			}
 		])
 		.png()
@@ -299,12 +367,28 @@ export async function captureAuditSidebarScreenshot({
 			imageBase64: image.toString('base64')
 		};
 	};
+	const runHeadfulCapture = async ({ browser, display }: { browser: Browser; display: string }) => {
+		const urls = [pageUrl, ...fallbackPageUrls.filter((url) => url && url !== pageUrl)];
+		const auditedPage = await screenshotAuditedChromeWindow(browser, display, urls);
+		const sidebarImage = await screenshotSidebar(browser, sidebarData);
+		const image = await compositeSidebar(
+			auditedPage.image,
+			sidebarImage,
+			auditedPage.viewportOffset
+		);
+		return {
+			contentType: 'image/png',
+			imageBase64: image.toString('base64')
+		};
+	};
 
 	return withCaptureQueue(async () => {
 		if (shouldUseHeadfulCapture()) {
 			try {
 				const session = await getHeadfulSession();
-				const result = await runCapture({ browser: session.browser, display: session.display });
+				const result = session.display
+					? await runHeadfulCapture({ browser: session.browser, display: session.display })
+					: await runCapture({ browser: session.browser });
 				sessionCaptureCount += 1;
 				return result;
 			} finally {
