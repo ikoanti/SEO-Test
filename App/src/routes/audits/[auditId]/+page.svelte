@@ -271,6 +271,10 @@
 		return String(finding.detail || finding.title || fallback);
 	}
 
+	function issueFindings(item: AuditItemView) {
+		return item.findings.filter((finding) => finding.status === 'warn' || finding.status === 'fail');
+	}
+
 	function entryValue(finding: AuditFindingView) {
 		const meta = parseMeta(finding.meta);
 		const nested = parseMeta(meta.meta);
@@ -361,7 +365,8 @@
 			'Important pages are missing strong heading structure, which weakens topical clarity and makes page hierarchy less obvious to search engines.',
 			(item) =>
 			{
-				const entries = item.findings
+				const findings = issueFindings(item);
+				const entries = findings
 					.map((finding) => {
 						const page = pageUrlFromFinding(finding);
 						return page ? { page, issue: issueText(finding, item.label) } : null;
@@ -369,7 +374,7 @@
 					.filter((entry): entry is { page: string; issue: string } => Boolean(entry));
 
 				return entries.length
-					? { kind: 'headings', title: 'Unoptimized Heading Tags', description: 'Important pages are missing strong heading structure, which weakens topical clarity and makes page hierarchy less obvious to search engines.', domain, count: item.findings.length, entries }
+					? { kind: 'headings', title: 'Unoptimized Heading Tags', description: 'Important pages are missing strong heading structure, which weakens topical clarity and makes page hierarchy less obvious to search engines.', domain, count: findings.length, entries }
 					: null;
 			}
 		);
@@ -381,7 +386,8 @@
 			'Important product and collection images are missing descriptive alt text, reducing image search discoverability and weakening crawler context.',
 			(item) =>
 			{
-				const entries = item.findings
+				const findings = issueFindings(item);
+				const entries = findings
 					.map((finding) => {
 						const meta = parseMeta(finding.meta);
 						const page = pageUrlFromFinding(finding);
@@ -393,7 +399,7 @@
 					);
 
 				return entries.length
-					? { kind: 'image-alts', title: 'Unoptimized Alt Tags', description: 'Important product and collection images are missing descriptive alt text, reducing image search discoverability and weakening crawler context.', domain, count: item.findings.length, entries }
+					? { kind: 'image-alts', title: 'Unoptimized Alt Tags', description: 'Important product and collection images are missing descriptive alt text, reducing image search discoverability and weakening crawler context.', domain, count: findings.length, entries }
 					: null;
 			}
 		);
@@ -405,7 +411,8 @@
 			'Important pages have missing, duplicated, or oversized metadata, which can weaken search result relevance and click-through clarity.',
 			(item) =>
 			{
-				const entries = item.findings
+				const findings = issueFindings(item);
+				const entries = findings
 					.map((finding) => {
 						const page = pageUrlFromFinding(finding);
 						if (!page) return null;
@@ -417,7 +424,7 @@
 					.filter((entry): entry is { page: string; issue: string; value?: string } => Boolean(entry));
 
 				return entries.length
-					? { kind: 'meta-tags', title: 'Unoptimized Meta Tags', description: 'Important pages have missing, duplicated, or oversized metadata, which can weaken search result relevance and click-through clarity.', domain, count: item.findings.length, activePageUrl: entries[0]?.page || '', entries }
+					? { kind: 'meta-tags', title: 'Unoptimized Meta Tags', description: 'Important pages have missing, duplicated, or oversized metadata, which can weaken search result relevance and click-through clarity.', domain, count: findings.length, activePageUrl: entries[0]?.page || '', entries }
 					: null;
 			}
 		);
@@ -429,7 +436,8 @@
 			'Canonical tags help consolidate ranking signals and clarify the preferred URL for indexed pages.',
 			(item) =>
 			{
-				const entries = item.findings
+				const findings = issueFindings(item);
+				const entries = findings
 					.map((finding) => {
 						const page = pageUrlFromFinding(finding);
 						if (!page) return null;
@@ -441,7 +449,7 @@
 					.filter((entry): entry is { page: string; issue: string; value?: string } => Boolean(entry));
 
 				return entries.length
-					? { kind: 'canonicals', title: 'Unoptimized Canonicals', description: 'Canonical tags help consolidate ranking signals and clarify the preferred URL for indexed pages.', domain, count: item.findings.length, entries }
+					? { kind: 'canonicals', title: 'Unoptimized Canonicals', description: 'Canonical tags help consolidate ranking signals and clarify the preferred URL for indexed pages.', domain, count: findings.length, entries }
 					: null;
 			}
 		);
@@ -453,7 +461,8 @@
 			'Pages with no crawlable internal links create dead ends for users and search crawlers.',
 			(item) =>
 			{
-				const entries = item.findings.reduce<Array<{ page: string; issue: string; count?: number }>>(
+				const findings = issueFindings(item);
+				const entries = findings.reduce<Array<{ page: string; issue: string; count?: number }>>(
 					(accumulator, finding) => {
 						const meta = parseMeta(finding.meta);
 						const page = pageUrlFromFinding(finding);
@@ -472,7 +481,7 @@
 				);
 
 				return entries.length
-					? { kind: 'internal-links', title: 'Unoptimized Internal Links', description: 'Pages with no crawlable internal links create dead ends for users and search crawlers.', domain, count: item.findings.length, entries }
+					? { kind: 'internal-links', title: 'Unoptimized Internal Links', description: 'Pages with no crawlable internal links create dead ends for users and search crawlers.', domain, count: findings.length, entries }
 					: null;
 			}
 		);
@@ -484,7 +493,8 @@
 			'Images without native lazy loading can increase initial page weight and delay rendering on image-heavy pages.',
 			(item) =>
 			{
-				const entries = item.findings
+				const findings = issueFindings(item);
+				const entries = findings
 					.map((finding) => {
 						const meta = parseMeta(finding.meta);
 						const page = pageUrlFromFinding(finding);
@@ -497,7 +507,7 @@
 					.filter((entry): entry is { page: string; issue: string; image: string } => Boolean(entry));
 
 				return entries.length
-					? { kind: 'lazy-loading', title: 'Unoptimized Lazy Loading', description: 'Images without native lazy loading can increase initial page weight and delay rendering on image-heavy pages.', domain, count: item.findings.length, entries }
+					? { kind: 'lazy-loading', title: 'Unoptimized Lazy Loading', description: 'Images without native lazy loading can increase initial page weight and delay rendering on image-heavy pages.', domain, count: findings.length, entries }
 					: null;
 			}
 		);
@@ -509,7 +519,8 @@
 			'OpenGraph tags control how pages appear when shared and help AI and social surfaces understand page context.',
 			(item) =>
 			{
-				const entries = item.findings.reduce<
+				const findings = issueFindings(item);
+				const entries = findings.reduce<
 					Array<{ page: string; issue: string; property?: string }>
 				>(
 					(accumulator, finding) => {
@@ -532,7 +543,7 @@
 				);
 
 				return entries.length
-					? { kind: 'open-graph', title: 'Unoptimized OpenGraph Tags', description: 'OpenGraph tags control how pages appear when shared and help AI and social surfaces understand page context.', domain, count: item.findings.length, entries }
+					? { kind: 'open-graph', title: 'Unoptimized OpenGraph Tags', description: 'OpenGraph tags control how pages appear when shared and help AI and social surfaces understand page context.', domain, count: findings.length, entries }
 					: null;
 			}
 		);
@@ -544,7 +555,8 @@
 			'Pages with limited body copy can struggle to communicate topical depth and satisfy search intent.',
 			(item) =>
 			{
-				const entries = item.findings.reduce<Array<{ page: string; issue: string; wordCount?: number }>>(
+				const findings = issueFindings(item);
+				const entries = findings.reduce<Array<{ page: string; issue: string; wordCount?: number }>>(
 					(accumulator, finding) => {
 						const meta = parseMeta(finding.meta);
 						const page = pageUrlFromFinding(finding);
@@ -563,7 +575,7 @@
 				);
 
 				return entries.length
-					? { kind: 'content-quality', title: 'Thin Content', description: 'Pages with limited body copy can struggle to communicate topical depth and satisfy search intent.', domain, count: item.findings.length, entries }
+					? { kind: 'content-quality', title: 'Thin Content', description: 'Pages with limited body copy can struggle to communicate topical depth and satisfy search intent.', domain, count: findings.length, entries }
 					: null;
 			}
 		);
@@ -575,7 +587,8 @@
 			'Duplicate Shopify collection/product URL paths can split ranking signals and create avoidable crawl duplication.',
 			(item) =>
 			{
-				const entries = item.findings
+				const findings = issueFindings(item);
+				const entries = findings
 					.map((finding) => {
 						const page = pageUrlFromFinding(finding);
 						return page
@@ -591,7 +604,7 @@
 					);
 
 				return entries.length
-					? { kind: 'shopify-urls', title: 'Unoptimized Shopify URL Structure', description: 'Duplicate Shopify collection/product URL paths can split ranking signals and create avoidable crawl duplication.', domain, count: item.findings.length, entries }
+					? { kind: 'shopify-urls', title: 'Unoptimized Shopify URL Structure', description: 'Duplicate Shopify collection/product URL paths can split ranking signals and create avoidable crawl duplication.', domain, count: findings.length, entries }
 					: null;
 			}
 		);
