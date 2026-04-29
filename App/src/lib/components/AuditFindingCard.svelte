@@ -60,6 +60,18 @@
 		sectionHeader?: boolean;
 		indented?: boolean;
 	};
+	type RenderGroup = {
+		key: string;
+		title?: string;
+		rows: RenderRow[];
+	};
+
+	function normalizedText(value?: string) {
+		return String(value || '')
+			.trim()
+			.replace(/\s+/g, ' ')
+			.toLowerCase();
+	}
 
 	function isUrlLike(value?: string) {
 		if (!value) return false;
@@ -90,6 +102,12 @@
 		if (typeof direct === 'string' && direct.trim()) return direct;
 		if (typeof nested === 'string' && nested.trim()) return nested;
 		return '';
+	}
+
+	function displayFindingDetail(finding: AuditFindingView) {
+		const title = normalizedText(finding.title);
+		const detail = String(finding.detail || '').trim();
+		return normalizedText(detail) === title ? '' : detail;
 	}
 
 	function groupedRows(prefix: string, findings: AuditFindingView[]) {
@@ -143,7 +161,7 @@
 					key: `${prefix}-${finding.id}`,
 					status: finding.status || 'info',
 					title: finding.title || finding.status || 'Finding',
-					detail: finding.detail,
+					detail: displayFindingDetail(finding),
 					href: displayHref(finding),
 					codeSnippet:
 						typeof finding.meta?.codeSnippet === 'string' ? finding.meta.codeSnippet : undefined
@@ -158,7 +176,11 @@
 		return finding.detail || finding.title || finding.status || 'Findings';
 	}
 
-	function groupedIssueSections(prefix: string, findings: AuditFindingView[]) {
+	function groupedIssueSections(
+		prefix: string,
+		findings: AuditFindingView[],
+		cardTitle: string
+	): RenderGroup[] {
 		const groupedFindings: Record<string, AuditFindingView[]> = {};
 		const order: string[] = [];
 
@@ -172,11 +194,19 @@
 		}
 
 		return order
-			.map((title) => ({
-				key: `${prefix}-${title}`,
-				title,
-				rows: groupedRows(`${prefix}-${title}`, groupedFindings[title] || [])
-			}))
+			.map((title) => {
+				const rows = groupedRows(`${prefix}-${title}`, groupedFindings[title] || []);
+				const titleMatchesCard = normalizedText(title) === normalizedText(cardTitle);
+				const singleRowRepeatsTitle =
+					rows.length === 1 &&
+					normalizedText(rows[0]?.title) === normalizedText(title) &&
+					!rows[0]?.urlList?.length;
+				return {
+					key: `${prefix}-${title}`,
+					title: titleMatchesCard || singleRowRepeatsTitle ? undefined : title,
+					rows
+				};
+			})
 			.filter((group) => group.rows.length > 0);
 	}
 
@@ -217,7 +247,7 @@
 	const hiddenWarnCount = $derived.by(() =>
 		Math.max(findingsByStatus.warn.length - visibleWarnFindings.length, 0)
 	);
-	const warnGroups = $derived(groupedIssueSections('warn', visibleWarnFindings));
+	const warnGroups = $derived(groupedIssueSections('warn', visibleWarnFindings, item.label));
 	const visibleInfoFindings = $derived.by(() => {
 		if (selectedStatus === 'info' || showAllInfoFindings) {
 			return findingsByStatus.info;
@@ -229,7 +259,7 @@
 	const hiddenInfoCount = $derived.by(() =>
 		Math.max(findingsByStatus.info.length - visibleInfoFindings.length, 0)
 	);
-	const infoGroups = $derived(groupedIssueSections('info', visibleInfoFindings));
+	const infoGroups = $derived(groupedIssueSections('info', visibleInfoFindings, item.label));
 	const visiblePassFindings = $derived.by(() => {
 		if (selectedStatus === 'pass' || showPassedFindings) {
 			return findingsByStatus.pass;
@@ -241,7 +271,7 @@
 	const hiddenPassCount = $derived.by(() =>
 		Math.max(findingsByStatus.pass.length - visiblePassFindings.length, 0)
 	);
-	const passGroups = $derived(groupedIssueSections('pass', visiblePassFindings));
+	const passGroups = $derived(groupedIssueSections('pass', visiblePassFindings, item.label));
 	const hasVisibleFindings = $derived.by(
 		() =>
 			findingsByStatus.warn.length > 0 ||
