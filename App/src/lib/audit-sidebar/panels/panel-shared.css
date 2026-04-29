@@ -1,0 +1,167 @@
+.section {
+	padding-top: 18px;
+}
+
+.section:first-child {
+	padding-top: 0;
+}
+
+.title {
+	margin: 0;
+	font-size: 28px;
+	line-height: 1.08;
+	font-weight: 700;
+	color: #d93025;
+}
+
+.copy {
+	margin: 10px 0 0;
+	font-size: 13px;
+	line-height: 1.55;
+	color: #5f6368;
+}
+
+.summary {
+	margin-top: 18px;
+	padding: 18px 12px 14px;
+	text-align: center;
+}
+
+.summary-label {
+	margin: 0;
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: #5f6368;
+}
+
+.summary-count {
+	margin: 8px 0 0;
+	font-size: 64px;
+	line-height: 1;
+	font-weight: 700;
+	color: #d93025;
+}
+
+.summary-note {
+	margin: 8px 0 0;
+	font-size: 13px;
+	line-height: 1.45;
+	color: #5f6368;
+}
+
+.list {
+	margin-top: 16px;
+	display: grid;
+	gap: 12px;
+}
+
+.card {
+	border: 1px solid #e0e3e7;
+	border-radius: 14px;
+	padding: 14px;
+	background: #fff;
+	overflow: hidden;
+}
+
+.card-head {
+	display: grid;
+	grid-template-columns: 22px 1fr;
+	gap: 10px;
+	align-items: center;
+	min-width: 0;
+}
+
+.badge {
+	width: 22px;
+	height: 22px;
+	border-radius: 999px;
+	display: grid;
+	place-items: center;
+	font-size: 13px;
+	font-weight: 700;
+	color: #d93025;
+	background: #fce8e6;
+}
+
+.card-title {
+	margin: 0;
+	font-size: 15px;
+	font-weight: 700;
+	line-height: 1.35;
+	color: #d93025;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+}
+
+.meta {
+	margin-top: 10px;
+	display: grid;
+	gap: 8px;
+	min-width: 0;
+}
+
+.meta-label {
+	margin: 0;
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: #5f6368;
+}
+
+.meta-value {
+	margin: 2px 0 0;
+	min-width: 0;
+	font-size: 12px;
+	line-height: 1.45;
+	color: #202124;
+	overflow-wrap: anywhere;
+	word-break: break-word;
+}
+
+.meta-value-strong {
+	font-weight: 700;
+}
+
+.meta-value-preview {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 3;
+}
+
+.meta-value-list {
+	display: grid;
+	gap: 4px;
+	margin: 4px 0 0;
+	padding: 0;
+	list-style: none;
+}
+
+.meta-value-list li {
+	min-width: 0;
+	padding-left: 12px;
+	position: relative;
+	font-size: 12px;
+	line-height: 1.45;
+	color: #202124;
+	overflow-wrap: anywhere;
+}
+
+.meta-value-list li::before {
+	content: '';
+	position: absolute;
+	top: 0.62em;
+	left: 0;
+	width: 4px;
+	height: 4px;
+	border-radius: 999px;
+	background: #d93025;
+}
