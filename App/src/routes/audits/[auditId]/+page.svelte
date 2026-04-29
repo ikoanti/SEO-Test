@@ -276,8 +276,8 @@
 		return explicit || extractFirstHttpUrl(finding.title) || extractFirstHttpUrl(finding.detail);
 	}
 
-	function issueText(finding: AuditFindingView, fallback: string) {
-		return String(finding.detail || finding.title || fallback);
+	function issueText(finding: AuditFindingView, item: AuditItemView) {
+		return String(finding.detail || finding.title || item.label || '');
 	}
 
 	function issueFindings(item: AuditItemView) {
@@ -288,14 +288,14 @@
 		return pageData.reportTemplates?.find((template) => template.findingTypeKey === key);
 	}
 
-	function sidebarTitle(item: AuditItemView | undefined, fallback: string) {
+	function sidebarTitle(item: AuditItemView | undefined) {
 		const template = item ? templateForFindingType(item.key) : undefined;
-		return template?.title || item?.label || fallback;
+		return template?.title || item?.label || '';
 	}
 
-	function sidebarDescription(item: AuditItemView | undefined, fallback: string) {
+	function sidebarDescription(item: AuditItemView | undefined) {
 		const template = item ? templateForFindingType(item.key) : undefined;
-		return template?.template_body?.split(/\n{2,}/)[0]?.trim() || fallback;
+		return template?.template_body?.split(/\n{2,}/)[0]?.trim() || '';
 	}
 
 	function entryValue(finding: AuditFindingView) {
@@ -332,16 +332,19 @@
 	function buildSidebarPreviewItems(): SidebarPreviewItem[] {
 		const items: SidebarPreviewItem[] = [];
 		const domain = currentDomain();
+		const itemMap = new Map(pageData.normalizedItems.map((item) => [item.key, item]));
+		const pageSpeedItem = itemMap.get('pageSpeed');
+		const openPageRankItem = itemMap.get('openPageRank');
 
 		if (Object.keys(pageSpeed()).length > 0) {
+			const label = sidebarTitle(pageSpeedItem);
 			items.push({
 				key: 'pagespeed',
-				label: templateForFindingType('pageSpeed')?.title || 'Unoptimized page speed',
+				label,
 				data: buildSidebarData('pagespeed', {
 					kind: 'pagespeed',
-					title: templateForFindingType('pageSpeed')?.title || 'Unoptimized page speed',
-					description:
-						'Google PageSpeed Insights scores and Core Web Vitals-style lab metrics for the audited page.',
+					title: label,
+					description: sidebarDescription(pageSpeedItem),
 					domain,
 					pageSpeed: pageSpeed()
 				})
@@ -349,25 +352,23 @@
 		}
 
 		if (Object.keys(openPageRank()).length > 0) {
+			const label = sidebarTitle(openPageRankItem);
 			items.push({
 				key: 'open-page-rank',
-				label: 'Open PageRank',
+				label,
 				data: buildSidebarData('open-page-rank', {
 					kind: 'open-page-rank',
-					title: 'Open PageRank',
-					description: 'Domain authority and global ranking data from Open PageRank.',
+					title: label,
+					description: sidebarDescription(openPageRankItem),
 					domain,
 					openPageRank: openPageRank()
 				})
 			});
 		}
 
-		const itemMap = new Map(pageData.normalizedItems.map((item) => [item.key, item]));
 		const addListPreview = (
 			itemKey: string,
 			activeTab: string,
-			fallbackTitle: string,
-			fallbackDescription: string,
 			buildPanel: (item: AuditItemView) => AuditPanelData | null
 		) => {
 			const item = itemMap.get(itemKey);
@@ -376,7 +377,7 @@
 			if (!panel) return;
 			items.push({
 				key: activeTab,
-				label: sidebarTitle(item, fallbackTitle),
+				label: sidebarTitle(item),
 				data: buildSidebarData(activeTab, panel)
 			});
 		};
@@ -384,20 +385,18 @@
 		addListPreview(
 			'missing-h1-tags',
 			'missing-h1-tags',
-			'Missing H1 tags',
-			'Important pages are missing strong heading structure, which weakens topical clarity and makes page hierarchy less obvious to search engines.',
 			(item) =>
 			{
 				const findings = issueFindings(item);
 				const entries = findings
 					.map((finding) => {
 						const page = pageUrlFromFinding(finding);
-						return page ? { page, issue: issueText(finding, item.label) } : null;
+						return page ? { page, issue: issueText(finding, item) } : null;
 					})
 					.filter((entry): entry is { page: string; issue: string } => Boolean(entry));
 
 				return entries.length
-					? { kind: 'headings', title: sidebarTitle(item, 'Missing H1 tags'), description: sidebarDescription(item, 'Important pages are missing strong heading structure, which weakens topical clarity and makes page hierarchy less obvious to search engines.'), domain, count: findings.length, entries }
+					? { kind: 'headings', title: sidebarTitle(item), description: sidebarDescription(item), domain, count: findings.length, entries }
 					: null;
 			}
 		);
@@ -405,20 +404,18 @@
 		addListPreview(
 			'multiple-h1-tags',
 			'multiple-h1-tags',
-			'Multiple H1 tags',
-			'Pages should have one clear H1 heading so crawlers can identify the main topic without ambiguity.',
 			(item) =>
 			{
 				const findings = issueFindings(item);
 				const entries = findings
 					.map((finding) => {
 						const page = pageUrlFromFinding(finding);
-						return page ? { page, issue: issueText(finding, item.label) } : null;
+						return page ? { page, issue: issueText(finding, item) } : null;
 					})
 					.filter((entry): entry is { page: string; issue: string } => Boolean(entry));
 
 				return entries.length
-					? { kind: 'headings', title: sidebarTitle(item, 'Multiple H1 tags'), description: sidebarDescription(item, 'Pages should have one clear H1 heading so crawlers can identify the main topic without ambiguity.'), domain, count: findings.length, entries }
+					? { kind: 'headings', title: sidebarTitle(item), description: sidebarDescription(item), domain, count: findings.length, entries }
 					: null;
 			}
 		);
@@ -426,20 +423,18 @@
 		addListPreview(
 			'missing-product-schema',
 			'missing-product-schema',
-			'Missing product schema',
-			'Product pages should include Product JSON-LD so search engines can understand price, availability, ratings, and product identity.',
 			(item) =>
 			{
 				const findings = issueFindings(item);
 				const entries = findings
 					.map((finding) => {
 						const page = pageUrlFromFinding(finding);
-						return page ? { page, issue: issueText(finding, item.label) } : null;
+						return page ? { page, issue: issueText(finding, item) } : null;
 					})
 					.filter((entry): entry is { page: string; issue: string } => Boolean(entry));
 
 				return entries.length
-					? { kind: 'missing-product-schema', title: sidebarTitle(item, 'Missing product schema'), description: sidebarDescription(item, 'Product pages should include Product JSON-LD so search engines can understand price, availability, ratings, and product identity.'), domain, count: findings.length, entries }
+					? { kind: 'missing-product-schema', title: sidebarTitle(item), description: sidebarDescription(item), domain, count: findings.length, entries }
 					: null;
 			}
 		);
@@ -447,8 +442,6 @@
 		addListPreview(
 			'imageAltTags',
 			'image-alts',
-			'Unoptimized Alt Tags',
-			'Important product and collection images are missing descriptive alt text, reducing image search discoverability and weakening crawler context.',
 			(item) =>
 			{
 				const findings = issueFindings(item);
@@ -457,14 +450,14 @@
 						const meta = parseMeta(finding.meta);
 						const page = pageUrlFromFinding(finding);
 						const image = extractFirstHttpUrl(meta.title) || extractFirstHttpUrl(finding.title);
-						return page && image ? { page, image, issue: issueText(finding, item.label) } : null;
+						return page && image ? { page, image, issue: issueText(finding, item) } : null;
 					})
 					.filter(
 						(entry): entry is { page: string; image: string; issue: string } => Boolean(entry)
 					);
 
 				return entries.length
-					? { kind: 'image-alts', title: sidebarTitle(item, 'Unoptimized Alt Tags'), description: sidebarDescription(item, 'Important product and collection images are missing descriptive alt text, reducing image search discoverability and weakening crawler context.'), domain, count: findings.length, entries }
+					? { kind: 'image-alts', title: sidebarTitle(item), description: sidebarDescription(item), domain, count: findings.length, entries }
 					: null;
 			}
 		);
@@ -472,8 +465,6 @@
 		addListPreview(
 			'metaTitles',
 			'meta-tags',
-			'Unoptimized Meta Tags',
-			'Important pages have missing, duplicated, or oversized metadata, which can weaken search result relevance and click-through clarity.',
 			(item) =>
 			{
 				const findings = issueFindings(item);
@@ -483,13 +474,13 @@
 						if (!page) return null;
 						const value = entryValue(finding);
 						return value
-							? { page, issue: issueText(finding, item.label), value }
-							: { page, issue: issueText(finding, item.label) };
+							? { page, issue: issueText(finding, item), value }
+							: { page, issue: issueText(finding, item) };
 					})
 					.filter((entry): entry is { page: string; issue: string; value?: string } => Boolean(entry));
 
 				return entries.length
-					? { kind: 'meta-tags', title: sidebarTitle(item, 'Unoptimized Meta Tags'), description: sidebarDescription(item, 'Important pages have missing, duplicated, or oversized metadata, which can weaken search result relevance and click-through clarity.'), domain, count: findings.length, activePageUrl: entries[0]?.page || '', entries }
+					? { kind: 'meta-tags', title: sidebarTitle(item), description: sidebarDescription(item), domain, count: findings.length, activePageUrl: entries[0]?.page || '', entries }
 					: null;
 			}
 		);
@@ -497,8 +488,6 @@
 		addListPreview(
 			'canonicalUrls',
 			'canonicals',
-			'Unoptimized Canonicals',
-			'Canonical tags help consolidate ranking signals and clarify the preferred URL for indexed pages.',
 			(item) =>
 			{
 				const findings = issueFindings(item);
@@ -508,13 +497,13 @@
 						if (!page) return null;
 						const value = entryValue(finding);
 						return value
-							? { page, issue: issueText(finding, item.label), value }
-							: { page, issue: issueText(finding, item.label) };
+							? { page, issue: issueText(finding, item), value }
+							: { page, issue: issueText(finding, item) };
 					})
 					.filter((entry): entry is { page: string; issue: string; value?: string } => Boolean(entry));
 
 				return entries.length
-					? { kind: 'canonicals', title: sidebarTitle(item, 'Unoptimized Canonicals'), description: sidebarDescription(item, 'Canonical tags help consolidate ranking signals and clarify the preferred URL for indexed pages.'), domain, count: findings.length, entries }
+					? { kind: 'canonicals', title: sidebarTitle(item), description: sidebarDescription(item), domain, count: findings.length, entries }
 					: null;
 			}
 		);
@@ -522,8 +511,6 @@
 		addListPreview(
 			'internalLinks',
 			'internal-links',
-			'Unoptimized Internal Links',
-			'Pages with no crawlable internal links create dead ends for users and search crawlers.',
 			(item) =>
 			{
 				const findings = issueFindings(item);
@@ -534,7 +521,7 @@
 						if (!page) return accumulator;
 						accumulator.push({
 							page,
-							issue: issueText(finding, item.label),
+							issue: issueText(finding, item),
 							count:
 								typeof meta.count === 'number'
 									? meta.count
@@ -546,7 +533,7 @@
 				);
 
 				return entries.length
-					? { kind: 'internal-links', title: sidebarTitle(item, 'Unoptimized Internal Links'), description: sidebarDescription(item, 'Pages with no crawlable internal links create dead ends for users and search crawlers.'), domain, count: findings.length, entries }
+					? { kind: 'internal-links', title: sidebarTitle(item), description: sidebarDescription(item), domain, count: findings.length, entries }
 					: null;
 			}
 		);
@@ -554,8 +541,6 @@
 		addListPreview(
 			'lazyLoadImages',
 			'lazy-loading',
-			'Unoptimized Lazy Loading',
-			'Images without native lazy loading can increase initial page weight and delay rendering on image-heavy pages.',
 			(item) =>
 			{
 				const findings = issueFindings(item);
@@ -567,12 +552,12 @@
 							extractFirstHttpUrl(meta.title) ||
 							extractFirstHttpUrl(meta.image) ||
 							extractFirstHttpUrl(finding.title);
-						return page && image ? { page, issue: issueText(finding, item.label), image } : null;
+						return page && image ? { page, issue: issueText(finding, item), image } : null;
 					})
 					.filter((entry): entry is { page: string; issue: string; image: string } => Boolean(entry));
 
 				return entries.length
-					? { kind: 'lazy-loading', title: sidebarTitle(item, 'Unoptimized Lazy Loading'), description: sidebarDescription(item, 'Images without native lazy loading can increase initial page weight and delay rendering on image-heavy pages.'), domain, count: findings.length, entries }
+					? { kind: 'lazy-loading', title: sidebarTitle(item), description: sidebarDescription(item), domain, count: findings.length, entries }
 					: null;
 			}
 		);
@@ -580,8 +565,6 @@
 		addListPreview(
 			'openGraph',
 			'open-graph',
-			'Unoptimized OpenGraph Tags',
-			'OpenGraph tags control how pages appear when shared and help AI and social surfaces understand page context.',
 			(item) =>
 			{
 				const findings = issueFindings(item);
@@ -594,7 +577,7 @@
 						if (!page) return accumulator;
 						accumulator.push({
 							page,
-							issue: issueText(finding, item.label),
+							issue: issueText(finding, item),
 							property:
 								typeof meta.property === 'string'
 									? meta.property
@@ -608,7 +591,7 @@
 				);
 
 				return entries.length
-					? { kind: 'open-graph', title: sidebarTitle(item, 'Unoptimized OpenGraph Tags'), description: sidebarDescription(item, 'OpenGraph tags control how pages appear when shared and help AI and social surfaces understand page context.'), domain, count: findings.length, entries }
+					? { kind: 'open-graph', title: sidebarTitle(item), description: sidebarDescription(item), domain, count: findings.length, entries }
 					: null;
 			}
 		);
@@ -616,8 +599,6 @@
 		addListPreview(
 			'contentQuality',
 			'content-quality',
-			'Thin Content',
-			'Pages with limited body copy can struggle to communicate topical depth and satisfy search intent.',
 			(item) =>
 			{
 				const findings = issueFindings(item);
@@ -628,7 +609,7 @@
 						if (!page) return accumulator;
 						accumulator.push({
 							page,
-							issue: issueText(finding, item.label),
+							issue: issueText(finding, item),
 							wordCount:
 								typeof meta.wordCount === 'number'
 									? meta.wordCount
@@ -640,7 +621,7 @@
 				);
 
 				return entries.length
-					? { kind: 'content-quality', title: sidebarTitle(item, 'Thin Content'), description: sidebarDescription(item, 'Pages with limited body copy can struggle to communicate topical depth and satisfy search intent.'), domain, count: findings.length, entries }
+					? { kind: 'content-quality', title: sidebarTitle(item), description: sidebarDescription(item), domain, count: findings.length, entries }
 					: null;
 			}
 		);
@@ -648,8 +629,6 @@
 		addListPreview(
 			'shopifyUrls',
 			'shopify-urls',
-			'Unoptimized Shopify URL Structure',
-			'Duplicate Shopify collection/product URL paths can split ranking signals and create avoidable crawl duplication.',
 			(item) =>
 			{
 				const findings = issueFindings(item);
@@ -659,7 +638,7 @@
 						return page
 							? {
 									page,
-									issue: issueText(finding, item.label),
+									issue: issueText(finding, item),
 									pattern: '/collections/{collection}/products/{product}'
 								}
 							: null;
@@ -669,7 +648,7 @@
 					);
 
 				return entries.length
-					? { kind: 'shopify-urls', title: sidebarTitle(item, 'Unoptimized Shopify URL Structure'), description: sidebarDescription(item, 'Duplicate Shopify collection/product URL paths can split ranking signals and create avoidable crawl duplication.'), domain, count: findings.length, entries }
+					? { kind: 'shopify-urls', title: sidebarTitle(item), description: sidebarDescription(item), domain, count: findings.length, entries }
 					: null;
 			}
 		);
@@ -687,21 +666,18 @@
 				.filter((finding) => finding.status === 'warn' || finding.status === 'fail')
 				.filter((finding) => parseMeta(finding.meta).category === 'ai')
 				.map((finding) => ({
-					issue: issueText(finding, robotsItem.label),
+					issue: robotsItem ? issueText(finding, robotsItem) : '',
 					status: finding.status
 				})) ?? [];
 
-		if (Array.isArray(robotsRequestMeta.foundAgents) || robotsEntries.length) {
+		if (robotsItem && (Array.isArray(robotsRequestMeta.foundAgents) || robotsEntries.length)) {
 			items.unshift({
 				key: 'ai-bot-visibility',
-				label: sidebarTitle(robotsItem, 'AI Chatbots/LLMs Not Whitelisted'),
+				label: sidebarTitle(robotsItem),
 				data: buildSidebarData('ai-bot-visibility', {
 					kind: 'ai-bot-visibility',
-					title: sidebarTitle(robotsItem, 'AI Chatbots/LLMs Not Whitelisted'),
-					description: sidebarDescription(
-						robotsItem,
-						'Robots.txt is missing explicit coverage for important AI and search crawler user-agents, which can limit discovery in ChatGPT, Perplexity, Claude, and modern search tools.'
-					),
+					title: sidebarTitle(robotsItem),
+					description: sidebarDescription(robotsItem),
 					domain,
 					count: robotsEntries.length,
 					entries: robotsEntries,

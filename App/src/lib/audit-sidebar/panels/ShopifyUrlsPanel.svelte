@@ -7,7 +7,6 @@
 
 <IssueListPanel
 	{panel}
-	summaryNote={'Shopify URL structure issues found on {domain}'}
 	fields={[
 		{ label: 'Page', key: 'page' },
 		{ label: 'Pattern', key: 'pattern', strong: true }

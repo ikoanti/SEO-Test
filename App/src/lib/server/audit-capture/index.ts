@@ -110,8 +110,8 @@ export async function capturePageSpeedEvidence(
 	domain: string,
 	pageUrl: string,
 	pageSpeed: Record<string, unknown>,
-	title = 'Unoptimized page speed',
-	description = 'Google PageSpeed Insights scores and Core Web Vitals-style lab metrics for the audited page.',
+	title = '',
+	description = '',
 	capturePageUrl?: string,
 	fallbackPageUrls: string[] = []
 ) {
@@ -132,8 +132,8 @@ export async function captureOpenPageRankEvidence(
 	domain: string,
 	pageUrl: string,
 	openPageRank: Record<string, unknown>,
-	title = 'Open PageRank',
-	description = 'Domain authority and global ranking data from Open PageRank.',
+	title = '',
+	description = '',
 	capturePageUrl?: string,
 	fallbackPageUrls: string[] = []
 ) {
@@ -178,8 +178,8 @@ export async function captureImageAltEvidence(
 	domain: string,
 	entries: Array<{ page: string; image: string; issue?: string }>,
 	count = entries.length,
-	title = 'Unoptimized Alt Tags',
-	description = 'Important product and collection images are missing descriptive alt text, reducing image search discoverability and weakening crawler context.',
+	title = '',
+	description = '',
 	capturePageUrl?: string,
 	fallbackPageUrls: string[] = []
 ) {
@@ -202,8 +202,8 @@ export async function captureMetaEvidence(
 	domain: string,
 	entries: Array<{ page: string; issue: string; value?: string }>,
 	count = entries.length,
-	title = 'Unoptimized Meta Tags',
-	description = 'Important pages have missing, duplicated, or oversized metadata, which can weaken search result relevance and click-through clarity.',
+	title = '',
+	description = '',
 	capturePageUrl?: string,
 	fallbackPageUrls: string[] = []
 ) {
@@ -228,8 +228,8 @@ export async function captureCanonicalEvidence(
 	domain: string,
 	entries: Array<{ page: string; issue: string; value?: string }>,
 	count = entries.length,
-	title = 'Unoptimized Canonicals',
-	description = 'Canonical tags help consolidate ranking signals and clarify the preferred URL for indexed pages.',
+	title = '',
+	description = '',
 	capturePageUrl?: string,
 	fallbackPageUrls: string[] = []
 ) {
@@ -252,8 +252,8 @@ export async function captureInternalLinksEvidence(
 	domain: string,
 	entries: Array<{ page: string; issue: string; count?: number }>,
 	count = entries.length,
-	title = 'Unoptimized Internal Links',
-	description = 'Pages with no crawlable internal links create dead ends for users and search crawlers.',
+	title = '',
+	description = '',
 	capturePageUrl?: string,
 	fallbackPageUrls: string[] = []
 ) {
@@ -276,8 +276,8 @@ export async function captureLazyLoadingEvidence(
 	domain: string,
 	entries: Array<{ page: string; issue: string; image?: string }>,
 	count = entries.length,
-	title = 'Unoptimized Lazy Loading',
-	description = 'Images without native lazy loading can increase initial page weight and delay rendering on image-heavy pages.',
+	title = '',
+	description = '',
 	capturePageUrl?: string,
 	fallbackPageUrls: string[] = []
 ) {
@@ -300,8 +300,8 @@ export async function captureOpenGraphEvidence(
 	domain: string,
 	entries: Array<{ page: string; issue: string; property?: string }>,
 	count = entries.length,
-	title = 'Unoptimized OpenGraph Tags',
-	description = 'OpenGraph tags control how pages appear when shared and help AI and social surfaces understand page context.',
+	title = '',
+	description = '',
 	capturePageUrl?: string,
 	fallbackPageUrls: string[] = []
 ) {
@@ -324,8 +324,8 @@ export async function captureContentQualityEvidence(
 	domain: string,
 	entries: Array<{ page: string; issue: string; wordCount?: number }>,
 	count = entries.length,
-	title = 'Thin Content',
-	description = 'Pages with limited body copy can struggle to communicate topical depth and satisfy search intent.',
+	title = '',
+	description = '',
 	capturePageUrl?: string,
 	fallbackPageUrls: string[] = []
 ) {
@@ -348,8 +348,8 @@ export async function captureShopifyUrlEvidence(
 	domain: string,
 	entries: Array<{ page: string; issue: string; pattern?: string }>,
 	count = entries.length,
-	title = 'Unoptimized Shopify URL Structure',
-	description = 'Duplicate Shopify collection/product URL paths can split ranking signals and create avoidable crawl duplication.',
+	title = '',
+	description = '',
 	capturePageUrl?: string,
 	fallbackPageUrls: string[] = []
 ) {
@@ -375,8 +375,8 @@ export async function captureRobotsEvidence({
 	foundAgents,
 	entries = [],
 	count,
-	title = 'AI Chatbots/LLMs Not Whitelisted',
-	description = 'Robots.txt is missing explicit coverage for important AI and search crawler user-agents, which can limit discovery in ChatGPT, Perplexity, Claude, and modern search tools.',
+	title = '',
+	description = '',
 	capturePageUrl,
 	fallbackCapturePageUrls = []
 }: {

@@ -8,7 +8,6 @@
 <IssueListPanel
 	{panel}
 	summaryLabel="Missing"
-	summaryNote={'OpenGraph tags missing on {domain}'}
 	fields={[
 		{ label: 'Property', key: 'property', strong: true },
 		{ label: 'Page', key: 'page' }

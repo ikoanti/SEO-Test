@@ -7,7 +7,6 @@
 
 <IssueListPanel
 	{panel}
-	summaryNote={'Missing image alt tags found on {domain}'}
 	fields={[
 		{ label: 'Page', key: 'page' },
 		{ label: 'Image', key: 'image' }

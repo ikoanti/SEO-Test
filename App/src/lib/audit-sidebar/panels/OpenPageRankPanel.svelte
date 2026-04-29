@@ -12,8 +12,12 @@
 </script>
 
 <section class="section">
-	<h1 class="title">{panel?.title ?? 'Open PageRank'}</h1>
-	<p class="copy">{panel?.description ?? ''}</p>
+	{#if panel?.title}
+		<h1 class="title">{panel.title}</h1>
+	{/if}
+	{#if panel?.description}
+		<p class="copy">{panel.description}</p>
+	{/if}
 </section>
 <section class="section">
 	<div class="rank-stack">

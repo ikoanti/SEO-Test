@@ -7,7 +7,6 @@
 
 <IssueListPanel
 	{panel}
-	summaryNote={'Thin content pages found on {domain}'}
 	fields={[
 		{ label: 'Page', key: 'page' },
 		{ label: 'Word Count', key: 'wordCount', getValue: (entry) => entry.wordCount ?? entry.value ?? '' }

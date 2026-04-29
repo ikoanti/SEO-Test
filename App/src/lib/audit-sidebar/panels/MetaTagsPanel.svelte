@@ -59,14 +59,17 @@
 </script>
 
 <section class="section">
-	<h1 class="title">{panel?.title ?? 'Unoptimized Meta Tags'}</h1>
-	<p class="copy">{panel?.description ?? ''}</p>
+	{#if panel?.title}
+		<h1 class="title">{panel.title}</h1>
+	{/if}
+	{#if panel?.description}
+		<p class="copy">{panel.description}</p>
+	{/if}
 </section>
 <section class="section">
 	<div class="summary">
 		<p class="summary-label">Detected</p>
 		<p class="summary-count">{panel?.count ?? entries.length}</p>
-		<p class="summary-note">Meta tag issues found on {panel?.domain ?? 'this domain'}</p>
 	</div>
 </section>
 <section class="section">
@@ -75,7 +78,7 @@
 			<article class="card">
 				<div class="card-head">
 					<div class="badge"><X size={14} strokeWidth={3} aria-hidden="true" /></div>
-					<p class="card-title">{entry.issue ?? 'Meta tag issue'}</p>
+					<p class="card-title">{entry.issue}</p>
 				</div>
 				<div class="meta">
 					{#if entry.value}

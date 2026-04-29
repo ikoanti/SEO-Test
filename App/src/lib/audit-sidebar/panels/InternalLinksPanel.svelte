@@ -7,9 +7,8 @@
 
 <IssueListPanel
 	{panel}
-	summaryNote={'Internal link issues found on {domain}'}
 	fields={[
 		{ label: 'Page', key: 'page' },
-		{ label: 'Internal Links', key: 'count', strong: true, fallback: 0 }
+		{ label: 'Internal Links', key: 'count', strong: true }
 	]}
 />

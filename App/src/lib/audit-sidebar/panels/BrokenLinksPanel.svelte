@@ -7,8 +7,6 @@
 
 <IssueListPanel
 	{panel}
-	summaryNote={'Broken links found on {domain}'}
-	cardTitle={(_, index) => `Broken link #${index + 1}`}
 	fields={[
 		{ label: 'Page', key: 'page' },
 		{ label: 'Link', key: 'link' }

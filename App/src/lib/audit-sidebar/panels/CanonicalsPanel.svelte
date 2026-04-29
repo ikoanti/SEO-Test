@@ -7,7 +7,6 @@
 
 <IssueListPanel
 	{panel}
-	summaryNote={'Canonical URL issues found on {domain}'}
 	fields={[
 		{ label: 'Canonical', key: 'value', strong: true },
 		{ label: 'Page', key: 'page' }

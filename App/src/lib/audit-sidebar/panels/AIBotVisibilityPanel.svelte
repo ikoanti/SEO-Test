@@ -69,21 +69,6 @@
 		Bytespider: { label: 'ByteDance', logo: bytedanceLogo }
 	};
 
-	function computeMissingAgents(foundAgents?: string[]) {
-		const normalized = Array.isArray(foundAgents) ? foundAgents : [];
-		const hasWildcard = normalized.some((agent) => String(agent).trim() === '*');
-
-		return EXPECTED_BOTS.filter((bot) => {
-			const hasSpecific = normalized.some(
-				(agent) => String(agent).trim().toLowerCase() === bot.toLowerCase()
-			);
-			if (bot.toLowerCase() === 'googlebot' && !hasSpecific && hasWildcard) {
-				return false;
-			}
-			return !hasSpecific;
-		});
-	}
-
 	function badgeFor(agent: string) {
 		return (
 			BOT_BADGES[agent] ?? {
@@ -109,73 +94,43 @@
 			});
 	}
 
-	function missingAgentRows(agents: string[]) {
-		return agents.toSorted((first, second) => {
-			const firstIcon = badgeFor(first);
-			const secondIcon = badgeFor(second);
-			if (Boolean(firstIcon.logo) === Boolean(secondIcon.logo)) return 0;
-			return firstIcon.logo ? -1 : 1;
-		});
-	}
-
-	let missingAgents = $derived(computeMissingAgents(panel?.foundAgents));
-	let sortedMissingAgents = $derived(missingAgentRows(missingAgents));
 	let rows = $derived(issueRows(panel?.entries));
-	let summaryCount = $derived(rows.length ? rows.length : missingAgents.length);
-	let summaryLabel = $derived(rows.length ? 'Issues' : 'Missing');
 </script>
 
 <section class="section">
-	<h1 class="title">{panel?.title ?? 'AI Chatbots/LLMs Not Whitelisted'}</h1>
-	<p class="copy">{panel?.description ?? ''}</p>
+	{#if panel?.title}
+		<h1 class="title">{panel.title}</h1>
+	{/if}
+	{#if panel?.description}
+		<p class="copy">{panel.description}</p>
+	{/if}
 </section>
 <section class="section">
 	<div class="summary">
-		<p class="summary-label">{summaryLabel}</p>
-		<p class="summary-count">{panel?.count ?? summaryCount}</p>
-		<p class="summary-note">AI crawler robots.txt findings on {panel?.domain ?? 'this domain'}</p>
+		<p class="summary-label">Issues</p>
+		<p class="summary-count">{panel?.count ?? rows.length}</p>
 	</div>
 </section>
 <section class="section">
 	<div class="list">
-		{#if rows.length}
-			{#each rows as entry}
-				{@const agent = agentFromIssue(entry.issue)}
-				{@const icon = badgeFor(agent ?? entry.issue ?? '')}
-				<article class="card compact" class:blocked={entry.status === 'fail'}>
-					<div class="card-head">
-						<div class="bot-logo-wrap" aria-hidden="true">
-							{#if icon.logo}
-								<img class="bot-logo" src={icon.logo} alt="" />
-							{:else}
-								<div class="bot-logo bot-logo-fallback">
-									<Bot size={20} strokeWidth={2.4} />
-								</div>
-							{/if}
-						</div>
-						<p class="card-title">{entry.issue}</p>
+		{#each rows as entry}
+			{@const agent = agentFromIssue(entry.issue)}
+			{@const icon = badgeFor(agent ?? entry.issue ?? '')}
+			<article class="card compact" class:blocked={entry.status === 'fail'}>
+				<div class="card-head">
+					<div class="bot-logo-wrap" aria-hidden="true">
+						{#if icon.logo}
+							<img class="bot-logo" src={icon.logo} alt="" />
+						{:else}
+							<div class="bot-logo bot-logo-fallback">
+								<Bot size={20} strokeWidth={2.4} />
+							</div>
+						{/if}
 					</div>
-				</article>
-			{/each}
-		{:else}
-			{#each sortedMissingAgents as agent}
-				{@const icon = badgeFor(agent)}
-				<article class="card compact">
-					<div class="card-head">
-						<div class="bot-logo-wrap" aria-hidden="true">
-							{#if icon.logo}
-								<img class="bot-logo" src={icon.logo} alt="" />
-							{:else}
-								<div class="bot-logo bot-logo-fallback">
-									<Bot size={20} strokeWidth={2.4} />
-								</div>
-							{/if}
-						</div>
-						<p class="card-title">Missing {icon.label}</p>
-					</div>
-				</article>
-			{/each}
-		{/if}
+					<p class="card-title">{entry.issue}</p>
+				</div>
+			</article>
+		{/each}
 	</div>
 </section>
 

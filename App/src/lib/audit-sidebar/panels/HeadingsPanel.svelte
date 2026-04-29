@@ -5,8 +5,4 @@
 	let { panel }: { panel?: BasePanelData } = $props();
 </script>
 
-<IssueListPanel
-	{panel}
-	summaryNote={'Heading issues found on {domain}'}
-	fields={[{ label: 'Page', key: 'page' }]}
-/>
+<IssueListPanel {panel} fields={[{ label: 'Page', key: 'page' }]} />

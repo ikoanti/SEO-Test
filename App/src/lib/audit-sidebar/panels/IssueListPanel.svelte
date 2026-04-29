@@ -8,32 +8,20 @@
 		key: keyof AuditEntry;
 		strong?: boolean;
 		preview?: boolean;
-		fallback?: unknown;
 		getValue?: (entry: AuditEntry) => unknown;
 	};
 
 	let {
 		panel,
 		summaryLabel = 'Detected',
-		summaryNote,
-		cardTitle,
 		fields = []
 	}: {
 		panel?: BasePanelData;
 		summaryLabel?: string;
-		summaryNote?: string;
-		cardTitle?: (entry: AuditEntry, index: number) => string;
 		fields?: FieldConfig[];
 	} = $props();
 
 	let entries = $derived(Array.isArray(panel?.entries) ? panel.entries : []);
-	let resolvedSummaryNote = $derived(
-		summaryNote
-			? summaryNote.replace('{domain}', panel?.domain ?? 'this domain')
-			: panel?.domain
-				? `Issues found on ${panel.domain}`
-				: ''
-	);
 </script>
 
 <section class="section">
@@ -48,22 +36,19 @@
 	<div class="summary">
 		<p class="summary-label">{summaryLabel}</p>
 		<p class="summary-count">{panel?.count ?? entries.length}</p>
-		{#if resolvedSummaryNote}
-			<p class="summary-note">{resolvedSummaryNote}</p>
-		{/if}
 	</div>
 </section>
 <section class="section">
 	<div class="list">
-		{#each entries as entry, index}
+		{#each entries as entry}
 			<article class="card">
 				<div class="card-head">
 					<div class="badge"><X size={14} strokeWidth={3} aria-hidden="true" /></div>
-					<p class="card-title">{cardTitle?.(entry, index) ?? entry.issue}</p>
+					<p class="card-title">{entry.issue}</p>
 				</div>
 				<div class="meta">
 					{#each fields as field}
-						{@const value = field.getValue?.(entry) ?? entry[field.key] ?? field.fallback}
+						{@const value = field.getValue?.(entry) ?? entry[field.key]}
 						{#if value !== undefined && value !== null && value !== ''}
 							<div>
 								<p class="meta-label">{field.label}</p>
@@ -134,13 +119,6 @@
 		line-height: 1;
 		font-weight: 700;
 		color: #d93025;
-	}
-
-	.summary-note {
-		margin: 8px 0 0;
-		font-size: 13px;
-		line-height: 1.45;
-		color: #5f6368;
 	}
 
 	.list {
