@@ -1,5 +1,5 @@
 import { buildAuditPageData } from '$lib/server/audit-detail';
-import { hasPendingScreenshotJobs } from '$lib/server/audit-runner';
+import { ensureAuditWorkflowProcessing, hasPendingScreenshotJobs } from '$lib/server/audit-runner';
 
 function delay(ms: number) {
 	return new Promise((resolve) => setTimeout(resolve, ms));
@@ -34,6 +34,7 @@ export const GET = async ({ params, locals, request }) => {
 					const slimPayload = await buildAuditPageData(params.auditId, locals.pbToken, {
 						includeReportHtml: false
 					});
+					ensureAuditWorkflowProcessing(slimPayload.workflowRecord, locals.pbToken);
 					const shouldClose =
 						!slimPayload.isPendingRun && !hasPendingScreenshotJobs(params.auditId);
 					const payload = shouldClose

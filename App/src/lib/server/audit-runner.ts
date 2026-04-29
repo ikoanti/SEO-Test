@@ -90,7 +90,11 @@ const screenshotQueueState = ((
 	completedKeys: new Set<string>()
 });
 
-const STALE_RUNNING_WORKFLOW_MS = 15 * 60 * 1000;
+const STALE_RUNNING_WORKFLOW_MS = Number(process.env.AUDIT_STALE_RUNNING_WORKFLOW_MS || 60 * 1000);
+const SCREENSHOT_JOB_TIMEOUT_MS = Number(process.env.AUDIT_SCREENSHOT_JOB_TIMEOUT_MS || 90 * 1000);
+const SCREENSHOT_PHASE_TIMEOUT_MS = Number(
+	process.env.AUDIT_SCREENSHOT_PHASE_TIMEOUT_MS || 3 * 60 * 1000
+);
 
 function timestamp() {
 	return new Date().toISOString();
@@ -99,6 +103,20 @@ function timestamp() {
 function appendLog(existing: string | undefined, message: string) {
 	const line = `[${timestamp()}] ${message}`;
 	return existing?.trim() ? `${existing}\n${line}` : line;
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string) {
+	let timeout: NodeJS.Timeout | undefined;
+	const timeoutPromise = new Promise<never>((_, reject) => {
+		timeout = setTimeout(() => {
+			reject(new Error(`${label} timed out after ${timeoutMs}ms`));
+		}, timeoutMs);
+		timeout.unref?.();
+	});
+
+	return Promise.race([promise, timeoutPromise]).finally(() => {
+		if (timeout) clearTimeout(timeout);
+	});
 }
 
 function buildSummary(audit: AuditSummaryResult) {
@@ -296,7 +314,11 @@ async function processScreenshotJob(input: ScreenshotJob, token?: string) {
 
 	screenshotQueueState.activeKeys.add(key);
 	try {
-		const screenshot = await runAuditCaptureRequest(input.request);
+		const screenshot = await withTimeout(
+			runAuditCaptureRequest(input.request),
+			SCREENSHOT_JOB_TIMEOUT_MS,
+			`Screenshot job for ${input.title}`
+		);
 		const persisted = await persistScreenshotIfPresent(
 			{
 				auditId: input.auditId,
@@ -1223,23 +1245,24 @@ async function finalizeUnsyncedRuns(
 }
 
 async function processAuditWorkflow({ workflowId, auditId, url, token }: QueuePayload) {
-	const workflowRecord = await getWorkflow(workflowId, token);
-	let runLog = appendLog(workflowRecord.run_log, 'Workflow started.');
-	const runRegistry = await bootstrapRuns(workflowId, token);
-
-	await updateWorkflowRecord(
-		workflowId,
-		{
-			status: 'running',
-			started_at: timestamp(),
-			error_message: '',
-			run_log: runLog
-		},
-		token
-	);
-	await updateAuditRecord(auditId, { status: 'running' }, token);
-
+	let runLog = '';
 	try {
+		const workflowRecord = await getWorkflow(workflowId, token);
+		runLog = appendLog(workflowRecord.run_log, 'Workflow started.');
+		const runRegistry = await bootstrapRuns(workflowId, token);
+
+		await updateWorkflowRecord(
+			workflowId,
+			{
+				status: 'running',
+				started_at: timestamp(),
+				error_message: '',
+				run_log: runLog
+			},
+			token
+		);
+		await updateAuditRecord(auditId, { status: 'running' }, token);
+
 		const audit = await runAudit(url, {
 			onStepStart: async (stepLabel: string) => {
 				runLog = appendLog(runLog, `${stepLabel} started.`);
@@ -1265,8 +1288,17 @@ async function processAuditWorkflow({ workflowId, auditId, url, token }: QueuePa
 		await finalizeUnsyncedRuns(runRegistry, audit, token);
 		runLog = appendLog(runLog, 'Screenshot generation started.');
 		await updateWorkflowRecord(workflowId, { run_log: runLog }, token);
-		await processAuditScreenshots(auditId, url, audit, runRegistry, token);
-		runLog = appendLog(runLog, 'Screenshot generation completed.');
+		try {
+			await withTimeout(
+				processAuditScreenshots(auditId, url, audit, runRegistry, token),
+				SCREENSHOT_PHASE_TIMEOUT_MS,
+				'Screenshot generation'
+			);
+			runLog = appendLog(runLog, 'Screenshot generation completed.');
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			runLog = appendLog(runLog, `Screenshot generation skipped: ${message}`);
+		}
 
 		await updateAuditRecord(
 			auditId,
@@ -1292,17 +1324,29 @@ async function processAuditWorkflow({ workflowId, auditId, url, token }: QueuePa
 		const message = formatAuditError(error);
 		runLog = appendLog(runLog, `Workflow failed: ${message}`);
 
-		await updateAuditRecord(auditId, { status: 'failed' }, token);
-		await updateWorkflowRecord(
-			workflowId,
-			{
-				status: 'failed',
-				completed_at: timestamp(),
-				error_message: message,
-				run_log: runLog
-			},
-			token
-		);
+		const failedAt = timestamp();
+		const updates = await Promise.allSettled([
+			updateAuditRecord(auditId, { status: 'failed' }, token),
+			updateWorkflowRecord(
+				workflowId,
+				{
+					status: 'failed',
+					completed_at: failedAt,
+					error_message: message,
+					run_log: runLog
+				},
+				token
+			)
+		]);
+
+		for (const update of updates) {
+			if (update.status === 'rejected') {
+				console.error(
+					`[audit-runner] failed to persist failure state for ${workflowId}:`,
+					formatPocketBaseError(update.reason)
+				);
+			}
+		}
 	}
 }
 

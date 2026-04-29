@@ -12,6 +12,7 @@ export async function analyzePageSpeed(
 	logger: AuditLogger
 ): Promise<PageSpeedResult> {
 	const apiKey = process.env.PAGESPEED_API_KEY || 'AIzaSyDq_Fam7GNCloxDbbryv3sA8brDbZZum8I';
+	const timeout = Number(process.env.PAGESPEED_TIMEOUT_MS || 60000);
 	const result: PageSpeedResult = {
 		mobile: { score: 'N/A', metrics: {} },
 		desktop: { score: 'N/A', metrics: {} }
@@ -20,6 +21,7 @@ export async function analyzePageSpeed(
 	const fetchStrategy = async (strategy: 'mobile' | 'desktop') => {
 		logger.info(`pagespeed:${strategy}: requesting`);
 		const response = await axios.get('https://www.googleapis.com/pagespeedonline/v5/runPagespeed', {
+			timeout,
 			params: { url: targetUrl, strategy, key: apiKey }
 		});
 		const audits = response.data?.lighthouseResult?.audits || {};
