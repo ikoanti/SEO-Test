@@ -126,7 +126,7 @@
 </script>
 
 <section class="section">
-	<h1 class="title">{panel?.title ?? 'Unoptimized Robots.txt'}</h1>
+	<h1 class="title">{panel?.title ?? 'AI Chatbots/LLMs Not Whitelisted'}</h1>
 	<p class="copy">{panel?.description ?? ''}</p>
 </section>
 <section class="section">

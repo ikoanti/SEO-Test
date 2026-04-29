@@ -375,7 +375,7 @@ export async function captureRobotsEvidence({
 	foundAgents,
 	entries = [],
 	count,
-	title = 'Unoptimized Robots.txt',
+	title = 'AI Chatbots/LLMs Not Whitelisted',
 	description = 'Robots.txt is missing explicit coverage for important AI and search crawler user-agents, which can limit discovery in ChatGPT, Perplexity, Claude, and modern search tools.',
 	capturePageUrl,
 	fallbackCapturePageUrls = []

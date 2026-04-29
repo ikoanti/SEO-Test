@@ -3,7 +3,6 @@
 	import { resolve } from '$app/paths';
 	import {
 		AuditSidebar,
-		SIDEBAR_TABS,
 		buildSidebarData,
 		type AuditPanelData,
 		type AuditSidebarData
@@ -96,6 +95,16 @@
 			} | null;
 			findings: AuditFindingView[];
 		}[];
+		reportTemplates: {
+			key: string;
+			title: string;
+			priority: 'Urgent' | 'High' | 'Medium';
+			match_pattern?: string;
+			template_body: string;
+			sort_order: number;
+			findingTypeKey: string;
+			findingTypeLabel: string;
+		}[];
 		selectedReportTemplateKeys: string[];
 		aiVisibility: Record<string, unknown> | null;
 		normalizedItems: AuditItemView[];
@@ -141,7 +150,7 @@
 		{ key: 'sitemap', title: 'Sitemap.xml' },
 		{
 			key: 'robotsTxt',
-			title: 'Robots.txt Analysis',
+			title: 'AI Chatbots/LLMs Not Whitelisted',
 			subtitle: 'Checking crawler directives and sitemap'
 		},
 		{
@@ -275,6 +284,20 @@
 		return item.findings.filter((finding) => finding.status === 'warn' || finding.status === 'fail');
 	}
 
+	function templateForFindingType(key: string) {
+		return pageData.reportTemplates?.find((template) => template.findingTypeKey === key);
+	}
+
+	function sidebarTitle(item: AuditItemView | undefined, fallback: string) {
+		const template = item ? templateForFindingType(item.key) : undefined;
+		return template?.title || item?.label || fallback;
+	}
+
+	function sidebarDescription(item: AuditItemView | undefined, fallback: string) {
+		const template = item ? templateForFindingType(item.key) : undefined;
+		return template?.template_body?.split(/\n{2,}/)[0]?.trim() || fallback;
+	}
+
 	function entryValue(finding: AuditFindingView) {
 		const meta = parseMeta(finding.meta);
 		const nested = parseMeta(meta.meta);
@@ -343,8 +366,8 @@
 		const addListPreview = (
 			itemKey: string,
 			activeTab: string,
-			label: string,
-			description: string,
+			fallbackTitle: string,
+			fallbackDescription: string,
 			buildPanel: (item: AuditItemView) => AuditPanelData | null
 		) => {
 			const item = itemMap.get(itemKey);
@@ -353,7 +376,7 @@
 			if (!panel) return;
 			items.push({
 				key: activeTab,
-				label,
+				label: sidebarTitle(item, fallbackTitle),
 				data: buildSidebarData(activeTab, panel)
 			});
 		};
@@ -374,7 +397,7 @@
 					.filter((entry): entry is { page: string; issue: string } => Boolean(entry));
 
 				return entries.length
-					? { kind: 'headings', title: 'Unoptimized Heading Tags', description: 'Important pages are missing strong heading structure, which weakens topical clarity and makes page hierarchy less obvious to search engines.', domain, count: findings.length, entries }
+					? { kind: 'headings', title: sidebarTitle(item, 'Unoptimized Heading Tags'), description: sidebarDescription(item, 'Important pages are missing strong heading structure, which weakens topical clarity and makes page hierarchy less obvious to search engines.'), domain, count: findings.length, entries }
 					: null;
 			}
 		);
@@ -399,7 +422,7 @@
 					);
 
 				return entries.length
-					? { kind: 'image-alts', title: 'Unoptimized Alt Tags', description: 'Important product and collection images are missing descriptive alt text, reducing image search discoverability and weakening crawler context.', domain, count: findings.length, entries }
+					? { kind: 'image-alts', title: sidebarTitle(item, 'Unoptimized Alt Tags'), description: sidebarDescription(item, 'Important product and collection images are missing descriptive alt text, reducing image search discoverability and weakening crawler context.'), domain, count: findings.length, entries }
 					: null;
 			}
 		);
@@ -424,7 +447,7 @@
 					.filter((entry): entry is { page: string; issue: string; value?: string } => Boolean(entry));
 
 				return entries.length
-					? { kind: 'meta-tags', title: 'Unoptimized Meta Tags', description: 'Important pages have missing, duplicated, or oversized metadata, which can weaken search result relevance and click-through clarity.', domain, count: findings.length, activePageUrl: entries[0]?.page || '', entries }
+					? { kind: 'meta-tags', title: sidebarTitle(item, 'Unoptimized Meta Tags'), description: sidebarDescription(item, 'Important pages have missing, duplicated, or oversized metadata, which can weaken search result relevance and click-through clarity.'), domain, count: findings.length, activePageUrl: entries[0]?.page || '', entries }
 					: null;
 			}
 		);
@@ -449,7 +472,7 @@
 					.filter((entry): entry is { page: string; issue: string; value?: string } => Boolean(entry));
 
 				return entries.length
-					? { kind: 'canonicals', title: 'Unoptimized Canonicals', description: 'Canonical tags help consolidate ranking signals and clarify the preferred URL for indexed pages.', domain, count: findings.length, entries }
+					? { kind: 'canonicals', title: sidebarTitle(item, 'Unoptimized Canonicals'), description: sidebarDescription(item, 'Canonical tags help consolidate ranking signals and clarify the preferred URL for indexed pages.'), domain, count: findings.length, entries }
 					: null;
 			}
 		);
@@ -481,7 +504,7 @@
 				);
 
 				return entries.length
-					? { kind: 'internal-links', title: 'Unoptimized Internal Links', description: 'Pages with no crawlable internal links create dead ends for users and search crawlers.', domain, count: findings.length, entries }
+					? { kind: 'internal-links', title: sidebarTitle(item, 'Unoptimized Internal Links'), description: sidebarDescription(item, 'Pages with no crawlable internal links create dead ends for users and search crawlers.'), domain, count: findings.length, entries }
 					: null;
 			}
 		);
@@ -507,7 +530,7 @@
 					.filter((entry): entry is { page: string; issue: string; image: string } => Boolean(entry));
 
 				return entries.length
-					? { kind: 'lazy-loading', title: 'Unoptimized Lazy Loading', description: 'Images without native lazy loading can increase initial page weight and delay rendering on image-heavy pages.', domain, count: findings.length, entries }
+					? { kind: 'lazy-loading', title: sidebarTitle(item, 'Unoptimized Lazy Loading'), description: sidebarDescription(item, 'Images without native lazy loading can increase initial page weight and delay rendering on image-heavy pages.'), domain, count: findings.length, entries }
 					: null;
 			}
 		);
@@ -543,7 +566,7 @@
 				);
 
 				return entries.length
-					? { kind: 'open-graph', title: 'Unoptimized OpenGraph Tags', description: 'OpenGraph tags control how pages appear when shared and help AI and social surfaces understand page context.', domain, count: findings.length, entries }
+					? { kind: 'open-graph', title: sidebarTitle(item, 'Unoptimized OpenGraph Tags'), description: sidebarDescription(item, 'OpenGraph tags control how pages appear when shared and help AI and social surfaces understand page context.'), domain, count: findings.length, entries }
 					: null;
 			}
 		);
@@ -575,7 +598,7 @@
 				);
 
 				return entries.length
-					? { kind: 'content-quality', title: 'Thin Content', description: 'Pages with limited body copy can struggle to communicate topical depth and satisfy search intent.', domain, count: findings.length, entries }
+					? { kind: 'content-quality', title: sidebarTitle(item, 'Thin Content'), description: sidebarDescription(item, 'Pages with limited body copy can struggle to communicate topical depth and satisfy search intent.'), domain, count: findings.length, entries }
 					: null;
 			}
 		);
@@ -604,7 +627,7 @@
 					);
 
 				return entries.length
-					? { kind: 'shopify-urls', title: 'Unoptimized Shopify URL Structure', description: 'Duplicate Shopify collection/product URL paths can split ranking signals and create avoidable crawl duplication.', domain, count: findings.length, entries }
+					? { kind: 'shopify-urls', title: sidebarTitle(item, 'Unoptimized Shopify URL Structure'), description: sidebarDescription(item, 'Duplicate Shopify collection/product URL paths can split ranking signals and create avoidable crawl duplication.'), domain, count: findings.length, entries }
 					: null;
 			}
 		);
@@ -629,12 +652,14 @@
 		if (Array.isArray(robotsRequestMeta.foundAgents) || robotsEntries.length) {
 			items.unshift({
 				key: 'ai-bot-visibility',
-				label: 'Robots.txt',
+				label: sidebarTitle(robotsItem, 'AI Chatbots/LLMs Not Whitelisted'),
 				data: buildSidebarData('ai-bot-visibility', {
 					kind: 'ai-bot-visibility',
-					title: 'Unoptimized Robots.txt',
-					description:
-						'Robots.txt is missing explicit coverage for important AI and search crawler user-agents, which can limit discovery in ChatGPT, Perplexity, Claude, and modern search tools.',
+					title: sidebarTitle(robotsItem, 'AI Chatbots/LLMs Not Whitelisted'),
+					description: sidebarDescription(
+						robotsItem,
+						'Robots.txt is missing explicit coverage for important AI and search crawler user-agents, which can limit discovery in ChatGPT, Perplexity, Claude, and modern search tools.'
+					),
 					domain,
 					count: robotsEntries.length,
 					entries: robotsEntries,
@@ -653,9 +678,7 @@
 		sidebarPreviewItems.length
 			? {
 					activeTab: sidebarPreviewItems[0].key,
-					tabs: SIDEBAR_TABS.filter((tab) =>
-						sidebarPreviewItems.some((item) => item.key === tab.id)
-					),
+					tabs: sidebarPreviewItems.map((item) => ({ id: item.key, label: item.label })),
 					panels: Object.fromEntries(
 						sidebarPreviewItems
 							.map((item) => [item.key, item.data.panels?.[item.key]] as const)

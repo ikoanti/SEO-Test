@@ -264,6 +264,16 @@ export async function buildAuditPageData(
 		),
 		reportHtml,
 		reportPreviewItems,
+		reportTemplates: reportTemplates.map((template) => ({
+			key: template.key,
+			title: template.title,
+			priority: template.priority,
+			match_pattern: template.match_pattern,
+			template_body: template.template_body,
+			sort_order: template.sort_order,
+			findingTypeKey: template.expand?.audit_finding_type?.key || '',
+			findingTypeLabel: template.expand?.audit_finding_type?.label || ''
+		})),
 		selectedReportTemplateKeys,
 		aiVisibility,
 		normalizedItems,

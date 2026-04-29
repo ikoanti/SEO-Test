@@ -14,7 +14,7 @@
 	global.auditSidebarDemo = createAuditSidebarData({
 		activeTab: 'image-alts',
 		tabs: [
-			{ id: 'ai-bot-visibility', label: 'Unoptimized Robots.txt' },
+			{ id: 'ai-bot-visibility', label: 'AI Chatbots/LLMs Not Whitelisted' },
 			{ id: 'image-alts', label: 'Unoptimized Alt Tags' },
 			{ id: 'bad-google-index', label: 'Bad Google Index' },
 			{ id: 'broken-links', label: 'Broken Links' },
@@ -50,7 +50,7 @@
 			}),
 			'ai-bot-visibility': createAIBotVisibilityPanel({
 				kind: 'ai-bot-visibility',
-				title: 'Unoptimized Robots.txt',
+				title: 'AI Chatbots/LLMs Not Whitelisted',
 				description:
 					'Robots.txt is missing explicit coverage for important AI and search crawler user-agents, which can limit discovery in ChatGPT, Perplexity, Claude, and modern search tools.',
 				domain: 'oswaldandsons.com',

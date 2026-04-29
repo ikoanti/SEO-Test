@@ -117,7 +117,7 @@ migrate(
       ["canonicalUrls", "Canonical URLs"],
       ["internalLinks", "Internal Links"],
       ["sitemap", "Sitemap"],
-      ["robotsTxt", "Robots.txt"],
+      ["robotsTxt", "AI Chatbots/LLMs Not Whitelisted"],
       ["llmsTxt", "LLMs.txt"],
       ["structuredData", "Structured Data"],
       ["security", "Security"],

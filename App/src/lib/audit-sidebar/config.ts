@@ -1,7 +1,7 @@
 import type { AuditPanelData, AuditSidebarData, AuditTab } from './types';
 
 export const SIDEBAR_TABS: AuditTab[] = [
-	{ id: 'ai-bot-visibility', label: 'Unoptimized Robots.txt' },
+	{ id: 'ai-bot-visibility', label: 'AI Chatbots/LLMs Not Whitelisted' },
 	{ id: 'pagespeed', label: 'PageSpeed Insights' },
 	{ id: 'open-page-rank', label: 'Open PageRank' },
 	{ id: 'image-alts', label: 'Unoptimized Alt Tags' },
@@ -21,9 +21,14 @@ export function buildSidebarData(
 	activeTab: string,
 	panel: AuditPanelData | Record<string, unknown>
 ): AuditSidebarData {
+	const tabLabel =
+		typeof panel.title === 'string' && panel.title.trim()
+			? panel.title
+			: SIDEBAR_TABS.find((tab) => tab.id === activeTab)?.label || activeTab;
+
 	return {
 		activeTab,
-		tabs: SIDEBAR_TABS,
+		tabs: [{ id: activeTab, label: tabLabel }],
 		panels: {
 			[activeTab]: panel as AuditPanelData
 		}

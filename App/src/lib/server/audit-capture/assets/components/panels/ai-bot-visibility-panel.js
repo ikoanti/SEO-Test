@@ -40,7 +40,7 @@ class AIBotVisibilityPanel extends HTMLElement {
 		super();
 		this.attachShadow({ mode: 'open' });
 		this._panel = {
-			title: 'Unoptimized Robots.txt',
+			title: 'AI Chatbots/LLMs Not Whitelisted',
 			description: '',
 			domain: 'this domain',
 			foundAgents: []
@@ -69,7 +69,7 @@ class AIBotVisibilityPanel extends HTMLElement {
       ${styles['panels-shared'] ? `<style>${styles['panels-shared']}</style>` : '<link rel="stylesheet" href="./styles/panels/shared.css">'}
       ${styles['ai-bot-visibility-panel'] ? `<style>${styles['ai-bot-visibility-panel']}</style>` : '<link rel="stylesheet" href="./styles/panels/ai-bot-visibility-panel.css">'}
       <section class="section">
-        <h1 class="title">${escapeHtml(panel.title ?? 'Unoptimized Robots.txt')}</h1>
+        <h1 class="title">${escapeHtml(panel.title ?? 'AI Chatbots/LLMs Not Whitelisted')}</h1>
         <p class="copy">${escapeHtml(panel.description ?? '')}</p>
       </section>
       <section class="section">
