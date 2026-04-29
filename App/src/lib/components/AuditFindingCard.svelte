@@ -196,15 +196,25 @@
 		return order
 			.map((title) => {
 				const rows = groupedRows(`${prefix}-${title}`, groupedFindings[title] || []);
+				const displayRows = rows.filter(
+					(row) =>
+						!(
+							normalizedText(row.title) === normalizedText(cardTitle) &&
+							!row.detail &&
+							!row.href &&
+							!row.urlList?.length &&
+							!row.codeSnippet
+						)
+				);
 				const titleMatchesCard = normalizedText(title) === normalizedText(cardTitle);
 				const singleRowRepeatsTitle =
-					rows.length === 1 &&
-					normalizedText(rows[0]?.title) === normalizedText(title) &&
-					!rows[0]?.urlList?.length;
+					displayRows.length === 1 &&
+					normalizedText(displayRows[0]?.title) === normalizedText(title) &&
+					!displayRows[0]?.urlList?.length;
 				return {
 					key: `${prefix}-${title}`,
 					title: titleMatchesCard || singleRowRepeatsTitle ? undefined : title,
-					rows
+					rows: displayRows
 				};
 			})
 			.filter((group) => group.rows.length > 0);
