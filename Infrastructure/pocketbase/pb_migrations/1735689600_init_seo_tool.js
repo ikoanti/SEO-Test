@@ -115,6 +115,7 @@ migrate(
       ["multiple-h1-tags", "Multiple H1 tags"],
       ["missing-product-schema", "Missing product schema"],
       ["missing-faq-schema", "Missing FAQ Schema"],
+      ["missing-organization-schema", "Missing Organization Schema"],
       ["metaTitles", "Meta Titles"],
       ["imageAltTags", "Image Alt Tags"],
       ["canonicalUrls", "Canonical URLs"],
@@ -350,10 +351,10 @@ Our audit uncovered more than {{count}} instances of duplicate meta descriptions
       },
       {
         key: "missing-organization-schema",
-        findingTypeKey: "structuredData",
+        findingTypeKey: "missing-organization-schema",
         title: "Missing Organization Schema",
         priority: "Medium",
-        matchPattern: "No JSON-LD Found",
+        matchPattern: "Missing Organization Schema",
         body: `Organization Schema helps search engines understand and accurately represent your company. Although structured data isn’t a direct ranking factor, it facilitates better visibility for relevant search queries.
 
 Implementing Organization Schema enhances your company’s credibility with search engines and users. It enables Google to present your business information as a rich result or knowledge panel, showcasing details like images, links, and additional info. For instance, a Google Knowledge Panel for "Tesla" can make your search appearance more engaging and informative.

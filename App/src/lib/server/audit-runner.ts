@@ -704,6 +704,7 @@ function captureEntryFromFinding(
 		request.kind === 'headings' ||
 		request.kind === 'missing-product-schema' ||
 		request.kind === 'missing-faq-schema' ||
+		request.kind === 'missing-organization-schema' ||
 		request.kind === 'lazy-loading' ||
 		request.kind === 'open-graph'
 	) {
@@ -943,7 +944,11 @@ function templateCaptureRequest(
 			: null;
 	}
 
-	if (item.key === 'missing-product-schema' || item.key === 'missing-faq-schema') {
+	if (
+		item.key === 'missing-product-schema' ||
+		item.key === 'missing-faq-schema' ||
+		item.key === 'missing-organization-schema'
+	) {
 		const entries = findings
 			.map((finding) => {
 				const page = findingPage(finding);
@@ -978,6 +983,7 @@ const STEP_KEYS: Record<string, string[]> = {
 	crawl: [],
 	homepage: [
 		'structuredData',
+		'missing-organization-schema',
 		'webIcons',
 		'ssl',
 		'mobileUsability',

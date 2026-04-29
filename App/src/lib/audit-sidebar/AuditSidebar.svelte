@@ -98,6 +98,8 @@
 				<ProductSchemaPanel panel={activePanel} />
 			{:else if activePanel.kind === 'missing-faq-schema'}
 				<SchemaIssuePanel panel={activePanel} />
+			{:else if activePanel.kind === 'missing-organization-schema'}
+				<SchemaIssuePanel panel={activePanel} />
 			{:else if activePanel.kind === 'meta-tags'}
 				<MetaTagsPanel panel={activePanel} />
 			{:else if activePanel.kind === 'canonicals'}

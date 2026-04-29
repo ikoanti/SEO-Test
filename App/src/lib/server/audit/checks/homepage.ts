@@ -19,6 +19,33 @@ function issueCount(items: Array<{ status?: string }>) {
 	return items.filter((item) => item.status === 'warn' || item.status === 'fail').length;
 }
 
+function valueHasSchemaType(value: unknown, schemaType: string): boolean {
+	if (!value || typeof value !== 'object') return false;
+	if (Array.isArray(value)) return value.some((item) => valueHasSchemaType(item, schemaType));
+
+	const record = value as Record<string, unknown>;
+	const typeValue = record['@type'];
+	const types = Array.isArray(typeValue) ? typeValue : [typeValue];
+	if (types.some((type) => String(type).toLowerCase() === schemaType.toLowerCase())) return true;
+
+	return Object.values(record).some((item) => valueHasSchemaType(item, schemaType));
+}
+
+function hasJsonLdSchemaType($: CheerioAPI, schemaType: string) {
+	return $('script[type="application/ld+json"]')
+		.toArray()
+		.some((element) => {
+			const raw = $(element).contents().text().trim();
+			if (!raw) return false;
+
+			try {
+				return valueHasSchemaType(JSON.parse(raw), schemaType);
+			} catch {
+				return false;
+			}
+		});
+}
+
 export async function analyzeHomePage(
 	urlObj: URL,
 	$: CheerioAPI,
@@ -27,6 +54,7 @@ export async function analyzeHomePage(
 ) {
 	logger.info('homepage: analyzing single-page checks');
 	const structuredData = createListResult();
+	const organizationSchema = createListResult();
 	const webIcons = createListResult();
 	const ssl = createListResult();
 	const mobileUsability = createListResult();
@@ -49,6 +77,15 @@ export async function analyzeHomePage(
 		schemaScripts > 0 ? 'pass' : 'warn',
 		schemaScripts > 0 ? 'JSON-LD Found' : 'No JSON-LD Found',
 		{ title: `${schemaScripts} JSON-LD block(s)` }
+	);
+
+	const hasOrganizationSchema = hasJsonLdSchemaType($, 'Organization');
+	addItem(
+		summary,
+		organizationSchema,
+		hasOrganizationSchema ? 'pass' : 'warn',
+		hasOrganizationSchema ? 'Organization Schema found' : 'Missing Organization Schema',
+		{ title: urlObj.href, page_url: urlObj.href }
 	);
 
 	const iconHref = $('link[rel="icon"], link[rel="shortcut icon"]').attr('href');
@@ -223,8 +260,23 @@ export async function analyzeHomePage(
 		);
 	}
 
+	if (!hasOrganizationSchema) {
+		attachScreenshotRequest(
+			organizationSchema.items.find((item) => item.status === 'warn' || item.status === 'fail'),
+			{
+				kind: 'missing-organization-schema',
+				reportTemplateKey: 'missing-organization-schema',
+				title: 'Missing Organization Schema',
+				domain,
+				entries: [{ page: urlObj.href, issue: 'Missing Organization Schema' }],
+				count: issueCount(organizationSchema.items)
+			}
+		);
+	}
+
 	return {
 		structuredData,
+		organizationSchema,
 		webIcons,
 		ssl,
 		mobileUsability,

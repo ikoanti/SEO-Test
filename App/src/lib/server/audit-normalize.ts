@@ -56,6 +56,7 @@ export const SECTION_LABELS: Array<[string, string]> = [
 	['multiple-h1-tags', 'Multiple H1 tags'],
 	['missing-product-schema', 'Missing product schema'],
 	['missing-faq-schema', 'Missing FAQ Schema'],
+	['missing-organization-schema', 'Missing Organization Schema'],
 	['metaTitles', 'Meta Titles'],
 	['imageAltTags', 'Image Alt Tags'],
 	['canonicalUrls', 'Canonical URLs'],
