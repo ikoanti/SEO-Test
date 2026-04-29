@@ -1,7 +1,13 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import { AuditSidebar, buildSidebarData, type AuditPanelData, type AuditSidebarData } from '$lib/audit-sidebar';
+	import {
+		AuditSidebar,
+		SIDEBAR_TABS,
+		buildSidebarData,
+		type AuditPanelData,
+		type AuditSidebarData
+	} from '$lib/audit-sidebar';
 	import type { AuditFindingStatus } from '$lib/audit-status';
 	import AuditFindingCard from '$lib/components/AuditFindingCard.svelte';
 	import AuditOverviewCard from '$lib/components/AuditOverviewCard.svelte';
@@ -185,7 +191,6 @@
 	let activeTab = $state<AuditTab>('findings');
 	let selectedReportKeys = $state<string[]>([]);
 	let reportSelectionSeed = $state('');
-	let selectedSidebarPreviewKey = $state('');
 	let fallbackInterval: number | undefined;
 	let stream: EventSource | undefined;
 	let cleanupScrollSpy: (() => void) | undefined;
@@ -616,8 +621,20 @@
 	}
 
 	const sidebarPreviewItems = $derived(buildSidebarPreviewItems());
-	const activeSidebarPreview = $derived(
-		sidebarPreviewItems.find((item) => item.key === selectedSidebarPreviewKey) ?? sidebarPreviewItems[0]
+	const sidebarPreviewData = $derived<AuditSidebarData | null>(
+		sidebarPreviewItems.length
+			? {
+					activeTab: sidebarPreviewItems[0].key,
+					tabs: SIDEBAR_TABS.filter((tab) =>
+						sidebarPreviewItems.some((item) => item.key === tab.id)
+					),
+					panels: Object.fromEntries(
+						sidebarPreviewItems
+							.map((item) => [item.key, item.data.panels?.[item.key]] as const)
+							.filter((entry): entry is readonly [string, AuditPanelData] => Boolean(entry[1]))
+					)
+				}
+			: null
 	);
 
 	$effect(() => {
@@ -632,17 +649,6 @@
 				)
 			: (pageData.reportPreviewItems || []).slice(0, 10).map((item) => item.key);
 		reportSelectionSeed = seed;
-	});
-
-	$effect(() => {
-		const availableKeys = sidebarPreviewItems.map((item) => item.key);
-		if (!availableKeys.length) {
-			selectedSidebarPreviewKey = '';
-			return;
-		}
-		if (!availableKeys.includes(selectedSidebarPreviewKey)) {
-			selectedSidebarPreviewKey = availableKeys[0];
-		}
 	});
 
 	function summaryBarStyle() {
@@ -912,18 +918,10 @@
 		{:else if activeTab === 'sidebar-preview'}
 			<div class="card audit-card sidebar-preview-card" id="card-sidebar-preview">
 				<h3 class="audit-card-title">Sidebar Preview</h3>
-				{#if sidebarPreviewItems.length}
-					<SegmentedPicker
-						options={sidebarPreviewItems.map((item) => ({ key: item.key, label: item.label }))}
-						bind:selected={selectedSidebarPreviewKey}
-						ariaLabel="Sidebar preview panels"
-					/>
-
+				{#if sidebarPreviewData}
 					<div class="sidebar-preview-shell">
 						<div class="sidebar-preview-frame">
-							{#if activeSidebarPreview}
-								<AuditSidebar data={activeSidebarPreview.data} />
-							{/if}
+							<AuditSidebar data={sidebarPreviewData} />
 						</div>
 					</div>
 				{:else}
