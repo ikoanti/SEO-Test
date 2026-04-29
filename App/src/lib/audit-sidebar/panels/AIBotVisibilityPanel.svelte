@@ -186,6 +186,11 @@
 		padding: 14px 16px;
 	}
 
+	.compact .card-head {
+		grid-template-columns: 30px 1fr;
+		gap: 14px;
+	}
+
 	.bot-logo-wrap {
 		width: 30px;
 		height: 30px;
