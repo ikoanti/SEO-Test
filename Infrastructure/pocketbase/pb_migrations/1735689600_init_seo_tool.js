@@ -290,11 +290,13 @@ This usually doubles the click-through rates from organic search, which pushes y
         title: "Missing FAQ Schema",
         priority: "High",
         matchPattern: "Missing FAQ Schema",
-        body: `FAQ Schema helps search engines understand question-and-answer content on your site and can make FAQ pages easier for search engines and AI systems to interpret.
+        body: `{{domain}} is currently missing the FAQ Schema on {{count}} pages that contain question-and-answer style content. This structured data code tells Google and AI Chatbots exactly what questions your pages answer.
 
-During our review of {{domain}}, we found FAQ-style pages that do not include FAQPage structured data.
+Without it, competitors who have implemented FAQ Schema are more likely to be featured when potential customers ask relevant questions in Google or AI tools like ChatGPT, Gemini, Claude, and others.
 
-Adding FAQ Schema to these pages is a quick technical SEO improvement that gives crawlers cleaner context about common customer questions, answers, policies, and purchase concerns.`,
+By adding FAQ Schema to the right pages, we'll ensure both Google and AI Chatbots can properly read and feature your content, putting your brand in front of customers at the exact moment they're searching.
+
+The pages that are currently losing the most potential visibility are:`,
       },
       {
         key: "meta-titles-too-long-unoptimized",
