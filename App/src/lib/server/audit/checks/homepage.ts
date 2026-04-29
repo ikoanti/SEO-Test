@@ -87,11 +87,10 @@ export async function analyzeHomePage(
 	discoveredLinks: string[] = []
 ) {
 	logger.info('homepage: analyzing single-page checks');
-	const structuredData = createListResult();
 	const organizationSchema = createListResult();
 	const webIcons = createListResult();
 	const ssl = createListResult();
-	const mobileUsability = createListResult();
+	const viewportMetaTag = createListResult();
 	const flash = createListResult();
 	const charsetResult = createListResult();
 	const loremIpsum = createListResult();
@@ -135,15 +134,6 @@ export async function analyzeHomePage(
 		);
 	}
 
-	const schemaScripts = $('script[type="application/ld+json"]').length;
-	addItem(
-		summary,
-		structuredData,
-		schemaScripts > 0 ? 'pass' : 'warn',
-		schemaScripts > 0 ? 'JSON-LD Found' : 'No JSON-LD Found',
-		{ title: `${schemaScripts} JSON-LD block(s)` }
-	);
-
 	const hasOrganizationSchema = hasJsonLdSchemaType($, 'Organization');
 	addItem(
 		summary,
@@ -183,7 +173,7 @@ export async function analyzeHomePage(
 	const viewport = $('meta[name="viewport"]').attr('content');
 	addItem(
 		summary,
-		mobileUsability,
+		viewportMetaTag,
 		viewport ? 'pass' : 'warn',
 		viewport ? 'Viewport Meta Tag Present' : 'Viewport Meta Tag Missing'
 	);
@@ -354,11 +344,10 @@ export async function analyzeHomePage(
 	}
 
 	return {
-		structuredData,
 		organizationSchema,
 		webIcons,
 		ssl,
-		mobileUsability,
+		viewportMetaTag,
 		flash,
 		charset: charsetResult,
 		loremIpsum,

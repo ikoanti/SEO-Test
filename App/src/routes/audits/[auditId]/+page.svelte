@@ -159,7 +159,6 @@
 			subtitle: 'Analyzing AI crawler rules in robots.txt'
 		},
 		{ key: 'llmsTxt', title: 'LLMs.txt Inspector' },
-		{ key: 'structuredData', title: 'Structured Data' },
 		{
 			key: 'security',
 			title: 'Security (HTTPS)',
@@ -180,7 +179,7 @@
 		},
 		{ key: 'webIcons', title: 'Web Icons' },
 		{ key: 'ssl', title: 'SSL Certificate Check' },
-		{ key: 'mobileUsability', title: 'Mobile Usability' },
+		{ key: 'viewportMetaTag', title: 'Viewport Meta Tag' },
 		{ key: 'flash', title: 'Flash Usage' },
 		{ key: 'charset', title: 'Character Encoding' },
 		{ key: 'loremIpsum', title: 'Lorem Ipsum Test' },

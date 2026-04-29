@@ -987,11 +987,10 @@ function templateCaptureRequest(
 const STEP_KEYS: Record<string, string[]> = {
 	crawl: [],
 	homepage: [
-		'structuredData',
 		'missing-organization-schema',
 		'webIcons',
 		'ssl',
-		'mobileUsability',
+		'viewportMetaTag',
 		'flash',
 		'charset',
 		'loremIpsum',
