@@ -322,7 +322,9 @@
 	<ul class="check-list">
 		{#if hasVisibleFindings}
 			{#each warnGroups as group (group.key)}
-				<li class="issue-group-heading issue-group-heading-warn">{group.title}</li>
+				{#if group.title}
+					<li class="issue-group-heading issue-group-heading-warn">{group.title}</li>
+				{/if}
 				{#each group.rows as row (row.key)}
 					<AuditFindingRow
 						status={row.status}
@@ -350,7 +352,9 @@
 				</li>
 			{/if}
 			{#each infoGroups as group (group.key)}
-				<li class="issue-group-heading issue-group-heading-info">{group.title}</li>
+				{#if group.title}
+					<li class="issue-group-heading issue-group-heading-info">{group.title}</li>
+				{/if}
 				{#each group.rows as row (row.key)}
 					<AuditFindingRow
 						status={row.status}
@@ -378,7 +382,9 @@
 				</li>
 			{/if}
 			{#each passGroups as group (group.key)}
-				<li class="issue-group-heading issue-group-heading-pass">{group.title}</li>
+				{#if group.title}
+					<li class="issue-group-heading issue-group-heading-pass">{group.title}</li>
+				{/if}
 				{#each group.rows as row (row.key)}
 					<AuditFindingRow
 						status={row.status}
