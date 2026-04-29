@@ -478,6 +478,25 @@
 		);
 
 		addListPreview(
+			'unlinked-blog',
+			'unlinked-blog',
+			(item) =>
+			{
+				const findings = issueFindings(item);
+				const entries = findings
+					.map((finding) => {
+						const page = pageUrlFromFinding(finding);
+						return page ? { page, issue: issueText(finding, item) } : null;
+					})
+					.filter((entry): entry is { page: string; issue: string } => Boolean(entry));
+
+				return entries.length
+					? { kind: 'unlinked-blog', title: sidebarTitle(item), description: sidebarDescription(item), domain, count: findings.length, entries }
+					: null;
+			}
+		);
+
+		addListPreview(
 			'imageAltTags',
 			'image-alts',
 			(item) =>

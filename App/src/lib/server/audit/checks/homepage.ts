@@ -46,11 +46,45 @@ function hasJsonLdSchemaType($: CheerioAPI, schemaType: string) {
 		});
 }
 
+function isBlogLikeUrl(value: string, origin: string) {
+	try {
+		const url = new URL(value, origin);
+		if (url.origin !== origin) return false;
+		return /^\/(blog|blogs|articles|news)(\/|$)/i.test(url.pathname);
+	} catch {
+		return false;
+	}
+}
+
+function normalizeInternalUrl(value: string, baseUrl: string, origin: string) {
+	try {
+		const url = new URL(value, baseUrl);
+		if (url.origin !== origin) return '';
+		url.hash = '';
+		return url.href;
+	} catch {
+		return '';
+	}
+}
+
+function homepageLinks($: CheerioAPI, selector: string, baseUrl: string, origin: string) {
+	const links = new Set<string>();
+	$(selector)
+		.find('a[href]')
+		.each((_, element) => {
+			const href = $(element).attr('href') || '';
+			const normalized = normalizeInternalUrl(href, baseUrl, origin);
+			if (normalized) links.add(normalized);
+		});
+	return [...links];
+}
+
 export async function analyzeHomePage(
 	urlObj: URL,
 	$: CheerioAPI,
 	summary: AuditSummary,
-	logger: AuditLogger
+	logger: AuditLogger,
+	discoveredLinks: string[] = []
 ) {
 	logger.info('homepage: analyzing single-page checks');
 	const structuredData = createListResult();
@@ -65,10 +99,41 @@ export async function analyzeHomePage(
 	const internationalDomains = createListResult();
 	const trustSignals = createListResult();
 	const lazyLoadImages = createListResult();
+	const unlinkedBlog = createListResult();
 	const maxEvidenceItems = 5;
 	const domain = urlObj.hostname || 'this domain';
 	const openGraphEvidence: Array<{ page: string; issue: string; property?: string }> = [];
 	const lazyLoadingEvidence: Array<{ page: string; issue: string; image?: string }> = [];
+	const allHomepageLinks = homepageLinks($, 'body', urlObj.href, urlObj.origin);
+	const keyNavigationLinks = homepageLinks(
+		$,
+		'header, nav, [role="navigation"], footer',
+		urlObj.href,
+		urlObj.origin
+	);
+	const detectedBlogUrl = [...allHomepageLinks, ...discoveredLinks].find((link) =>
+		isBlogLikeUrl(link, urlObj.origin)
+	);
+	const hasBlogInKeyNavigation = keyNavigationLinks.some((link) =>
+		isBlogLikeUrl(link, urlObj.origin)
+	);
+
+	if (detectedBlogUrl) {
+		addItem(
+			summary,
+			unlinkedBlog,
+			hasBlogInKeyNavigation ? 'pass' : 'warn',
+			hasBlogInKeyNavigation ? 'Blog linked from key navigation' : 'Unlinked Blog',
+			{
+				title: detectedBlogUrl,
+				page_url: detectedBlogUrl,
+				meta: {
+					detectedBlogUrl,
+					checkedAreas: ['header', 'nav', 'role=navigation', 'footer']
+				}
+			}
+		);
+	}
 
 	const schemaScripts = $('script[type="application/ld+json"]').length;
 	addItem(
@@ -274,6 +339,20 @@ export async function analyzeHomePage(
 		);
 	}
 
+	if (detectedBlogUrl && !hasBlogInKeyNavigation) {
+		attachScreenshotRequest(
+			unlinkedBlog.items.find((item) => item.status === 'warn' || item.status === 'fail'),
+			{
+				kind: 'unlinked-blog',
+				reportTemplateKey: 'unlinked-blog',
+				title: 'Unlinked Blog',
+				domain,
+				entries: [{ page: detectedBlogUrl, issue: 'Unlinked Blog' }],
+				count: issueCount(unlinkedBlog.items)
+			}
+		);
+	}
+
 	return {
 		structuredData,
 		organizationSchema,
@@ -286,6 +365,7 @@ export async function analyzeHomePage(
 		openGraph,
 		internationalDomains,
 		trustSignals,
-		lazyLoadImages
+		lazyLoadImages,
+		unlinkedBlog
 	};
 }

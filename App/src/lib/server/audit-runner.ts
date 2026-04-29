@@ -705,6 +705,7 @@ function captureEntryFromFinding(
 		request.kind === 'missing-product-schema' ||
 		request.kind === 'missing-faq-schema' ||
 		request.kind === 'missing-organization-schema' ||
+		request.kind === 'unlinked-blog' ||
 		request.kind === 'lazy-loading' ||
 		request.kind === 'open-graph'
 	) {
@@ -947,7 +948,8 @@ function templateCaptureRequest(
 	if (
 		item.key === 'missing-product-schema' ||
 		item.key === 'missing-faq-schema' ||
-		item.key === 'missing-organization-schema'
+		item.key === 'missing-organization-schema' ||
+		item.key === 'unlinked-blog'
 	) {
 		const entries = findings
 			.map((finding) => {
@@ -993,7 +995,8 @@ const STEP_KEYS: Record<string, string[]> = {
 		'openGraph',
 		'internationalDomains',
 		'trustSignals',
-		'lazyLoadImages'
+		'lazyLoadImages',
+		'unlinked-blog'
 	],
 	robots: ['robotsTxt'],
 	sitemap: ['sitemap'],

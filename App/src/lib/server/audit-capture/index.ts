@@ -68,7 +68,11 @@ export type AuditCaptureRequest = AuditCaptureRequestBase &
 				count: number;
 		  }
 		| {
-				kind: 'missing-product-schema' | 'missing-faq-schema' | 'missing-organization-schema';
+				kind:
+					| 'missing-product-schema'
+					| 'missing-faq-schema'
+					| 'missing-organization-schema'
+					| 'unlinked-blog';
 				domain: string;
 				entries: Array<{ page: string; issue: string }>;
 				count: number;
@@ -375,7 +379,11 @@ export async function captureShopifyUrlEvidence(
 }
 
 export async function captureSchemaEvidence(
-	kind: 'missing-product-schema' | 'missing-faq-schema' | 'missing-organization-schema',
+	kind:
+		| 'missing-product-schema'
+		| 'missing-faq-schema'
+		| 'missing-organization-schema'
+		| 'unlinked-blog',
 	domain: string,
 	entries: Array<{ page: string; issue: string }>,
 	count = entries.length,
@@ -535,6 +543,7 @@ export async function runAuditCaptureRequest(request: AuditCaptureRequest) {
 		case 'missing-product-schema':
 		case 'missing-faq-schema':
 		case 'missing-organization-schema':
+		case 'unlinked-blog':
 			return captureSchemaEvidence(
 				request.kind,
 				request.domain,

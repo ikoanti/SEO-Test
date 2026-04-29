@@ -100,6 +100,8 @@
 				<SchemaIssuePanel panel={activePanel} />
 			{:else if activePanel.kind === 'missing-organization-schema'}
 				<SchemaIssuePanel panel={activePanel} />
+			{:else if activePanel.kind === 'unlinked-blog'}
+				<SchemaIssuePanel panel={activePanel} />
 			{:else if activePanel.kind === 'meta-tags'}
 				<MetaTagsPanel panel={activePanel} />
 			{:else if activePanel.kind === 'canonicals'}

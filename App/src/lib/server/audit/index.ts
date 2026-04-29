@@ -60,7 +60,7 @@ export async function runAudit(inputUrl: string, handlers: AuditHandlers = {}) {
 
 	await notifyStepStart('homepage');
 	const homeResults = await runStep(logger, 'homepage', async () =>
-		analyzeHomePage(urlObj, $, summary, logger)
+		analyzeHomePage(urlObj, $, summary, logger, links)
 	);
 	Object.assign(partialAudit, homeResults);
 	await notifyStepComplete('homepage');

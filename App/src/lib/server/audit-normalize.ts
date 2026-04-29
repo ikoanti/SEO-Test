@@ -57,6 +57,7 @@ export const SECTION_LABELS: Array<[string, string]> = [
 	['missing-product-schema', 'Missing product schema'],
 	['missing-faq-schema', 'Missing FAQ Schema'],
 	['missing-organization-schema', 'Missing Organization Schema'],
+	['unlinked-blog', 'Unlinked Blog'],
 	['metaTitles', 'Meta Titles'],
 	['imageAltTags', 'Image Alt Tags'],
 	['canonicalUrls', 'Canonical URLs'],
