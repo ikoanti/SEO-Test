@@ -20,7 +20,8 @@ export const GET = async ({ params, locals, url }) => {
 	}
 
 	const pageData = await buildAuditPageData(params.auditId, locals.pbToken, {
-		includeReportHtml: false
+		includeReportHtml: false,
+		includeReportPreview: true
 	});
 
 	if (String(pageData.runRecord.status || '') !== 'completed') {

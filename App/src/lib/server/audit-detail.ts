@@ -12,6 +12,7 @@ import { buildReportProblems, generateTemplateReportHtml } from '$lib/server/rep
 
 type BuildAuditPageDataOptions = {
 	includeReportHtml?: boolean;
+	includeReportPreview?: boolean;
 };
 
 function getWebsite(auditRecord: Record<string, unknown>) {
@@ -109,6 +110,7 @@ export async function buildAuditPageData(
 	options: BuildAuditPageDataOptions = {}
 ) {
 	const includeReportHtml = options.includeReportHtml ?? true;
+	const includeReportPreview = options.includeReportPreview ?? includeReportHtml;
 	const auditRecord = await getAudit(auditId, token);
 	const workflowRecord = await getWorkflowByAuditId(auditRecord.id, token);
 
@@ -119,7 +121,9 @@ export async function buildAuditPageData(
 		listRunsByWorkflow(workflowRecord.id, token),
 		listAuditFindings(auditRecord.id, token),
 		listAuditScreenshots(auditRecord.id, token),
-		includeReportHtml ? listAuditReportTemplates(token) : Promise.resolve([])
+		includeReportPreview || includeReportHtml
+			? listAuditReportTemplates(token)
+			: Promise.resolve([])
 	]);
 	const findingsByRunId = new Map<string, typeof auditFindings>();
 	for (const finding of auditFindings) {
@@ -215,7 +219,7 @@ export async function buildAuditPageData(
 		aiVisibility,
 		normalizedItems
 	};
-	const reportPreviewItems = includeReportHtml
+	const reportPreviewItems = includeReportPreview
 		? buildReportProblems(reportPageData, reportTemplates).map((problem) => ({
 				...problem,
 				screenshot:
