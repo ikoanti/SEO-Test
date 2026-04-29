@@ -109,7 +109,7 @@ migrate(
       "audit_finding_types",
     );
     const findingTypes = [
-      ["pageSpeed", "Page Speed"],
+      ["pageSpeed", "Unoptimized page speed"],
       ["openPageRank", "Open PageRank"],
       ["h1Tags", "H1 Tags"],
       ["metaTitles", "Meta Titles"],

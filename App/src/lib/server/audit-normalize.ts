@@ -50,7 +50,7 @@ export type NormalizedAuditFindingType = {
 };
 
 export const SECTION_LABELS: Array<[string, string]> = [
-	['pageSpeed', 'Page Speed'],
+	['pageSpeed', 'Unoptimized page speed'],
 	['openPageRank', 'Open PageRank'],
 	['h1Tags', 'H1 Tags'],
 	['metaTitles', 'Meta Titles'],

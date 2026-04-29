@@ -110,7 +110,7 @@ export async function capturePageSpeedEvidence(
 	domain: string,
 	pageUrl: string,
 	pageSpeed: Record<string, unknown>,
-	title = 'PageSpeed Insights',
+	title = 'Unoptimized page speed',
 	description = 'Google PageSpeed Insights scores and Core Web Vitals-style lab metrics for the audited page.',
 	capturePageUrl?: string,
 	fallbackPageUrls: string[] = []

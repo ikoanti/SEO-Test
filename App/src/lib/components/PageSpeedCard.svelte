@@ -43,12 +43,12 @@
 </script>
 
 <section class="page-speed-section" id="section-speed">
-	<h2>PageSpeed Insights</h2>
+	<h2>Unoptimized page speed</h2>
 	{#if screenshot?.image_url}
 		<figure class="audit-evidence">
 			<img
 				src={screenshot.image_url}
-				alt={screenshot.title || 'PageSpeed Insights evidence screenshot'}
+				alt={screenshot.title || 'Unoptimized page speed evidence screenshot'}
 				loading="lazy"
 			/>
 		</figure>

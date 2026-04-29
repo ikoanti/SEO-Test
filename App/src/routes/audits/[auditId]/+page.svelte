@@ -223,7 +223,7 @@
 	];
 	const auditNavItems: AuditNavItem[] = [
 		{ key: 'openPageRank', title: 'Open Page Rank', href: '#section-opr' },
-		{ key: 'pageSpeed', title: 'PageSpeed Insights', href: '#section-speed' },
+		{ key: 'pageSpeed', title: 'Unoptimized page speed', href: '#section-speed' },
 		...legacySections.map((section) => ({
 			key: section.key,
 			title: section.title,
@@ -336,10 +336,10 @@
 		if (Object.keys(pageSpeed()).length > 0) {
 			items.push({
 				key: 'pagespeed',
-				label: 'PageSpeed',
+				label: templateForFindingType('pageSpeed')?.title || 'Unoptimized page speed',
 				data: buildSidebarData('pagespeed', {
 					kind: 'pagespeed',
-					title: 'PageSpeed Insights',
+					title: templateForFindingType('pageSpeed')?.title || 'Unoptimized page speed',
 					description:
 						'Google PageSpeed Insights scores and Core Web Vitals-style lab metrics for the audited page.',
 					domain,

@@ -2,7 +2,7 @@ import type { AuditPanelData, AuditSidebarData, AuditTab } from './types';
 
 export const SIDEBAR_TABS: AuditTab[] = [
 	{ id: 'ai-bot-visibility', label: 'AI Chatbots/LLMs Not Whitelisted' },
-	{ id: 'pagespeed', label: 'PageSpeed Insights' },
+	{ id: 'pagespeed', label: 'Unoptimized page speed' },
 	{ id: 'open-page-rank', label: 'Open PageRank' },
 	{ id: 'image-alts', label: 'Unoptimized Alt Tags' },
 	{ id: 'meta-tags', label: 'Unoptimized Meta Tags' },
