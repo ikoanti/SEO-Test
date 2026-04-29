@@ -2,9 +2,11 @@
 	import { Monitor, Smartphone } from 'lucide-svelte';
 
 	let {
+		title,
 		pageSpeedData = {},
 		screenshot = null
 	}: {
+		title: string;
 		pageSpeedData?: Record<string, unknown>;
 		screenshot?: {
 			title?: string;
@@ -42,13 +44,13 @@
 	}
 </script>
 
-<section class="page-speed-section" id="section-speed">
-	<h2>Unoptimized page speed</h2>
+<section class="page-speed-section" id="section-pageSpeed">
+	<h2>{title}</h2>
 	{#if screenshot?.image_url}
 		<figure class="audit-evidence">
 			<img
 				src={screenshot.image_url}
-				alt={screenshot.title || 'Unoptimized page speed evidence screenshot'}
+				alt={screenshot.title || `${title} evidence screenshot`}
 				loading="lazy"
 			/>
 		</figure>

@@ -112,13 +112,6 @@
 		isPendingScreenshots?: boolean;
 	};
 
-	type LegacySection = {
-		key: string;
-		title: string;
-		subtitle?: string;
-		mini?: boolean;
-	};
-
 	type AuditTab = 'findings' | 'ai-visibility' | 'report' | 'sidebar-preview';
 	type AuditNavItem = {
 		key: string;
@@ -130,68 +123,6 @@
 		label: string;
 		data: AuditSidebarData;
 	};
-
-	const legacySections: LegacySection[] = [
-		{ key: 'h1Tags', title: 'H1 Elements', subtitle: 'Scanning exactly 50 pages…', mini: true },
-		{ key: 'metaTitles', title: 'Meta Titles', subtitle: 'Scanning exactly 50 pages…', mini: true },
-		{ key: 'internalLinks', title: 'Internal Links', mini: true },
-		{
-			key: 'imageAltTags',
-			title: 'Image Alt Tags',
-			subtitle: 'Scanning exactly 50 pages…',
-			mini: true
-		},
-		{
-			key: 'canonicalUrls',
-			title: 'Canonical URL',
-			subtitle: 'Scanning exactly 50 pages…',
-			mini: true
-		},
-		{ key: 'sitemap', title: 'Sitemap.xml' },
-		{
-			key: 'robotsTxt',
-			title: 'AI Chatbots/LLMs Not Whitelisted',
-			subtitle: 'Checking crawler directives and sitemap'
-		},
-		{
-			key: 'aiVisibility',
-			title: 'AI Bot Visibility',
-			subtitle: 'Analyzing AI crawler rules in robots.txt'
-		},
-		{ key: 'llmsTxt', title: 'LLMs.txt Inspector' },
-		{
-			key: 'security',
-			title: 'Security (HTTPS)',
-			subtitle: 'Scanning exactly 50 pages…',
-			mini: true
-		},
-		{
-			key: 'mixedContent',
-			title: 'Mixed Content',
-			subtitle: 'Scanning exactly 50 pages…',
-			mini: true
-		},
-		{
-			key: 'contentQuality',
-			title: 'Content Quality',
-			subtitle: 'Scanning exactly 50 pages…',
-			mini: true
-		},
-		{ key: 'webIcons', title: 'Web Icons' },
-		{ key: 'ssl', title: 'SSL Certificate Check' },
-		{ key: 'viewportMetaTag', title: 'Viewport Meta Tag' },
-		{ key: 'flash', title: 'Flash Usage' },
-		{ key: 'charset', title: 'Character Encoding' },
-		{ key: 'loremIpsum', title: 'Lorem Ipsum Test' },
-		{ key: 'openGraph', title: 'OpenGraph Tags' },
-		{ key: 'shopifyUrls', title: 'Shopify URL Structure', mini: true },
-		{ key: 'internationalDomains', title: 'International Domains & Hreflang' },
-		{ key: 'trailingSlash', title: 'Trailing Slash Consistency' },
-		{ key: 'wwwResolve', title: 'WWW vs Non-WWW Resolution' },
-		{ key: 'trustSignals', title: 'Contact & Trust Signals' },
-		{ key: 'tapTargets', title: 'Mobile Tap Targets', subtitle: 'Analyzing DOM heuristics' },
-		{ key: 'lazyLoadImages', title: 'Lazy Loading Images', mini: true }
-	];
 
 	let { data, form }: { data: AuditPageViewData; form?: ActionData } = $props();
 	let liveData = $state<AuditPageViewData | null>(null);
@@ -220,21 +151,20 @@
 		{ key: 'sidebar-preview', label: 'Sidebar' },
 		{ key: 'report', label: 'Export' }
 	];
-	const auditNavItems: AuditNavItem[] = [
-		{ key: 'openPageRank', title: 'Open Page Rank', href: '#section-opr' },
-		{ key: 'pageSpeed', title: 'Unoptimized page speed', href: '#section-speed' },
-		...legacySections.map((section) => ({
-			key: section.key,
-			title: section.title,
-			href: `#section-${section.key}`
+	const auditFindingItems = $derived(pageData.normalizedItems || []);
+	const auditNavItems: AuditNavItem[] = $derived(
+		auditFindingItems.map((item) => ({
+			key: item.key,
+			title: item.label,
+			href: `#section-${item.key}`
 		}))
-	];
+	);
 	const pageTitle = () =>
 		pageData.auditRecord?.name ||
 		pageData.runRecord?.name ||
 		pageData.auditRecord?.url ||
 		pageData.runRecord?.url;
-	let activeAuditSection = $state(auditNavItems[0]?.key || '');
+	let activeAuditSection = $state('');
 
 	const itemByKey = (key: string) => pageData.normalizedItems?.find((item) => item.key === key);
 	const getRecord = (value: unknown): Record<string, unknown> =>
@@ -776,6 +706,11 @@
 		reportSelectionSeed = seed;
 	});
 
+	$effect(() => {
+		if (auditNavItems.some((item) => item.key === activeAuditSection)) return;
+		activeAuditSection = auditNavItems[0]?.key || '';
+	});
+
 	function summaryBarStyle() {
 		const passed = pageData.summary?.summary?.passed ?? 0;
 		const warnings = pageData.summary?.summary?.warnings ?? 0;
@@ -951,19 +886,19 @@
 				</nav>
 
 				<div class="audit-report-sections">
-					<OpenPageRankCard
-						pageRank={displayValue(openPageRank().pageRank)}
-						globalRank={displayValue(openPageRank().globalRank)}
-						screenshot={itemByKey('openPageRank')?.screenshot}
-					/>
-
-					<PageSpeedCard
-						pageSpeedData={pageSpeed()}
-						screenshot={itemByKey('pageSpeed')?.screenshot}
-					/>
-
-					{#each legacySections as section (section.key)}
-						<AuditFindingCard {section} item={itemByKey(section.key)} />
+					{#each auditFindingItems as item (item.key)}
+						{#if item.key === 'openPageRank'}
+							<OpenPageRankCard
+								title={item.label}
+								pageRank={displayValue(openPageRank().pageRank)}
+								globalRank={displayValue(openPageRank().globalRank)}
+								screenshot={item.screenshot}
+							/>
+						{:else if item.key === 'pageSpeed'}
+							<PageSpeedCard title={item.label} pageSpeedData={pageSpeed()} screenshot={item.screenshot} />
+						{:else}
+							<AuditFindingCard {item} />
+						{/if}
 					{/each}
 				</div>
 			</div>

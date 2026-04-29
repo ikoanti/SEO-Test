@@ -634,6 +634,13 @@ export async function listRunsByWorkflow(workflowId: string, token?: string) {
 	});
 }
 
+export async function listAuditFindingTypes(token?: string) {
+	const pb = createAuthedClient(token);
+	return pb.collection(AUDIT_FINDING_TYPES_COLLECTION).getFullList({
+		sort: 'sort_order'
+	});
+}
+
 export async function createAuditFindingRecord(
 	input: {
 		audit: string;

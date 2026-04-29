@@ -4,6 +4,7 @@ import {
 	getWorkflowByAuditId,
 	listAuditScreenshots,
 	listAuditFindings,
+	listAuditFindingTypes,
 	listAuditReportTemplates,
 	listRunsByWorkflow
 } from '$lib/server/pocketbase';
@@ -117,10 +118,11 @@ export async function buildAuditPageData(
 	const audit = parseStoredJson(auditRecord.audit_json);
 	const summary = parseStoredJson(auditRecord.summary_json);
 	const aiVisibility = parseStoredJson(auditRecord.ai_visibility_json);
-	const [runs, auditFindings, auditScreenshots, reportTemplates] = await Promise.all([
+	const [runs, auditFindings, auditScreenshots, findingTypes, reportTemplates] = await Promise.all([
 		listRunsByWorkflow(workflowRecord.id, token),
 		listAuditFindings(auditRecord.id, token),
 		listAuditScreenshots(auditRecord.id, token),
+		listAuditFindingTypes(token),
 		includeReportPreview || includeReportHtml
 			? listAuditReportTemplates(token)
 			: Promise.resolve([])
@@ -131,6 +133,21 @@ export async function buildAuditPageData(
 		const current = findingsByRunId.get(runId) || [];
 		current.push(finding);
 		findingsByRunId.set(runId, current);
+	}
+	const findingsByFindingTypeId = new Map<string, typeof auditFindings>();
+	for (const finding of auditFindings) {
+		const findingTypeId = String(finding.audit_finding_type || '');
+		if (!findingTypeId) continue;
+		const current = findingsByFindingTypeId.get(findingTypeId) || [];
+		current.push(finding);
+		findingsByFindingTypeId.set(findingTypeId, current);
+	}
+	const runsByFindingTypeId = new Map<string, (typeof runs)[number]>();
+	for (const run of runs) {
+		const findingTypeId = String(run.audit_finding_type || '');
+		if (findingTypeId && !runsByFindingTypeId.has(findingTypeId)) {
+			runsByFindingTypeId.set(findingTypeId, run);
+		}
 	}
 	const screenshotsByRunId = new Map<string, (typeof auditScreenshots)[number]>();
 	const screenshotsByFindingTypeId = new Map<string, (typeof auditScreenshots)[number]>();
@@ -151,19 +168,13 @@ export async function buildAuditPageData(
 		}
 	}
 
-	const normalizedItems = runs.map((run) => {
-		const findingType = (
-			run.expand as
-				| {
-						audit_finding_type?: {
-							key?: string;
-							label?: string;
-							sort_order?: number;
-						};
-				  }
-				| undefined
-		)?.audit_finding_type;
-		const findings = (findingsByRunId.get(run.id) || []).map((finding) => ({
+	const normalizedItems = findingTypes.map((findingType) => {
+		const run = runsByFindingTypeId.get(findingType.id);
+		const findings = (
+			(run?.id ? findingsByRunId.get(run.id) : null) ||
+			findingsByFindingTypeId.get(findingType.id) ||
+			[]
+		).map((finding) => ({
 			...finding,
 			meta: parseStoredJson(finding.meta_json)
 		})) as Array<Record<string, unknown> & { status?: AuditFindingStatus }>;
@@ -181,19 +192,17 @@ export async function buildAuditPageData(
 					? 'pass'
 					: 'info';
 		const screenshot =
-			screenshotsByRunId.get(run.id) ||
-			(findingType?.key
-				? screenshotsByFindingTypeId.get(String(run.audit_finding_type || ''))
-				: null);
+			(run?.id ? screenshotsByRunId.get(run.id) : null) ||
+			screenshotsByFindingTypeId.get(findingType.id);
 		return {
-			id: run.id,
-			key: findingType?.key || run.id,
-			label: findingType?.label || 'Audit check',
+			id: run?.id || findingType.id,
+			key: String(findingType.key || findingType.id),
+			label: String(findingType.label || findingType.key || ''),
 			status,
-			runStatus: run.status,
+			runStatus: run?.status,
 			summary: displaySummary,
-			itemRun: run,
-			sortOrder: findingType?.sort_order || run.sort_order || 999,
+			itemRun: run || null,
+			sortOrder: Number(findingType.sort_order || run?.sort_order || 999),
 			stats: displaySummary ? { stats: displaySummary, count: findings.length } : null,
 			screenshot: screenshotView(auditRecord.id, screenshot),
 			findings

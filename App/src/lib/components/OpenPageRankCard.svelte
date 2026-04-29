@@ -1,9 +1,11 @@
 <script lang="ts">
 	let {
+		title,
 		pageRank = '-',
 		globalRank = '-',
 		screenshot = null
 	}: {
+		title: string;
 		pageRank?: string;
 		globalRank?: string;
 		screenshot?: {
@@ -13,13 +15,13 @@
 	} = $props();
 </script>
 
-<section class="audit-metric-section" id="section-opr">
-	<h2>Open Page Rank</h2>
+<section class="audit-metric-section" id="section-openPageRank">
+	<h2>{title}</h2>
 	{#if screenshot?.image_url}
 		<figure class="audit-evidence">
 			<img
 				src={screenshot.image_url}
-				alt={screenshot.title || 'Open Page Rank evidence screenshot'}
+				alt={screenshot.title || `${title} evidence screenshot`}
 				loading="lazy"
 			/>
 		</figure>

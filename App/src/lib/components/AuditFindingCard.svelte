@@ -29,19 +29,10 @@
 		findings: AuditFindingView[];
 	};
 
-	type LegacySection = {
-		key: string;
-		title: string;
-		subtitle?: string;
-		mini?: boolean;
-	};
-
 	let {
-		section,
 		item
 	}: {
-		section: LegacySection;
-		item?: AuditItemView;
+		item: AuditItemView;
 	} = $props();
 	const previewLimit = 5;
 	let selectedStatus = $state<AuditFindingStatusFilter | null>(null);
@@ -280,12 +271,11 @@
 		)
 	);
 	const summaryItem = $derived(showSummaryRow ? item : undefined);
-	const showEmptyRow = $derived(Boolean(!item));
 	const cardScreenshot = $derived.by(() => {
 		if (item?.screenshot?.image_url) {
 			return {
 				src: item.screenshot.image_url,
-				alt: item.screenshot.title || `${section.title} evidence screenshot`
+				alt: item.screenshot.title || `${item.label} evidence screenshot`
 			};
 		}
 
@@ -293,10 +283,10 @@
 	});
 </script>
 
-<section class="audit-finding-section" id={`section-${section.key}`}>
+<section class="audit-finding-section" id={`section-${item.key}`}>
 	<div class="audit-finding-section-heading">
 		<div class="audit-finding-title-row">
-			<h2>{section.title}</h2>
+			<h2>{item.label}</h2>
 			{#if item?.runStatus}
 				<span class={`audit-run-status audit-run-status-${item.runStatus}`}>{item.runStatus}</span>
 			{/if}
@@ -307,16 +297,14 @@
 			</figure>
 		{/if}
 	</div>
-	{#if section.mini}
-		<AuditStatusPills
-			pass={pills.pass}
-			warn={pills.warn}
-			fail={pills.fail}
-			statuses={visiblePillStatuses}
-			bind:selectedStatus
-		/>
-	{/if}
-	<ul class={`check-list ${section.mini ? 'mini-list' : ''}`}>
+	<AuditStatusPills
+		pass={pills.pass}
+		warn={pills.warn}
+		fail={pills.fail}
+		statuses={visiblePillStatuses}
+		bind:selectedStatus
+	/>
+	<ul class="check-list">
 		{#if hasVisibleFindings}
 			{#each failGroups as group (group.key)}
 				<li class="issue-group-heading issue-group-heading-fail">{group.title}</li>
@@ -435,8 +423,6 @@
 				status={summaryItem.status || 'info'}
 				title={summaryItem.summary || 'No findings.'}
 			/>
-		{:else if showEmptyRow}
-			<AuditFindingRow status="info" title="No persisted result for this check." />
 		{:else if isPassSectionExpandable}
 			<li class="group-toggle-item">
 				<button
