@@ -1,4 +1,5 @@
 import { captureAuditSidebarScreenshot } from './renderer';
+import { SIDEBAR_TABS, buildSidebarData } from '$lib/audit-sidebar';
 
 type AuditCaptureRequestBase = {
 	reportTemplateKey?: string;
@@ -86,38 +87,6 @@ export type AuditCaptureRequest = AuditCaptureRequestBase &
 				foundAgents: string[];
 		  }
 	);
-
-type SidebarTab = {
-	id: string;
-	label: string;
-};
-
-const SIDEBAR_TABS: SidebarTab[] = [
-	{ id: 'ai-bot-visibility', label: 'Unoptimized Robots.txt' },
-	{ id: 'pagespeed', label: 'PageSpeed Insights' },
-	{ id: 'open-page-rank', label: 'Open PageRank' },
-	{ id: 'image-alts', label: 'Unoptimized Alt Tags' },
-	{ id: 'meta-tags', label: 'Unoptimized Meta Tags' },
-	{ id: 'canonicals', label: 'Unoptimized Canonicals' },
-	{ id: 'internal-links', label: 'Unoptimized Internal Links' },
-	{ id: 'lazy-loading', label: 'Unoptimized Lazy Loading' },
-	{ id: 'open-graph', label: 'Unoptimized OpenGraph' },
-	{ id: 'content-quality', label: 'Thin Content' },
-	{ id: 'shopify-urls', label: 'Unoptimized Shopify URLs' },
-	{ id: 'bad-google-index', label: 'Bad Google Index' },
-	{ id: 'broken-links', label: 'Broken Links' },
-	{ id: 'headings', label: 'Unoptimized Heading Tags' }
-];
-
-function buildSidebarData(activeTab: string, panel: Record<string, unknown>) {
-	return {
-		activeTab,
-		tabs: SIDEBAR_TABS,
-		panels: {
-			[activeTab]: panel
-		}
-	};
-}
 
 function isHomepageUrl(value: string) {
 	try {

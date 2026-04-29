@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { AuditSidebar, buildSidebarData, type AuditPanelData, type AuditSidebarData } from '$lib/audit-sidebar';
 	import type { AuditFindingStatus } from '$lib/audit-status';
 	import AuditFindingCard from '$lib/components/AuditFindingCard.svelte';
 	import AuditOverviewCard from '$lib/components/AuditOverviewCard.svelte';
@@ -103,11 +104,16 @@
 		mini?: boolean;
 	};
 
-	type AuditTab = 'findings' | 'ai-visibility' | 'report';
+	type AuditTab = 'findings' | 'ai-visibility' | 'report' | 'sidebar-preview';
 	type AuditNavItem = {
 		key: string;
 		title: string;
 		href: string;
+	};
+	type SidebarPreviewItem = {
+		key: string;
+		label: string;
+		data: AuditSidebarData;
 	};
 
 	const legacySections: LegacySection[] = [
@@ -179,6 +185,7 @@
 	let activeTab = $state<AuditTab>('findings');
 	let selectedReportKeys = $state<string[]>([]);
 	let reportSelectionSeed = $state('');
+	let selectedSidebarPreviewKey = $state('');
 	let fallbackInterval: number | undefined;
 	let stream: EventSource | undefined;
 	let cleanupScrollSpy: (() => void) | undefined;
@@ -197,6 +204,7 @@
 	const tabs: { key: AuditTab; label: string }[] = [
 		{ key: 'findings', label: 'Findings' },
 		{ key: 'ai-visibility', label: 'AI Visibility' },
+		{ key: 'sidebar-preview', label: 'Sidebar' },
 		{ key: 'report', label: 'Export' }
 	];
 	const auditNavItems: AuditNavItem[] = [
@@ -231,6 +239,387 @@
 	const openPageRank = () => metricSection('openPageRank');
 	const pageSpeed = () => metricSection('pageSpeed');
 
+	function parseMeta(value: unknown) {
+		if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+		return value as Record<string, unknown>;
+	}
+
+	function extractFirstHttpUrl(value: unknown) {
+		const text = String(value ?? '');
+		const match = text.match(/https?:\/\/[^\s)]+/);
+		if (!match) return '';
+		try {
+			return new URL(match[0]).href;
+		} catch {
+			return '';
+		}
+	}
+
+	function pageUrlFromFinding(finding: AuditFindingView) {
+		if (finding.page_url) return finding.page_url;
+		const meta = parseMeta(finding.meta);
+		const explicit = typeof meta.page_url === 'string' ? meta.page_url : '';
+		return explicit || extractFirstHttpUrl(finding.title) || extractFirstHttpUrl(finding.detail);
+	}
+
+	function issueText(finding: AuditFindingView, fallback: string) {
+		return String(finding.detail || finding.title || fallback);
+	}
+
+	function entryValue(finding: AuditFindingView) {
+		const meta = parseMeta(finding.meta);
+		const nested = parseMeta(meta.meta);
+		const candidates = [
+			meta.value,
+			nested.value,
+			nested.duplicateValue,
+			meta.duplicateValue,
+			meta.metaTitle,
+			meta.metaDescription
+		];
+
+		for (const candidate of candidates) {
+			if (typeof candidate === 'string' && candidate.trim()) return candidate.trim();
+		}
+
+		return '';
+	}
+
+	function currentDomain() {
+		if (typeof pageData.summary?.domain === 'string' && pageData.summary.domain.trim()) {
+			return pageData.summary.domain;
+		}
+
+		try {
+			return new URL(pageData.runRecord.url || '').hostname;
+		} catch {
+			return 'this domain';
+		}
+	}
+
+	function buildSidebarPreviewItems(): SidebarPreviewItem[] {
+		const items: SidebarPreviewItem[] = [];
+		const domain = currentDomain();
+
+		if (Object.keys(pageSpeed()).length > 0) {
+			items.push({
+				key: 'pagespeed',
+				label: 'PageSpeed',
+				data: buildSidebarData('pagespeed', {
+					kind: 'pagespeed',
+					title: 'PageSpeed Insights',
+					description:
+						'Google PageSpeed Insights scores and Core Web Vitals-style lab metrics for the audited page.',
+					domain,
+					pageSpeed: pageSpeed()
+				})
+			});
+		}
+
+		if (Object.keys(openPageRank()).length > 0) {
+			items.push({
+				key: 'open-page-rank',
+				label: 'Open PageRank',
+				data: buildSidebarData('open-page-rank', {
+					kind: 'open-page-rank',
+					title: 'Open PageRank',
+					description: 'Domain authority and global ranking data from Open PageRank.',
+					domain,
+					openPageRank: openPageRank()
+				})
+			});
+		}
+
+		const itemMap = new Map(pageData.normalizedItems.map((item) => [item.key, item]));
+		const addListPreview = (
+			itemKey: string,
+			activeTab: string,
+			label: string,
+			description: string,
+			buildPanel: (item: AuditItemView) => AuditPanelData | null
+		) => {
+			const item = itemMap.get(itemKey);
+			if (!item) return;
+			const panel = buildPanel(item);
+			if (!panel) return;
+			items.push({
+				key: activeTab,
+				label,
+				data: buildSidebarData(activeTab, panel)
+			});
+		};
+
+		addListPreview(
+			'h1Tags',
+			'headings',
+			'Unoptimized Heading Tags',
+			'Important pages are missing strong heading structure, which weakens topical clarity and makes page hierarchy less obvious to search engines.',
+			(item) =>
+			{
+				const entries = item.findings
+					.map((finding) => {
+						const page = pageUrlFromFinding(finding);
+						return page ? { page, issue: issueText(finding, item.label) } : null;
+					})
+					.filter((entry): entry is { page: string; issue: string } => Boolean(entry));
+
+				return entries.length
+					? { kind: 'headings', title: 'Unoptimized Heading Tags', description: 'Important pages are missing strong heading structure, which weakens topical clarity and makes page hierarchy less obvious to search engines.', domain, count: item.findings.length, entries }
+					: null;
+			}
+		);
+
+		addListPreview(
+			'imageAltTags',
+			'image-alts',
+			'Unoptimized Alt Tags',
+			'Important product and collection images are missing descriptive alt text, reducing image search discoverability and weakening crawler context.',
+			(item) =>
+			{
+				const entries = item.findings
+					.map((finding) => {
+						const meta = parseMeta(finding.meta);
+						const page = pageUrlFromFinding(finding);
+						const image = extractFirstHttpUrl(meta.title) || extractFirstHttpUrl(finding.title);
+						return page && image ? { page, image, issue: issueText(finding, item.label) } : null;
+					})
+					.filter(
+						(entry): entry is { page: string; image: string; issue: string } => Boolean(entry)
+					);
+
+				return entries.length
+					? { kind: 'image-alts', title: 'Unoptimized Alt Tags', description: 'Important product and collection images are missing descriptive alt text, reducing image search discoverability and weakening crawler context.', domain, count: item.findings.length, entries }
+					: null;
+			}
+		);
+
+		addListPreview(
+			'metaTitles',
+			'meta-tags',
+			'Unoptimized Meta Tags',
+			'Important pages have missing, duplicated, or oversized metadata, which can weaken search result relevance and click-through clarity.',
+			(item) =>
+			{
+				const entries = item.findings
+					.map((finding) => {
+						const page = pageUrlFromFinding(finding);
+						if (!page) return null;
+						const value = entryValue(finding);
+						return value
+							? { page, issue: issueText(finding, item.label), value }
+							: { page, issue: issueText(finding, item.label) };
+					})
+					.filter((entry): entry is { page: string; issue: string; value?: string } => Boolean(entry));
+
+				return entries.length
+					? { kind: 'meta-tags', title: 'Unoptimized Meta Tags', description: 'Important pages have missing, duplicated, or oversized metadata, which can weaken search result relevance and click-through clarity.', domain, count: item.findings.length, activePageUrl: entries[0]?.page || '', entries }
+					: null;
+			}
+		);
+
+		addListPreview(
+			'canonicalUrls',
+			'canonicals',
+			'Unoptimized Canonicals',
+			'Canonical tags help consolidate ranking signals and clarify the preferred URL for indexed pages.',
+			(item) =>
+			{
+				const entries = item.findings
+					.map((finding) => {
+						const page = pageUrlFromFinding(finding);
+						if (!page) return null;
+						const value = entryValue(finding);
+						return value
+							? { page, issue: issueText(finding, item.label), value }
+							: { page, issue: issueText(finding, item.label) };
+					})
+					.filter((entry): entry is { page: string; issue: string; value?: string } => Boolean(entry));
+
+				return entries.length
+					? { kind: 'canonicals', title: 'Unoptimized Canonicals', description: 'Canonical tags help consolidate ranking signals and clarify the preferred URL for indexed pages.', domain, count: item.findings.length, entries }
+					: null;
+			}
+		);
+
+		addListPreview(
+			'internalLinks',
+			'internal-links',
+			'Unoptimized Internal Links',
+			'Pages with no crawlable internal links create dead ends for users and search crawlers.',
+			(item) =>
+			{
+				const entries = item.findings.reduce<Array<{ page: string; issue: string; count?: number }>>(
+					(accumulator, finding) => {
+						const meta = parseMeta(finding.meta);
+						const page = pageUrlFromFinding(finding);
+						if (!page) return accumulator;
+						accumulator.push({
+							page,
+							issue: issueText(finding, item.label),
+							count:
+								typeof meta.count === 'number'
+									? meta.count
+									: Number(meta.count || 0) || undefined
+						});
+						return accumulator;
+					},
+					[]
+				);
+
+				return entries.length
+					? { kind: 'internal-links', title: 'Unoptimized Internal Links', description: 'Pages with no crawlable internal links create dead ends for users and search crawlers.', domain, count: item.findings.length, entries }
+					: null;
+			}
+		);
+
+		addListPreview(
+			'lazyLoadImages',
+			'lazy-loading',
+			'Unoptimized Lazy Loading',
+			'Images without native lazy loading can increase initial page weight and delay rendering on image-heavy pages.',
+			(item) =>
+			{
+				const entries = item.findings
+					.map((finding) => {
+						const meta = parseMeta(finding.meta);
+						const page = pageUrlFromFinding(finding);
+						const image =
+							extractFirstHttpUrl(meta.title) ||
+							extractFirstHttpUrl(meta.image) ||
+							extractFirstHttpUrl(finding.title);
+						return page && image ? { page, issue: issueText(finding, item.label), image } : null;
+					})
+					.filter((entry): entry is { page: string; issue: string; image: string } => Boolean(entry));
+
+				return entries.length
+					? { kind: 'lazy-loading', title: 'Unoptimized Lazy Loading', description: 'Images without native lazy loading can increase initial page weight and delay rendering on image-heavy pages.', domain, count: item.findings.length, entries }
+					: null;
+			}
+		);
+
+		addListPreview(
+			'openGraph',
+			'open-graph',
+			'Unoptimized OpenGraph Tags',
+			'OpenGraph tags control how pages appear when shared and help AI and social surfaces understand page context.',
+			(item) =>
+			{
+				const entries = item.findings.reduce<
+					Array<{ page: string; issue: string; property?: string }>
+				>(
+					(accumulator, finding) => {
+						const meta = parseMeta(finding.meta);
+						const page = pageUrlFromFinding(finding);
+						if (!page) return accumulator;
+						accumulator.push({
+							page,
+							issue: issueText(finding, item.label),
+							property:
+								typeof meta.property === 'string'
+									? meta.property
+									: typeof meta.tag === 'string'
+										? meta.tag
+										: undefined
+						});
+						return accumulator;
+					},
+					[]
+				);
+
+				return entries.length
+					? { kind: 'open-graph', title: 'Unoptimized OpenGraph Tags', description: 'OpenGraph tags control how pages appear when shared and help AI and social surfaces understand page context.', domain, count: item.findings.length, entries }
+					: null;
+			}
+		);
+
+		addListPreview(
+			'contentQuality',
+			'content-quality',
+			'Thin Content',
+			'Pages with limited body copy can struggle to communicate topical depth and satisfy search intent.',
+			(item) =>
+			{
+				const entries = item.findings.reduce<Array<{ page: string; issue: string; wordCount?: number }>>(
+					(accumulator, finding) => {
+						const meta = parseMeta(finding.meta);
+						const page = pageUrlFromFinding(finding);
+						if (!page) return accumulator;
+						accumulator.push({
+							page,
+							issue: issueText(finding, item.label),
+							wordCount:
+								typeof meta.wordCount === 'number'
+									? meta.wordCount
+									: Number(meta.wordCount || meta.value || 0) || undefined
+						});
+						return accumulator;
+					},
+					[]
+				);
+
+				return entries.length
+					? { kind: 'content-quality', title: 'Thin Content', description: 'Pages with limited body copy can struggle to communicate topical depth and satisfy search intent.', domain, count: item.findings.length, entries }
+					: null;
+			}
+		);
+
+		addListPreview(
+			'shopifyUrls',
+			'shopify-urls',
+			'Unoptimized Shopify URL Structure',
+			'Duplicate Shopify collection/product URL paths can split ranking signals and create avoidable crawl duplication.',
+			(item) =>
+			{
+				const entries = item.findings
+					.map((finding) => {
+						const page = pageUrlFromFinding(finding);
+						return page
+							? {
+									page,
+									issue: issueText(finding, item.label),
+									pattern: '/collections/{collection}/products/{product}'
+								}
+							: null;
+					})
+					.filter(
+						(entry): entry is { page: string; issue: string; pattern: string } => Boolean(entry)
+					);
+
+				return entries.length
+					? { kind: 'shopify-urls', title: 'Unoptimized Shopify URL Structure', description: 'Duplicate Shopify collection/product URL paths can split ranking signals and create avoidable crawl duplication.', domain, count: item.findings.length, entries }
+					: null;
+			}
+		);
+
+		const robotsMeta =
+			itemMap.get('robotsTxt')?.findings
+				.map((finding) => parseMeta(finding.meta))
+				.find((meta) => Array.isArray(meta.foundAgents)) ??
+			getRecord(auditSection('robotsTxt'));
+
+		if (Array.isArray(robotsMeta.foundAgents)) {
+			items.unshift({
+				key: 'ai-bot-visibility',
+				label: 'Robots.txt',
+				data: buildSidebarData('ai-bot-visibility', {
+					kind: 'ai-bot-visibility',
+					title: 'Unoptimized Robots.txt',
+					description:
+						'Robots.txt is missing explicit coverage for important AI and search crawler user-agents, which can limit discovery in ChatGPT, Perplexity, Claude, and modern search tools.',
+					domain,
+					foundAgents: robotsMeta.foundAgents
+				})
+			});
+		}
+
+		return items;
+	}
+
+	const sidebarPreviewItems = $derived(buildSidebarPreviewItems());
+	const activeSidebarPreview = $derived(
+		sidebarPreviewItems.find((item) => item.key === selectedSidebarPreviewKey) ?? sidebarPreviewItems[0]
+	);
+
 	$effect(() => {
 		const previewKeys = (pageData.reportPreviewItems || []).map((item) => item.key).join('|');
 		const savedKeys = (pageData.selectedReportTemplateKeys || []).join('|');
@@ -243,6 +632,17 @@
 				)
 			: (pageData.reportPreviewItems || []).slice(0, 10).map((item) => item.key);
 		reportSelectionSeed = seed;
+	});
+
+	$effect(() => {
+		const availableKeys = sidebarPreviewItems.map((item) => item.key);
+		if (!availableKeys.length) {
+			selectedSidebarPreviewKey = '';
+			return;
+		}
+		if (!availableKeys.includes(selectedSidebarPreviewKey)) {
+			selectedSidebarPreviewKey = availableKeys[0];
+		}
 	});
 
 	function summaryBarStyle() {
@@ -507,6 +907,29 @@
 							>
 						</div>
 					</div>
+				{/if}
+			</div>
+		{:else if activeTab === 'sidebar-preview'}
+			<div class="card audit-card sidebar-preview-card" id="card-sidebar-preview">
+				<h3 class="audit-card-title">Sidebar Preview</h3>
+				{#if sidebarPreviewItems.length}
+					<SegmentedPicker
+						options={sidebarPreviewItems.map((item) => ({ key: item.key, label: item.label }))}
+						bind:selected={selectedSidebarPreviewKey}
+						ariaLabel="Sidebar preview panels"
+					/>
+
+					<div class="sidebar-preview-shell">
+						<div class="sidebar-preview-frame">
+							{#if activeSidebarPreview}
+								<AuditSidebar data={activeSidebarPreview.data} />
+							{/if}
+						</div>
+					</div>
+				{:else}
+					<p class="muted report-status-note">
+						No sidebar preview is available for the current audit data yet.
+					</p>
 				{/if}
 			</div>
 		{:else if activeTab === 'report'}
@@ -795,6 +1218,25 @@
 	.ai-visibility-results {
 		margin-top: 1rem;
 		margin-bottom: 0;
+	}
+
+	.sidebar-preview-card {
+		max-width: 980px;
+	}
+
+	.sidebar-preview-shell {
+		display: flex;
+		justify-content: center;
+		padding-top: 0.5rem;
+	}
+
+	.sidebar-preview-frame {
+		width: 420px;
+		height: 868px;
+		overflow: hidden;
+		border-radius: 28px;
+		background: #ffffff;
+		box-shadow: 0 18px 40px rgba(15, 23, 42, 0.16);
 	}
 
 	@media (max-width: 980px) {
