@@ -1,4 +1,5 @@
 import { redirect, type Handle } from '@sveltejs/kit';
+import { env } from '$env/dynamic/private';
 import {
 	authenticateToken,
 	exportAuthCookie,
@@ -8,23 +9,53 @@ import {
 
 const PROTECTED_PREFIXES = ['/audits'];
 
-const startupReconciliation = failInterruptedAuditWork()
-	.then((result) => {
-		if (result.audits || result.workflows || result.runs) {
+function positiveNumber(value: string | undefined, fallback: number) {
+	const parsed = Number(value);
+	return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+const STARTUP_RECONCILE_ATTEMPTS = positiveNumber(env.STARTUP_RECONCILE_ATTEMPTS, 30);
+const STARTUP_RECONCILE_DELAY_MS = positiveNumber(env.STARTUP_RECONCILE_DELAY_MS, 2000);
+
+function delay(ms: number) {
+	return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function errorMessage(error: unknown) {
+	return error instanceof Error ? error.message : String(error);
+}
+
+async function reconcileInterruptedAuditWork() {
+	for (let attempt = 1; attempt <= STARTUP_RECONCILE_ATTEMPTS; attempt += 1) {
+		try {
+			const result = await failInterruptedAuditWork();
 			console.info(
-				`[startup] failed interrupted audit work: ${result.audits} audit(s), ${result.workflows} workflow(s), ${result.runs} run(s).`
+				`[startup] reconciled interrupted audit work: ${result.audits} audit(s), ${result.workflows} workflow(s), ${result.runs} run(s).`
 			);
+			return;
+		} catch (error) {
+			const isFinalAttempt = attempt >= STARTUP_RECONCILE_ATTEMPTS;
+			console.warn(
+				`[startup] failed to reconcile interrupted audit work${
+					isFinalAttempt ? '' : `, retrying (${attempt}/${STARTUP_RECONCILE_ATTEMPTS})`
+				}: ${errorMessage(error)}`
+			);
+			if (isFinalAttempt) return;
+			await delay(STARTUP_RECONCILE_DELAY_MS);
 		}
-	})
-	.catch((error) => {
-		console.warn(
-			'[startup] failed to reconcile interrupted audit work:',
-			error instanceof Error ? error.message : error
-		);
-	});
+	}
+}
+
+const startupReconciliation = reconcileInterruptedAuditWork();
+
+function shouldWaitForStartupReconciliation(pathname: string) {
+	return pathname !== '/api/health';
+}
 
 export const handle: Handle = async ({ event, resolve }) => {
-	await startupReconciliation;
+	if (shouldWaitForStartupReconciliation(event.url.pathname)) {
+		await startupReconciliation;
+	}
 
 	const token = readAuthTokenFromCookie(event.request.headers.get('cookie'));
 	let authCookieHeader: string | null = null;
