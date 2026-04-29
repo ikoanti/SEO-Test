@@ -149,7 +149,7 @@
 								<img class="bot-logo" src={icon.logo} alt="" />
 							{:else}
 								<div class="bot-logo bot-logo-fallback">
-									<Bot size={20} strokeWidth={2.4} />
+									<Bot size={32} strokeWidth={2.2} />
 								</div>
 							{/if}
 						</div>
@@ -167,7 +167,7 @@
 								<img class="bot-logo" src={icon.logo} alt="" />
 							{:else}
 								<div class="bot-logo bot-logo-fallback">
-									<Bot size={20} strokeWidth={2.4} />
+									<Bot size={32} strokeWidth={2.2} />
 								</div>
 							{/if}
 						</div>
@@ -187,9 +187,9 @@
 	}
 
 	.bot-logo-wrap {
-		width: 30px;
-		height: 30px;
-		border-radius: 6px;
+		width: 50px;
+		height: 50px;
+		border-radius: 8px;
 		display: grid;
 		place-items: center;
 		overflow: hidden;
