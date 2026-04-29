@@ -12,6 +12,7 @@ import {
 
 const SIDEBAR_WIDTH = 420;
 const SIDEBAR_MARGIN = 16;
+const SIDEBAR_RIGHT_INSET = 32;
 const SIDEBAR_RENDER_PADDING_X = 40;
 const SIDEBAR_RENDER_PADDING_TOP = 16;
 const SIDEBAR_RENDER_WIDTH = SIDEBAR_WIDTH + SIDEBAR_RENDER_PADDING_X * 2;
@@ -328,7 +329,14 @@ async function compositeSidebar(
 	const pageWidth = pageMetadata.width ?? WINDOW_WIDTH;
 	const viewportRight = viewportOffset.left + WINDOW_WIDTH;
 	const left =
-		Math.max(0, Math.min(pageWidth, viewportRight) - SIDEBAR_WIDTH - SIDEBAR_MARGIN - SIDEBAR_RENDER_PADDING_X);
+		Math.max(
+			0,
+			Math.min(pageWidth, viewportRight) -
+				SIDEBAR_WIDTH -
+				SIDEBAR_MARGIN -
+				SIDEBAR_RIGHT_INSET -
+				SIDEBAR_RENDER_PADDING_X
+		);
 	const top = Math.max(0, viewportOffset.top + SIDEBAR_MARGIN - SIDEBAR_RENDER_PADDING_TOP);
 
 	return sharp(pageImage)
