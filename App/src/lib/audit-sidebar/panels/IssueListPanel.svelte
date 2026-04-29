@@ -14,34 +14,43 @@
 
 	let {
 		panel,
-		defaultTitle,
 		summaryLabel = 'Detected',
 		summaryNote,
-		defaultIssue,
 		cardTitle,
 		fields = []
 	}: {
 		panel?: BasePanelData;
-		defaultTitle: string;
 		summaryLabel?: string;
-		summaryNote: string;
-		defaultIssue: string;
+		summaryNote?: string;
 		cardTitle?: (entry: AuditEntry, index: number) => string;
 		fields?: FieldConfig[];
 	} = $props();
 
 	let entries = $derived(Array.isArray(panel?.entries) ? panel.entries : []);
+	let resolvedSummaryNote = $derived(
+		summaryNote
+			? summaryNote.replace('{domain}', panel?.domain ?? 'this domain')
+			: panel?.domain
+				? `Issues found on ${panel.domain}`
+				: ''
+	);
 </script>
 
 <section class="section">
-	<h1 class="title">{panel?.title ?? defaultTitle}</h1>
-	<p class="copy">{panel?.description ?? ''}</p>
+	{#if panel?.title}
+		<h1 class="title">{panel.title}</h1>
+	{/if}
+	{#if panel?.description}
+		<p class="copy">{panel.description}</p>
+	{/if}
 </section>
 <section class="section">
 	<div class="summary">
 		<p class="summary-label">{summaryLabel}</p>
 		<p class="summary-count">{panel?.count ?? entries.length}</p>
-		<p class="summary-note">{summaryNote.replace('{domain}', panel?.domain ?? 'this domain')}</p>
+		{#if resolvedSummaryNote}
+			<p class="summary-note">{resolvedSummaryNote}</p>
+		{/if}
 	</div>
 </section>
 <section class="section">
@@ -50,7 +59,7 @@
 			<article class="card">
 				<div class="card-head">
 					<div class="badge"><X size={14} strokeWidth={3} aria-hidden="true" /></div>
-					<p class="card-title">{cardTitle?.(entry, index) ?? entry.issue ?? defaultIssue}</p>
+					<p class="card-title">{cardTitle?.(entry, index) ?? entry.issue}</p>
 				</div>
 				<div class="meta">
 					{#each fields as field}

@@ -7,8 +7,6 @@
 
 <IssueListPanel
 	{panel}
-	defaultTitle="Missing product schema"
 	summaryNote={'Product schema issues found on {domain}'}
-	defaultIssue="Missing product schema"
 	fields={[{ label: 'Page', key: 'page' }]}
 />

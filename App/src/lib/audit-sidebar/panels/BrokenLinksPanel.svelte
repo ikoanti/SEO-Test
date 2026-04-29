@@ -7,9 +7,7 @@
 
 <IssueListPanel
 	{panel}
-	defaultTitle="Broken Links"
 	summaryNote={'Broken links found on {domain}'}
-	defaultIssue="Broken link"
 	cardTitle={(_, index) => `Broken link #${index + 1}`}
 	fields={[
 		{ label: 'Page', key: 'page' },

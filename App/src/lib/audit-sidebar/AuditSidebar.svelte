@@ -58,9 +58,7 @@
 
 	let activePanel = $derived<AuditPanelData>(
 		data?.panels?.[activeTab] ?? {
-			kind: 'placeholder',
-			title: 'Missing Panel',
-			description: 'No panel data configured.'
+			kind: 'placeholder'
 		}
 	);
 </script>

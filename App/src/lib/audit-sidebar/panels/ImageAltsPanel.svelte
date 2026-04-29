@@ -7,9 +7,7 @@
 
 <IssueListPanel
 	{panel}
-	defaultTitle="Unoptimized Alt Tags"
 	summaryNote={'Missing image alt tags found on {domain}'}
-	defaultIssue="Image missing alt text"
 	fields={[
 		{ label: 'Page', key: 'page' },
 		{ label: 'Image', key: 'image' }

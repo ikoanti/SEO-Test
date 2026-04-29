@@ -7,9 +7,7 @@
 
 <IssueListPanel
 	{panel}
-	defaultTitle="Unoptimized Canonicals"
 	summaryNote={'Canonical URL issues found on {domain}'}
-	defaultIssue="Canonical issue"
 	fields={[
 		{ label: 'Canonical', key: 'value', strong: true },
 		{ label: 'Page', key: 'page' }

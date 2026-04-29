@@ -7,8 +7,6 @@
 
 <IssueListPanel
 	{panel}
-	defaultTitle="Unoptimized Heading Tags"
 	summaryNote={'Heading issues found on {domain}'}
-	defaultIssue="Heading issue"
 	fields={[{ label: 'Page', key: 'page' }]}
 />

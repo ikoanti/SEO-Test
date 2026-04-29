@@ -5,8 +5,12 @@
 </script>
 
 <section class="section">
-	<h1 class="title">{panel?.title ?? 'Coming Soon'}</h1>
-	<p class="copy">{panel?.description ?? 'This panel has not been designed yet.'}</p>
+	{#if panel?.title}
+		<h1 class="title">{panel.title}</h1>
+	{/if}
+	{#if panel?.description}
+		<p class="copy">{panel.description}</p>
+	{/if}
 </section>
 
 <style>

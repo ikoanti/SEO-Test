@@ -1,5 +1,5 @@
 import { captureAuditSidebarScreenshot } from './renderer';
-import { SIDEBAR_TABS, buildSidebarData } from '$lib/audit-sidebar';
+import { buildSidebarData } from '$lib/audit-sidebar';
 
 type AuditCaptureRequestBase = {
 	reportTemplateKey?: string;
@@ -154,8 +154,8 @@ export async function captureHeadingEvidence(
 	domain: string,
 	entries: Array<{ page: string; issue: string }>,
 	count = entries.length,
-	title = 'Unoptimized Heading Tags',
-	description = 'Important pages are missing strong heading structure, which weakens topical clarity and makes page hierarchy less obvious to search engines.',
+	title = '',
+	description = '',
 	capturePageUrl?: string,
 	fallbackPageUrls: string[] = []
 ) {
