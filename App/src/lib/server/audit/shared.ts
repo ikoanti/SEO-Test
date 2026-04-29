@@ -2,8 +2,8 @@ import axios from 'axios';
 import * as cheerio from 'cheerio';
 import type { AnyNode } from 'domhandler';
 
-export type AuditFindingStatus = 'pass' | 'warn' | 'fail' | 'info';
-export type AuditSummary = { passed: number; warnings: number; failed: number };
+export type AuditFindingStatus = 'pass' | 'warn' | 'info';
+export type AuditSummary = { passed: number; warnings: number; info: number };
 export type AuditListResult = {
 	items: Array<Record<string, unknown> & { status?: AuditFindingStatus; detail: string }>;
 	stats: string;
@@ -38,7 +38,7 @@ export const AI_BOTS = [
 export const SEARCH_BOTS = ['Googlebot', 'Bingbot', 'Yandex', 'DuckDuckBot', 'Baidu'];
 
 export function createSummary(): AuditSummary {
-	return { passed: 0, warnings: 0, failed: 0 };
+	return { passed: 0, warnings: 0, info: 0 };
 }
 
 export function createListResult(): AuditListResult {
@@ -54,7 +54,7 @@ export function addItem(
 ) {
 	if (status === 'pass') summary.passed += 1;
 	if (status === 'warn') summary.warnings += 1;
-	if (status === 'fail') summary.failed += 1;
+	if (status === 'info') summary.info += 1;
 	list.items.push({ status, detail, ...extra });
 }
 

@@ -31,7 +31,7 @@ export async function analyzePageSpeed(
 
 		if (score >= 90) summary.passed += 1;
 		else if (score >= 50) summary.warnings += 1;
-		else summary.failed += 1;
+		else summary.warnings += 1;
 
 		logger.info(`pagespeed:${strategy}: score ${score}`);
 		return {

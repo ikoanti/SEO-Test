@@ -1,20 +1,20 @@
 <script lang="ts">
 	import type { AuditFindingStatusFilter } from '$lib/audit-status';
-	import { AlertTriangle, CheckCircle2, CircleX } from 'lucide-svelte';
+	import { AlertTriangle, CheckCircle2, Info } from 'lucide-svelte';
 
 	type PillStatus = AuditFindingStatusFilter;
 
 	let {
 		pass,
 		warn,
-		fail,
-		statuses = ['pass', 'warn', 'fail'] as PillStatus[],
+		info,
+		statuses = ['pass', 'warn', 'info'] as PillStatus[],
 		selectable = true,
 		selectedStatus = $bindable<AuditFindingStatusFilter | null>(null)
 	}: {
 		pass: number;
 		warn: number;
-		fail: number;
+		info: number;
 		statuses?: PillStatus[];
 		selectable?: boolean;
 		selectedStatus?: AuditFindingStatusFilter | null;
@@ -57,19 +57,19 @@
 			<span>Issues</span>
 		</svelte:element>
 	{/if}
-	{#if statuses.includes('fail')}
+	{#if statuses.includes('info')}
 		<svelte:element
 			this={selectable ? 'button' : 'div'}
 			type={selectable ? 'button' : undefined}
-			class={`scan-stat fail ${selectedStatus === 'fail' ? 'is-active' : ''} ${selectable ? 'is-selectable' : 'is-static'}`}
-			aria-pressed={selectable ? selectedStatus === 'fail' : undefined}
+			class={`scan-stat info ${selectedStatus === 'info' ? 'is-active' : ''} ${selectable ? 'is-selectable' : 'is-static'}`}
+			aria-pressed={selectable ? selectedStatus === 'info' : undefined}
 			role={selectable ? undefined : 'status'}
 			tabindex={selectable ? 0 : undefined}
-			onclick={() => toggleSelection('fail')}
+			onclick={() => toggleSelection('info')}
 		>
-			<CircleX size={16} strokeWidth={2.25} />
-			<span>{fail}</span>
-			<span>Fail</span>
+			<Info size={16} strokeWidth={2.25} />
+			<span>{info}</span>
+			<span>Info</span>
 		</svelte:element>
 	{/if}
 </div>
@@ -113,9 +113,9 @@
 		color: var(--status-warn);
 	}
 
-	.scan-stat.fail {
-		background: rgba(239, 68, 68, 0.12);
-		color: var(--status-fail);
+	.scan-stat.info {
+		background: color-mix(in srgb, var(--status-info) 12%, transparent);
+		color: var(--status-info);
 	}
 
 	.scan-stat :global(svg) {

@@ -13,7 +13,7 @@ export type AuditEntry = {
 	property?: string;
 	pattern?: string;
 	wordCount?: number;
-	status?: 'pass' | 'warn' | 'fail' | 'info';
+	status?: 'pass' | 'warn' | 'info';
 };
 
 export type BasePanelData = {

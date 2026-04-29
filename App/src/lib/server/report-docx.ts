@@ -342,7 +342,7 @@ export async function generateTemplateReportDocx(
 	}
 
 	if (!problems.length) {
-		children.push(paragraph('No major warning or failed checks were found in this mini audit.'));
+		children.push(paragraph('No major warnings were found in this mini audit.'));
 		children.push(emptyLine());
 	}
 

@@ -16,7 +16,7 @@ function attachScreenshotRequest(
 }
 
 function issueCount(items: Array<{ status?: string }>) {
-	return items.filter((item) => item.status === 'warn' || item.status === 'fail').length;
+	return items.filter((item) => item.status === 'warn').length;
 }
 
 function valueHasSchemaType(value: unknown, schemaType: string): boolean {
@@ -166,7 +166,7 @@ export async function analyzeHomePage(
 	addItem(
 		summary,
 		ssl,
-		urlObj.protocol === 'https:' ? 'pass' : 'fail',
+		urlObj.protocol === 'https:' ? 'pass' : 'warn',
 		urlObj.protocol === 'https:' ? 'HTTPS Enabled' : 'HTTPS Not Enabled'
 	);
 
@@ -293,7 +293,7 @@ export async function analyzeHomePage(
 
 	if (lazyLoadingEvidence.length > 0) {
 		attachScreenshotRequest(
-			lazyLoadImages.items.find((item) => item.status === 'warn' || item.status === 'fail'),
+			lazyLoadImages.items.find((item) => item.status === 'warn'),
 			{
 				kind: 'lazy-loading',
 				domain,
@@ -305,7 +305,7 @@ export async function analyzeHomePage(
 
 	if (openGraphEvidence.length > 0) {
 		attachScreenshotRequest(
-			openGraph.items.find((item) => item.status === 'warn' || item.status === 'fail'),
+			openGraph.items.find((item) => item.status === 'warn'),
 			{
 				kind: 'open-graph',
 				domain,
@@ -317,7 +317,7 @@ export async function analyzeHomePage(
 
 	if (!hasOrganizationSchema) {
 		attachScreenshotRequest(
-			organizationSchema.items.find((item) => item.status === 'warn' || item.status === 'fail'),
+			organizationSchema.items.find((item) => item.status === 'warn'),
 			{
 				kind: 'missing-organization-schema',
 				reportTemplateKey: 'missing-organization-schema',
@@ -331,7 +331,7 @@ export async function analyzeHomePage(
 
 	if (detectedBlogUrl && !hasBlogInKeyNavigation) {
 		attachScreenshotRequest(
-			unlinkedBlog.items.find((item) => item.status === 'warn' || item.status === 'fail'),
+			unlinkedBlog.items.find((item) => item.status === 'warn'),
 			{
 				kind: 'unlinked-blog',
 				reportTemplateKey: 'unlinked-blog',

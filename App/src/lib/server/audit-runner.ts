@@ -728,7 +728,7 @@ function enrichCaptureRequestWithCandidates(
 
 	const candidateEntries = uniqueCaptureEntries(
 		findings
-			.filter((finding) => finding.status === 'warn' || finding.status === 'fail')
+			.filter((finding) => finding.status === 'warn')
 			.filter((finding) => findingMatchesCaptureRequest(request, finding))
 			.map((finding) => captureEntryFromFinding(request, finding))
 			.filter((entry): entry is CaptureEntry => Boolean(entry))
@@ -774,7 +774,7 @@ function templateIssueMatcher(pattern: string | undefined) {
 function issueFindingsForTemplate(item: NormalizedAuditItem, template: AuditReportTemplateRecord) {
 	const matcher = templateIssueMatcher(template.match_pattern);
 	return item.findings.filter((finding) => {
-		if (finding.status !== 'warn' && finding.status !== 'fail') return false;
+		if (finding.status !== 'warn') return false;
 		return matcher ? matcher(finding) : true;
 	});
 }

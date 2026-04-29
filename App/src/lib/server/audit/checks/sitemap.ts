@@ -36,6 +36,6 @@ export async function analyzeSitemap(
 		}
 	}
 
-	if (!foundAny) addItem(summary, result, 'fail', 'No Sitemap Found');
+	if (!foundAny) addItem(summary, result, 'warn', 'No Sitemap Found');
 	return result;
 }

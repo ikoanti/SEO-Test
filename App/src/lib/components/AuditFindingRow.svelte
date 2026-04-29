@@ -5,7 +5,6 @@
 		CheckCircle2,
 		ChevronDown,
 		ChevronUp,
-		CircleX,
 		Info
 	} from 'lucide-svelte';
 
@@ -81,8 +80,6 @@
 						<CheckCircle2 size={18} strokeWidth={2.3} />
 					{:else if status === 'warn'}
 						<AlertTriangle size={18} strokeWidth={2.3} />
-					{:else if status === 'fail'}
-						<CircleX size={18} strokeWidth={2.3} />
 					{:else}
 						<Info size={18} strokeWidth={2.3} />
 					{/if}
@@ -104,8 +101,6 @@
 					<CheckCircle2 size={18} strokeWidth={2.3} />
 				{:else if status === 'warn'}
 					<AlertTriangle size={18} strokeWidth={2.3} />
-				{:else if status === 'fail'}
-					<CircleX size={18} strokeWidth={2.3} />
 				{:else}
 					<Info size={18} strokeWidth={2.3} />
 				{/if}
@@ -173,12 +168,6 @@
 		color: var(--status-warn);
 	}
 
-	.finding-row-section-header.finding-row-fail {
-		border: 0;
-		background: transparent;
-		color: var(--status-fail);
-	}
-
 	.finding-row-section-header.finding-row-info {
 		border: 0;
 		background: transparent;
@@ -197,11 +186,6 @@
 	.finding-row-warn {
 		border-color: rgba(245, 158, 11, 0.24);
 		background: rgba(245, 158, 11, 0.08);
-	}
-
-	.finding-row-fail {
-		border-color: rgba(239, 68, 68, 0.24);
-		background: rgba(239, 68, 68, 0.08);
 	}
 
 	.finding-row-info {
@@ -250,10 +234,6 @@
 
 	.status-warn {
 		color: var(--status-warn);
-	}
-
-	.status-fail {
-		color: var(--status-fail);
 	}
 
 	.status-info {

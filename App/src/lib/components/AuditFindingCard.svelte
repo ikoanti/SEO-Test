@@ -38,7 +38,6 @@
 	let selectedStatus = $state<AuditFindingStatusFilter | null>(null);
 	let showPassedFindings = $state(false);
 	let showAllWarnFindings = $state(false);
-	let showAllFailFindings = $state(false);
 	let showAllInfoFindings = $state(false);
 
 	function statPills(item?: AuditItemView) {
@@ -46,7 +45,7 @@
 		return {
 			pass: findings.filter((finding) => finding.status === 'pass').length,
 			warn: findings.filter((finding) => finding.status === 'warn').length,
-			fail: findings.filter((finding) => finding.status === 'fail').length
+			info: findings.filter((finding) => !finding.status || finding.status === 'info').length
 		};
 	}
 
@@ -186,13 +185,13 @@
 		const statuses: AuditFindingStatusFilter[] = [];
 		if (pills.pass > 0) statuses.push('pass');
 		if (pills.warn > 0) statuses.push('warn');
-		if (pills.fail > 0) statuses.push('fail');
-		return statuses.length ? statuses : (['pass', 'warn'] as AuditFindingStatusFilter[]);
+		if (pills.info > 0) statuses.push('info');
+		return statuses.length ? statuses : (['pass', 'warn', 'info'] as AuditFindingStatusFilter[]);
 	});
 	const targetStatusForFilter: Record<AuditFindingStatusFilter, AuditFindingStatus> = {
 		pass: 'pass',
 		warn: 'warn',
-		fail: 'fail'
+		info: 'info'
 	};
 	const findingsByStatus = $derived.by(() => {
 		const findings = item?.findings || [];
@@ -202,24 +201,11 @@
 			: findings;
 
 		return {
-			fail: sourceFindings.filter((finding) => finding.status === 'fail'),
 			warn: sourceFindings.filter((finding) => finding.status === 'warn'),
 			info: sourceFindings.filter((finding) => !finding.status || finding.status === 'info'),
 			pass: sourceFindings.filter((finding) => finding.status === 'pass')
 		};
 	});
-	const visibleFailFindings = $derived.by(() => {
-		if (selectedStatus === 'fail' || showAllFailFindings) {
-			return findingsByStatus.fail;
-		}
-
-		return findingsByStatus.fail.slice(0, previewLimit);
-	});
-	const isFailSectionExpandable = $derived.by(() => findingsByStatus.fail.length > previewLimit);
-	const hiddenFailCount = $derived.by(() =>
-		Math.max(findingsByStatus.fail.length - visibleFailFindings.length, 0)
-	);
-	const failGroups = $derived(groupedIssueSections('fail', visibleFailFindings));
 	const visibleWarnFindings = $derived.by(() => {
 		if (selectedStatus === 'warn' || showAllWarnFindings) {
 			return findingsByStatus.warn;
@@ -233,7 +219,7 @@
 	);
 	const warnGroups = $derived(groupedIssueSections('warn', visibleWarnFindings));
 	const visibleInfoFindings = $derived.by(() => {
-		if (showAllInfoFindings) {
+		if (selectedStatus === 'info' || showAllInfoFindings) {
 			return findingsByStatus.info;
 		}
 
@@ -258,7 +244,6 @@
 	const passGroups = $derived(groupedIssueSections('pass', visiblePassFindings));
 	const hasVisibleFindings = $derived.by(
 		() =>
-			findingsByStatus.fail.length > 0 ||
 			findingsByStatus.warn.length > 0 ||
 			findingsByStatus.info.length > 0 ||
 			findingsByStatus.pass.length > 0
@@ -300,40 +285,12 @@
 	<AuditStatusPills
 		pass={pills.pass}
 		warn={pills.warn}
-		fail={pills.fail}
+		info={pills.info}
 		statuses={visiblePillStatuses}
 		bind:selectedStatus
 	/>
 	<ul class="check-list">
 		{#if hasVisibleFindings}
-			{#each failGroups as group (group.key)}
-				<li class="issue-group-heading issue-group-heading-fail">{group.title}</li>
-				{#each group.rows as row (row.key)}
-					<AuditFindingRow
-						status={row.status}
-						title={row.title}
-						detail={row.detail}
-						href={row.href}
-						urlList={row.urlList}
-						codeSnippet={row.codeSnippet}
-						sectionHeader={row.sectionHeader}
-						indented={row.indented}
-					/>
-				{/each}
-			{/each}
-			{#if isFailSectionExpandable}
-				<li class="group-toggle-item">
-					<button
-						type="button"
-						class="group-toggle group-toggle-fail"
-						onclick={() => {
-							showAllFailFindings = !showAllFailFindings;
-						}}
-					>
-						{showAllFailFindings ? 'Show less' : `${hiddenFailCount} more fails`}
-					</button>
-				</li>
-			{/if}
 			{#each warnGroups as group (group.key)}
 				<li class="issue-group-heading issue-group-heading-warn">{group.title}</li>
 				{#each group.rows as row (row.key)}
@@ -511,10 +468,6 @@
 		color: var(--status-warn);
 	}
 
-	.issue-group-heading-fail {
-		color: var(--status-fail);
-	}
-
 	.issue-group-heading-info {
 		color: var(--status-info);
 	}
@@ -556,10 +509,6 @@
 
 	.group-toggle-warn {
 		color: var(--status-warn);
-	}
-
-	.group-toggle-fail {
-		color: var(--status-fail);
 	}
 
 	.group-toggle-info {

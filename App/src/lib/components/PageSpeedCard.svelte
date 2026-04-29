@@ -29,7 +29,7 @@
 		if (!Number.isFinite(value) || value <= 0) return '';
 		if (value >= 90) return 'pass';
 		if (value >= 50) return 'warn';
-		return 'fail';
+		return 'low';
 	}
 
 	function metricsForPageSpeed(strategy: 'mobile' | 'desktop') {
@@ -152,7 +152,7 @@
 		color: var(--status-warn);
 	}
 
-	.metric-circle.fail {
+	.metric-circle.low {
 		border-color: var(--status-fail);
 		color: var(--status-fail);
 	}

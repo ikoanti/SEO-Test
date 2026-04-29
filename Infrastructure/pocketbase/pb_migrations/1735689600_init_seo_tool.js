@@ -643,7 +643,7 @@ Currently, {{count}} {{domain}} images lack descriptions, affecting accessibilit
               type: "select",
               required: true,
               maxSelect: 1,
-              values: ["pass", "warn", "fail", "info"],
+              values: ["pass", "warn", "info"],
             },
             { name: "title", type: "text", required: true, max: 255 },
             { name: "detail", type: "editor", required: false },

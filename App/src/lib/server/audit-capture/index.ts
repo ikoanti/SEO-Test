@@ -95,7 +95,7 @@ export type AuditCaptureRequest = AuditCaptureRequestBase &
 				robotsUrl: string;
 				storefrontUrl: string;
 				foundAgents: string[];
-				entries?: Array<{ issue: string; status?: 'pass' | 'warn' | 'fail' | 'info' }>;
+				entries?: Array<{ issue: string; status?: 'pass' | 'warn' | 'info' }>;
 				count?: number;
 		  }
 	);
@@ -423,7 +423,7 @@ export async function captureRobotsEvidence({
 	robotsUrl: string;
 	storefrontUrl: string;
 	foundAgents: string[];
-	entries?: Array<{ issue: string; status?: 'pass' | 'warn' | 'fail' | 'info' }>;
+	entries?: Array<{ issue: string; status?: 'pass' | 'warn' | 'info' }>;
 	count?: number;
 	title?: string;
 	description?: string;

@@ -116,7 +116,7 @@
 		{#each rows as entry}
 			{@const agent = agentFromIssue(entry.issue)}
 			{@const icon = badgeFor(agent ?? entry.issue ?? '')}
-			<article class="card compact" class:blocked={entry.status === 'fail'}>
+			<article class="card compact" class:blocked={entry.status === 'warn'}>
 				<div class="card-head">
 					<div class="bot-logo-wrap" aria-hidden="true">
 						{#if icon.logo}

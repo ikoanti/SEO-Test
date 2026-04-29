@@ -49,7 +49,7 @@ export async function analyzeRobots(origin: string, summary: AuditSummary, logge
 			addItem(
 				summary,
 				result,
-				blocked ? 'fail' : 'pass',
+				blocked ? 'warn' : 'pass',
 				blocked ? `${bot} is Blocked` : `${bot} Allowed`
 			);
 		});
@@ -72,7 +72,7 @@ export async function analyzeRobots(origin: string, summary: AuditSummary, logge
 
 			if (found && blocked) {
 				aiIssues += 1;
-				addItem(summary, result, 'fail', `${bot} Blocked`, { category: 'ai' });
+				addItem(summary, result, 'warn', `${bot} Blocked`, { category: 'ai' });
 			} else if (found) {
 				addItem(summary, result, 'pass', `${bot} Allowed`, { category: 'ai' });
 			} else {
@@ -83,7 +83,7 @@ export async function analyzeRobots(origin: string, summary: AuditSummary, logge
 
 		if (aiIssues > 0) {
 			const aiIssueEntries = result.items
-				.filter((item) => item.category === 'ai' && (item.status === 'warn' || item.status === 'fail'))
+				.filter((item) => item.category === 'ai' && item.status === 'warn')
 				.map((item) => ({
 					issue: item.detail,
 					status: item.status
@@ -91,7 +91,7 @@ export async function analyzeRobots(origin: string, summary: AuditSummary, logge
 
 			attachScreenshotRequest(
 				result.items.find(
-					(item) => item.category === 'ai' && (item.status === 'warn' || item.status === 'fail')
+					(item) => item.category === 'ai' && item.status === 'warn'
 				),
 				{
 					kind: 'robots',
@@ -112,7 +112,7 @@ export async function analyzeRobots(origin: string, summary: AuditSummary, logge
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		logger.warn(`robots: failed (${message})`);
-		addItem(summary, result, 'fail', 'robots.txt not found or unavailable.');
+		addItem(summary, result, 'warn', 'robots.txt not found or unavailable.');
 	}
 
 	return { result, robotsSitemap };

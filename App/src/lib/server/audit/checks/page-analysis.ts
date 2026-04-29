@@ -382,7 +382,7 @@ export async function analyzeMetaAndHeadings(
 	const issueItems = (
 		items: Array<Record<string, unknown>>,
 		matcher: (item: Record<string, unknown>) => boolean
-	) => items.filter((item) => (item.status === 'warn' || item.status === 'fail') && matcher(item));
+	) => items.filter((item) => item.status === 'warn' && matcher(item));
 
 	if (missingH1Evidence.length > 0) {
 		const matchingItems = issueItems(h1Tags.items, (item) => item.detail === 'Missing H1 tag');
@@ -414,10 +414,10 @@ export async function analyzeMetaAndHeadings(
 
 	if (imageAltEvidence.length > 0) {
 		const issueCount = imageAltTags.items.filter(
-			(item) => item.status === 'warn' || item.status === 'fail'
+			(item) => item.status === 'warn'
 		).length;
 		attachScreenshotRequest(
-			imageAltTags.items.find((item) => item.status === 'warn' || item.status === 'fail'),
+			imageAltTags.items.find((item) => item.status === 'warn'),
 			{
 				kind: 'image-alts',
 				reportTemplateKey: 'images-with-missing-alt-text',
@@ -491,40 +491,40 @@ export async function analyzeMetaAndHeadings(
 
 	if (canonicalEvidence.length > 0) {
 		const issueCount = canonicalUrls.items.filter(
-			(item) => item.status === 'warn' || item.status === 'fail'
+			(item) => item.status === 'warn'
 		).length;
 		attachScreenshotRequest(
-			canonicalUrls.items.find((item) => item.status === 'warn' || item.status === 'fail'),
+			canonicalUrls.items.find((item) => item.status === 'warn'),
 			{ kind: 'canonicals', domain, entries: canonicalEvidence, count: issueCount }
 		);
 	}
 
 	if (internalLinksEvidence.length > 0) {
 		const issueCount = internalLinks.items.filter(
-			(item) => item.status === 'warn' || item.status === 'fail'
+			(item) => item.status === 'warn'
 		).length;
 		attachScreenshotRequest(
-			internalLinks.items.find((item) => item.status === 'warn' || item.status === 'fail'),
+			internalLinks.items.find((item) => item.status === 'warn'),
 			{ kind: 'internal-links', domain, entries: internalLinksEvidence, count: issueCount }
 		);
 	}
 
 	if (contentQualityEvidence.length > 0) {
 		const issueCount = contentQuality.items.filter(
-			(item) => item.status === 'warn' || item.status === 'fail'
+			(item) => item.status === 'warn'
 		).length;
 		attachScreenshotRequest(
-			contentQuality.items.find((item) => item.status === 'warn' || item.status === 'fail'),
+			contentQuality.items.find((item) => item.status === 'warn'),
 			{ kind: 'content-quality', domain, entries: contentQualityEvidence, count: issueCount }
 		);
 	}
 
 	if (shopifyUrlEvidence.length > 0) {
 		const issueCount = shopifyUrls.items.filter(
-			(item) => item.status === 'warn' || item.status === 'fail'
+			(item) => item.status === 'warn'
 		).length;
 		attachScreenshotRequest(
-			shopifyUrls.items.find((item) => item.status === 'warn' || item.status === 'fail'),
+			shopifyUrls.items.find((item) => item.status === 'warn'),
 			{
 				kind: 'shopify-urls',
 				reportTemplateKey: 'unoptimized-shopify-url-structure',
@@ -538,10 +538,10 @@ export async function analyzeMetaAndHeadings(
 
 	if (faqSchemaEvidence.length > 0) {
 		const issueCount = faqSchema.items.filter(
-			(item) => item.status === 'warn' || item.status === 'fail'
+			(item) => item.status === 'warn'
 		).length;
 		attachScreenshotRequest(
-			faqSchema.items.find((item) => item.status === 'warn' || item.status === 'fail'),
+			faqSchema.items.find((item) => item.status === 'warn'),
 			{
 				kind: 'missing-faq-schema',
 				reportTemplateKey: 'missing-faq-schema',

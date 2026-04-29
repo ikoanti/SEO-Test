@@ -75,7 +75,7 @@
 		audit: Record<string, unknown> | null;
 		summary: {
 			domain?: string;
-			summary?: { passed?: number; warnings?: number; failed?: number };
+			summary?: { passed?: number; warnings?: number; info?: number };
 		} | null;
 		reportPreviewItems: {
 			key: string;
@@ -210,7 +210,7 @@
 	}
 
 	function issueFindings(item: AuditItemView) {
-		return item.findings.filter((finding) => finding.status === 'warn' || finding.status === 'fail');
+		return item.findings.filter((finding) => finding.status === 'warn');
 	}
 
 	function templateForFindingType(key: string) {
@@ -649,7 +649,7 @@
 				.find((meta) => Array.isArray(meta.foundAgents)) ?? getRecord(auditSection('robotsTxt'));
 		const robotsEntries =
 			robotsItem?.findings
-				.filter((finding) => finding.status === 'warn' || finding.status === 'fail')
+				.filter((finding) => finding.status === 'warn')
 				.filter((finding) => parseMeta(finding.meta).category === 'ai')
 				.map((finding) => ({
 					issue: robotsItem ? issueText(finding, robotsItem) : '',
@@ -714,12 +714,12 @@
 	function summaryBarStyle() {
 		const passed = pageData.summary?.summary?.passed ?? 0;
 		const warnings = pageData.summary?.summary?.warnings ?? 0;
-		const failed = pageData.summary?.summary?.failed ?? 0;
-		const total = passed + warnings + failed;
+		const info = pageData.summary?.summary?.info ?? 0;
+		const total = passed + warnings + info;
 		if (!total) return '';
 		const passedPct = (passed / total) * 100;
 		const warnPct = (warnings / total) * 100;
-		return `background: linear-gradient(to right, var(--status-pass) 0%, var(--status-pass) ${passedPct}%, var(--status-warn) ${passedPct}%, var(--status-warn) ${passedPct + warnPct}%, var(--status-fail) ${passedPct + warnPct}%, var(--status-fail) 100%)`;
+		return `background: linear-gradient(to right, var(--status-pass) 0%, var(--status-pass) ${passedPct}%, var(--status-warn) ${passedPct}%, var(--status-warn) ${passedPct + warnPct}%, var(--status-info) ${passedPct + warnPct}%, var(--status-info) 100%)`;
 	}
 
 	function stopLiveUpdates() {
@@ -854,7 +854,7 @@
 	<AuditOverviewCard
 		passed={pageData.summary?.summary?.passed ?? 0}
 		warnings={pageData.summary?.summary?.warnings ?? 0}
-		failed={pageData.summary?.summary?.failed ?? 0}
+		info={pageData.summary?.summary?.info ?? 0}
 		barStyle={summaryBarStyle()}
 	/>
 

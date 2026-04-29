@@ -15,7 +15,7 @@ export type ReportPageData = {
 	audit: Record<string, unknown> | null;
 	summary: {
 		domain?: string;
-		summary?: { passed?: number; warnings?: number; failed?: number };
+		summary?: { passed?: number; warnings?: number; info?: number };
 		[key: string]: unknown;
 	} | null;
 	aiVisibility: Record<string, unknown> | null;
@@ -53,7 +53,7 @@ export type ReportProblemPreview = {
 	sourceFindingTypeKey: string;
 	sourceLabel: string;
 	sortOrder: number;
-	status: 'pass' | 'warn' | 'fail' | 'info';
+	status: 'pass' | 'warn' | 'info';
 	priority: 'Urgent' | 'High' | 'Medium';
 	paragraphs: string[];
 	screenshot?: AuditItem['screenshot'];
@@ -100,9 +100,7 @@ function domainName(pageData: ReportPageData) {
 }
 
 function issueFindings(item: AuditItem | undefined) {
-	return (item?.findings || []).filter(
-		(finding) => finding.status === 'warn' || finding.status === 'fail'
-	);
+	return (item?.findings || []).filter((finding) => finding.status === 'warn');
 }
 
 function issueMatcher(pattern: string | undefined) {
@@ -191,7 +189,7 @@ function shouldIncludeMetricTemplate(
 		return text(context.aiScore, '-') !== '-';
 	}
 
-	return item?.status === 'warn' || item?.status === 'fail';
+	return item?.status === 'warn';
 }
 
 function canUseItemScreenshot(template: AuditReportTemplateRecord, findingTypeKey: string) {
@@ -199,14 +197,13 @@ function canUseItemScreenshot(template: AuditReportTemplateRecord, findingTypeKe
 }
 
 function isDisplayStatus(value: unknown): value is ReportProblemPreview['status'] {
-	return value === 'pass' || value === 'warn' || value === 'fail' || value === 'info';
+	return value === 'pass' || value === 'warn' || value === 'info';
 }
 
 function statusFromFindings(
 	findings: Finding[],
 	item: AuditItem | undefined
 ): ReportProblemPreview['status'] {
-	if (findings.some((finding) => finding.status === 'fail')) return 'fail';
 	if (findings.some((finding) => finding.status === 'warn')) return 'warn';
 	if (findings.some((finding) => finding.status === 'pass')) return 'pass';
 	if (isDisplayStatus(item?.status)) {
@@ -308,7 +305,7 @@ export function generateTemplateReportHtml(
   <p style="font-family:Arial, sans-serif; font-size:10.5pt; line-height:1.55; color:#111827; margin:0 0 10px 0;">These exact problems are among the top reasons why you’re not ranking for more of your target keywords and in some cases are stuck at the bottom of page 1.</p>
   <p style="font-family:Arial, sans-serif; font-size:10.5pt; line-height:1.55; color:#111827; margin:0 0 18px 0;">The main problems are listed below:</p>
 
-  ${problems.length ? problems.map((problem, index) => problemHtml(problem, index + 1)).join('') : '<p style="font-family:Arial, sans-serif; font-size:10.5pt; line-height:1.55; color:#111827; margin:0 0 18px 0;">No major warning or failed checks were found in this mini audit.</p>'}
+  ${problems.length ? problems.map((problem, index) => problemHtml(problem, index + 1)).join('') : '<p style="font-family:Arial, sans-serif; font-size:10.5pt; line-height:1.55; color:#111827; margin:0 0 18px 0;">No major warnings were found in this mini audit.</p>'}
 
   <p style="font-family:Arial, sans-serif; font-size:10.5pt; line-height:1.55; color:#111827; margin:16px 0 28px 0;">All of the above problems have a direct negative impact on your organic rankings, visibility, and traffic and present a massive opportunity cost over the long term.</p>
 

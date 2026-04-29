@@ -20,7 +20,7 @@ export type AuditResult = {
 	summary?: {
 		passed?: number;
 		warnings?: number;
-		failed?: number;
+		info?: number;
 	};
 	pageSpeed?: {
 		mobile?: { score?: number | string; metrics?: Record<string, unknown> };
@@ -115,19 +115,23 @@ function extractFirstHttpUrl(value: string) {
 function deriveStatusFromCounts(items: AuditListItem[]): AuditFindingStatus {
 	const counts = items.reduce(
 		(accumulator, item) => {
-			const status = item.status || 'info';
-			if (status === 'fail') accumulator.fail += 1;
-			else if (status === 'warn') accumulator.warn += 1;
+			const status = normalizeFindingStatus(item.status);
+			if (status === 'warn') accumulator.warn += 1;
 			else if (status === 'pass') accumulator.pass += 1;
 			else accumulator.info += 1;
 			return accumulator;
 		},
-		{ pass: 0, warn: 0, fail: 0, info: 0 }
+		{ pass: 0, warn: 0, info: 0 }
 	);
 
-	if (counts.fail > 0) return 'fail';
 	if (counts.warn > 0) return 'warn';
 	if (counts.pass > 0) return 'pass';
+	return 'info';
+}
+
+function normalizeFindingStatus(status: unknown): AuditFindingStatus {
+	if (status === 'pass' || status === 'warn' || status === 'info') return status;
+	if (status === 'fail') return 'warn';
 	return 'info';
 }
 
@@ -169,7 +173,7 @@ function buildListSection(
 			extractFirstHttpUrl(detail);
 
 		return {
-			status: (item.status || 'info') as AuditFindingStatus,
+			status: normalizeFindingStatus(item.status),
 			title,
 			detail,
 			page_url,
@@ -197,7 +201,7 @@ function h1IssueSection(
 ): NormalizedAuditFindingType | null {
 	const sourceItems = section.items || [];
 	const issueItems = sourceItems.filter(
-		(item) => (item.status === 'warn' || item.status === 'fail') && matcher(item)
+		(item) => normalizeFindingStatus(item.status) === 'warn' && matcher(item)
 	);
 
 	if (!sourceItems.length && !issueItems.length) return null;
@@ -279,7 +283,7 @@ export function buildNormalizedAuditItems(audit: AuditResult): NormalizedAuditFi
 					: averageScore >= 50
 						? 'warn'
 						: averageScore > 0
-							? 'fail'
+							? 'warn'
 							: 'info';
 
 			items.push(

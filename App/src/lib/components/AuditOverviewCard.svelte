@@ -1,15 +1,15 @@
 <script lang="ts">
-	import { AlertTriangle, CheckCircle2, CircleX } from 'lucide-svelte';
+	import { AlertTriangle, CheckCircle2, Info } from 'lucide-svelte';
 
 	let {
 		passed = 0,
 		warnings = 0,
-		failed = 0,
+		info = 0,
 		barStyle = ''
 	}: {
 		passed?: number;
 		warnings?: number;
-		failed?: number;
+		info?: number;
 		barStyle?: string;
 	} = $props();
 </script>
@@ -30,10 +30,10 @@
 		</div>
 	</div>
 	<div class="summary-item">
-		<span class="summary-count fail">{failed}</span>
-		<div class="summary-heading fail">
-			<CircleX size={18} strokeWidth={2.25} />
-			<span>Failed</span>
+		<span class="summary-count info">{info}</span>
+		<div class="summary-heading info">
+			<Info size={18} strokeWidth={2.25} />
+			<span>Info</span>
 		</div>
 	</div>
 	<div class="summary-score-bar-wrap">
@@ -82,8 +82,8 @@
 		color: var(--status-warn);
 	}
 
-	.summary-heading.fail {
-		color: var(--status-fail);
+	.summary-heading.info {
+		color: var(--status-info);
 	}
 
 	.summary-count {
@@ -100,8 +100,8 @@
 		color: var(--status-warn);
 	}
 
-	.summary-count.fail {
-		color: var(--status-fail);
+	.summary-count.info {
+		color: var(--status-info);
 	}
 
 	.summary-score-bar-wrap {

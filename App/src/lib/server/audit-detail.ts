@@ -57,6 +57,12 @@ function getRecord(value: unknown): Record<string, unknown> {
 		: {};
 }
 
+function normalizeFindingStatus(status: unknown): AuditFindingStatus {
+	if (status === 'pass' || status === 'warn' || status === 'info') return status;
+	if (status === 'fail') return 'warn';
+	return 'info';
+}
+
 function screenshotView(auditId: string, screenshot: unknown) {
 	const screenshotRecord = screenshot as (Record<string, unknown> & { image_url?: string }) | null;
 	if (!screenshotRecord) return null;
@@ -81,17 +87,18 @@ function buildDisplayedSummary(
 ) {
 	const base = getRecord(summary);
 	const rawSummary = getRecord(base.summary);
-	const counts = auditFindings.reduce<{ passed: number; warnings: number; failed: number }>(
+	const counts = auditFindings.reduce<{ passed: number; warnings: number; info: number }>(
 		(accumulator, finding) => {
-			if (finding.status === 'pass') accumulator.passed += 1;
-			else if (finding.status === 'warn') accumulator.warnings += 1;
-			else if (finding.status === 'fail') accumulator.failed += 1;
+			const status = normalizeFindingStatus(finding.status);
+			if (status === 'pass') accumulator.passed += 1;
+			else if (status === 'warn') accumulator.warnings += 1;
+			else accumulator.info += 1;
 			return accumulator;
 		},
-		{ passed: 0, warnings: 0, failed: 0 }
+		{ passed: 0, warnings: 0, info: 0 }
 	);
 	const hasPersistedCounts =
-		usePersistedFindingCounts && counts.passed + counts.warnings + counts.failed > 0;
+		usePersistedFindingCounts && counts.passed + counts.warnings + counts.info > 0;
 
 	return {
 		...base,
@@ -99,8 +106,8 @@ function buildDisplayedSummary(
 			? counts
 			: {
 					passed: Number(rawSummary.passed || 0),
-					warnings: Number(rawSummary.warnings || 0),
-					failed: Number(rawSummary.failed || 0)
+					warnings: Number(rawSummary.warnings || 0) + Number(rawSummary.failed || 0),
+					info: Number(rawSummary.info || 0)
 				}
 	};
 }
@@ -176,6 +183,7 @@ export async function buildAuditPageData(
 			[]
 		).map((finding) => ({
 			...finding,
+			status: normalizeFindingStatus(finding.status),
 			meta: parseStoredJson(finding.meta_json)
 		})) as Array<Record<string, unknown> & { status?: AuditFindingStatus }>;
 		const displaySummary =
@@ -184,9 +192,7 @@ export async function buildAuditPageData(
 				: typeof findings[0]?.title === 'string' && findings[0].title.trim()
 					? findings[0].title
 					: '';
-		const status = findings.some((finding) => finding.status === 'fail')
-			? 'fail'
-			: findings.some((finding) => finding.status === 'warn')
+		const status = findings.some((finding) => finding.status === 'warn')
 				? 'warn'
 				: findings.some((finding) => finding.status === 'pass')
 					? 'pass'
