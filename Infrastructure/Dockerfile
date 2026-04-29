@@ -43,12 +43,10 @@ COPY App/package*.json ./
 RUN npm ci --omit=dev
 
 COPY --from=build /app/build ./build
-COPY App/src/lib/server/audit-capture/assets ./audit-capture-assets
 COPY App/src/lib/assets/report-logo.png ./report-assets/logo.png
 
 ENV NODE_ENV=production
 ENV PORT=3000
-ENV AUDIT_CAPTURE_ASSETS_DIR=/app/audit-capture-assets
 ENV REPORT_LOGO_PATH=/app/report-assets/logo.png
 
 EXPOSE 3000
