@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Bot } from 'lucide-svelte';
 	import type { AuditEntry, BasePanelData } from '../types';
 	import amazonLogo from '$lib/assets/bot-logos/amazon.png';
 	import anthropicLogo from '$lib/assets/bot-logos/anthropic.png';
@@ -98,10 +99,27 @@
 
 	function issueRows(entries?: AuditEntry[]) {
 		if (!Array.isArray(entries)) return [];
-		return entries.filter((entry) => entry.issue);
+		return entries
+			.filter((entry) => entry.issue)
+			.toSorted((first, second) => {
+				const firstIcon = badgeFor(agentFromIssue(first.issue) ?? first.issue ?? '');
+				const secondIcon = badgeFor(agentFromIssue(second.issue) ?? second.issue ?? '');
+				if (Boolean(firstIcon.logo) === Boolean(secondIcon.logo)) return 0;
+				return firstIcon.logo ? -1 : 1;
+			});
+	}
+
+	function missingAgentRows(agents: string[]) {
+		return agents.toSorted((first, second) => {
+			const firstIcon = badgeFor(first);
+			const secondIcon = badgeFor(second);
+			if (Boolean(firstIcon.logo) === Boolean(secondIcon.logo)) return 0;
+			return firstIcon.logo ? -1 : 1;
+		});
 	}
 
 	let missingAgents = $derived(computeMissingAgents(panel?.foundAgents));
+	let sortedMissingAgents = $derived(missingAgentRows(missingAgents));
 	let rows = $derived(issueRows(panel?.entries));
 	let summaryCount = $derived(rows.length ? rows.length : missingAgents.length);
 	let summaryLabel = $derived(rows.length ? 'Issues' : 'Missing');
@@ -130,7 +148,9 @@
 							{#if icon.logo}
 								<img class="bot-logo" src={icon.logo} alt="" />
 							{:else}
-								<div class="bot-logo bot-logo-fallback"></div>
+								<div class="bot-logo bot-logo-fallback">
+									<Bot size={20} strokeWidth={2.4} />
+								</div>
 							{/if}
 						</div>
 						<p class="card-title">{entry.issue}</p>
@@ -138,20 +158,22 @@
 				</article>
 			{/each}
 		{:else}
-			{#each missingAgents as agent}
-			{@const icon = badgeFor(agent)}
-			<article class="card compact">
-				<div class="card-head">
-					<div class="bot-logo-wrap" aria-hidden="true">
-						{#if icon.logo}
-							<img class="bot-logo" src={icon.logo} alt="" />
-						{:else}
-							<div class="bot-logo bot-logo-fallback"></div>
-						{/if}
+			{#each sortedMissingAgents as agent}
+				{@const icon = badgeFor(agent)}
+				<article class="card compact">
+					<div class="card-head">
+						<div class="bot-logo-wrap" aria-hidden="true">
+							{#if icon.logo}
+								<img class="bot-logo" src={icon.logo} alt="" />
+							{:else}
+								<div class="bot-logo bot-logo-fallback">
+									<Bot size={20} strokeWidth={2.4} />
+								</div>
+							{/if}
+						</div>
+						<p class="card-title">Missing {icon.label}</p>
 					</div>
-					<p class="card-title">Missing {icon.label}</p>
-				</div>
-			</article>
+				</article>
 			{/each}
 		{/if}
 	</div>
@@ -165,8 +187,8 @@
 	}
 
 	.bot-logo-wrap {
-		width: 22px;
-		height: 22px;
+		width: 30px;
+		height: 30px;
 		border-radius: 6px;
 		display: grid;
 		place-items: center;
@@ -183,5 +205,8 @@
 
 	.bot-logo-fallback {
 		background: #f1f3f4;
+		color: #5f6368;
+		display: grid;
+		place-items: center;
 	}
 </style>
