@@ -96,7 +96,7 @@
 	@import './panel-shared.css';
 
 	.pagespeed-brand {
-		width: min(100%, 240px);
+		width: 100%;
 		margin: 0 0 16px;
 	}
 
@@ -104,6 +104,7 @@
 		display: block;
 		width: 100%;
 		height: auto;
+		object-fit: contain;
 	}
 
 	.metric-stack {
