@@ -13,6 +13,7 @@
 	import OpenPageRankPanel from './panels/OpenPageRankPanel.svelte';
 	import PageSpeedPanel from './panels/PageSpeedPanel.svelte';
 	import PlaceholderPanel from './panels/PlaceholderPanel.svelte';
+	import ProductSchemaPanel from './panels/ProductSchemaPanel.svelte';
 	import ShopifyUrlsPanel from './panels/ShopifyUrlsPanel.svelte';
 	import type { AuditPanelData, AuditSidebarData } from './types';
 
@@ -94,6 +95,8 @@
 				<BrokenLinksPanel panel={activePanel} />
 			{:else if activePanel.kind === 'headings'}
 				<HeadingsPanel panel={activePanel} />
+			{:else if activePanel.kind === 'missing-product-schema'}
+				<ProductSchemaPanel panel={activePanel} />
 			{:else if activePanel.kind === 'meta-tags'}
 				<MetaTagsPanel panel={activePanel} />
 			{:else if activePanel.kind === 'canonicals'}

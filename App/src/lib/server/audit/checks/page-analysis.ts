@@ -19,6 +19,47 @@ function attachScreenshotRequest(
 	};
 }
 
+function isProductLikePage(page: string, title: string, bodyText: string) {
+	try {
+		const pathname = new URL(page).pathname;
+		if (/\/products?\//i.test(pathname)) return true;
+	} catch {
+		// Fall through to text heuristics.
+	}
+
+	return /\b(add to cart|buy now|sale price|regular price|variant|sku)\b/i.test(
+		`${title} ${bodyText}`.slice(0, 20000)
+	);
+}
+
+function valueHasProductType(value: unknown): boolean {
+	if (!value || typeof value !== 'object') return false;
+
+	if (Array.isArray(value)) return value.some(valueHasProductType);
+
+	const record = value as Record<string, unknown>;
+	const typeValue = record['@type'];
+	const types = Array.isArray(typeValue) ? typeValue : [typeValue];
+	if (types.some((type) => String(type).toLowerCase() === 'product')) return true;
+
+	return Object.values(record).some(valueHasProductType);
+}
+
+function hasProductJsonLd($: ReturnType<typeof loadDocument>) {
+	return $('script[type="application/ld+json"]')
+		.toArray()
+		.some((element) => {
+			const raw = $(element).contents().text().trim();
+			if (!raw) return false;
+
+			try {
+				return valueHasProductType(JSON.parse(raw));
+			} catch {
+				return false;
+			}
+		});
+}
+
 export async function analyzeMetaAndHeadings(
 	pages: string[],
 	summary: AuditSummary,
@@ -31,6 +72,7 @@ export async function analyzeMetaAndHeadings(
 	const internalLinks = createListResult();
 	const contentQuality = createListResult();
 	const shopifyUrls = createListResult();
+	const productSchema = createListResult();
 
 	const titleMap = new Map();
 	const descriptionMap = new Map();
@@ -45,6 +87,7 @@ export async function analyzeMetaAndHeadings(
 	const internalLinksEvidence: Array<{ page: string; issue: string; count?: number }> = [];
 	const contentQualityEvidence: Array<{ page: string; issue: string; wordCount?: number }> = [];
 	const shopifyUrlEvidence: Array<{ page: string; issue: string; pattern?: string }> = [];
+	const productSchemaEvidence: Array<{ page: string; issue: string }> = [];
 	const maxEvidenceItems = 5;
 	const domain = (() => {
 		try {
@@ -65,6 +108,7 @@ export async function analyzeMetaAndHeadings(
 			const title = $('title').text().trim();
 			const metaDescription = $('meta[name="description"]').attr('content')?.trim() || '';
 			const canonical = $('link[rel="canonical"]').attr('href') || '';
+			const bodyText = $('body').text();
 			const missingAlt = $('img').filter(
 				(_: number, element: AnyNode) => !$(element).attr('alt')?.trim()
 			).length;
@@ -101,6 +145,23 @@ export async function analyzeMetaAndHeadings(
 					emptyH1 > 0 ? 'Empty or multiple H1 tags found' : 'Multiple H1 tags found',
 					{ title: `${page} (${h1Count} H1 tags)` }
 				);
+			}
+
+			const productLikePage = isProductLikePage(page, title, bodyText);
+			const productJsonLd = hasProductJsonLd($);
+			if (productLikePage && !productJsonLd) {
+				if (productSchemaEvidence.length < maxEvidenceItems) {
+					productSchemaEvidence.push({ page, issue: 'Missing product schema' });
+				}
+				addItem(summary, productSchema, 'warn', 'Missing product schema', {
+					title: page,
+					page_url: page
+				});
+			} else if (productLikePage) {
+				addItem(summary, productSchema, 'pass', 'Product schema found', {
+					title: page,
+					page_url: page
+				});
 			}
 
 			if (title.length === 0) {
@@ -436,6 +497,7 @@ export async function analyzeMetaAndHeadings(
 
 	return {
 		h1Tags,
+		productSchema,
 		metaTitles,
 		imageAltTags,
 		canonicalUrls,

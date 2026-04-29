@@ -113,6 +113,7 @@ migrate(
       ["openPageRank", "Open PageRank"],
       ["missing-h1-tags", "Missing H1 tags"],
       ["multiple-h1-tags", "Multiple H1 tags"],
+      ["missing-product-schema", "Missing product schema"],
       ["metaTitles", "Meta Titles"],
       ["imageAltTags", "Image Alt Tags"],
       ["canonicalUrls", "Canonical URLs"],
@@ -266,10 +267,10 @@ In the case of your website, {{count}} pages seem to be missing H1 heading tags,
       },
       {
         key: "missing-product-schema",
-        findingTypeKey: "structuredData",
+        findingTypeKey: "missing-product-schema",
         title: "Missing product schema",
         priority: "Urgent",
-        matchPattern: "No JSON-LD Found",
+        matchPattern: "Missing product schema",
         body: `At the moment, one of the biggest growth opportunities for {{domain}} is applying the proper product schema code.
 
 Here’s how properly applied product schema looks in organic search:

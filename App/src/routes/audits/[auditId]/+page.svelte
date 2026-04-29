@@ -424,6 +424,27 @@
 		);
 
 		addListPreview(
+			'missing-product-schema',
+			'missing-product-schema',
+			'Missing product schema',
+			'Product pages should include Product JSON-LD so search engines can understand price, availability, ratings, and product identity.',
+			(item) =>
+			{
+				const findings = issueFindings(item);
+				const entries = findings
+					.map((finding) => {
+						const page = pageUrlFromFinding(finding);
+						return page ? { page, issue: issueText(finding, item.label) } : null;
+					})
+					.filter((entry): entry is { page: string; issue: string } => Boolean(entry));
+
+				return entries.length
+					? { kind: 'missing-product-schema', title: sidebarTitle(item, 'Missing product schema'), description: sidebarDescription(item, 'Product pages should include Product JSON-LD so search engines can understand price, availability, ratings, and product identity.'), domain, count: findings.length, entries }
+					: null;
+			}
+		);
+
+		addListPreview(
 			'imageAltTags',
 			'image-alts',
 			'Unoptimized Alt Tags',

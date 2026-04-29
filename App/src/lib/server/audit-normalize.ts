@@ -54,6 +54,7 @@ export const SECTION_LABELS: Array<[string, string]> = [
 	['openPageRank', 'Open PageRank'],
 	['missing-h1-tags', 'Missing H1 tags'],
 	['multiple-h1-tags', 'Multiple H1 tags'],
+	['missing-product-schema', 'Missing product schema'],
 	['metaTitles', 'Meta Titles'],
 	['imageAltTags', 'Image Alt Tags'],
 	['canonicalUrls', 'Canonical URLs'],

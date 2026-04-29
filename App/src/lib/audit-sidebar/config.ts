@@ -4,6 +4,7 @@ export const SIDEBAR_TABS: AuditTab[] = [
 	{ id: 'ai-bot-visibility', label: 'AI Chatbots/LLMs Not Whitelisted' },
 	{ id: 'pagespeed', label: 'Unoptimized page speed' },
 	{ id: 'open-page-rank', label: 'Open PageRank' },
+	{ id: 'missing-product-schema', label: 'Missing product schema' },
 	{ id: 'image-alts', label: 'Unoptimized Alt Tags' },
 	{ id: 'meta-tags', label: 'Unoptimized Meta Tags' },
 	{ id: 'canonicals', label: 'Unoptimized Canonicals' },

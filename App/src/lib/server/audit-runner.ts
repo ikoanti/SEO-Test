@@ -972,6 +972,7 @@ const STEP_KEYS: Record<string, string[]> = {
 	'page-analysis': [
 		'missing-h1-tags',
 		'multiple-h1-tags',
+		'missing-product-schema',
 		'metaTitles',
 		'imageAltTags',
 		'canonicalUrls',
