@@ -702,6 +702,8 @@ function captureEntryFromFinding(
 
 	if (
 		request.kind === 'headings' ||
+		request.kind === 'missing-product-schema' ||
+		request.kind === 'missing-faq-schema' ||
 		request.kind === 'lazy-loading' ||
 		request.kind === 'open-graph'
 	) {
@@ -941,6 +943,26 @@ function templateCaptureRequest(
 			: null;
 	}
 
+	if (item.key === 'missing-product-schema' || item.key === 'missing-faq-schema') {
+		const entries = findings
+			.map((finding) => {
+				const page = findingPage(finding);
+				return isValidPageUrl(page) ? { page, issue: issueText(finding, title) } : null;
+			})
+			.filter((entry): entry is { page: string; issue: string } => Boolean(entry));
+
+		return entries.length
+			? {
+					kind: item.key,
+					reportTemplateKey,
+					title,
+					domain,
+					entries,
+					count: findings.length
+				}
+			: null;
+	}
+
 	if (item.key === 'robotsTxt') {
 		const manualRequest = findings
 			.map((finding) => extractScreenshotFromMeta(finding.meta_json).screenshotRequests)
@@ -973,6 +995,7 @@ const STEP_KEYS: Record<string, string[]> = {
 		'missing-h1-tags',
 		'multiple-h1-tags',
 		'missing-product-schema',
+		'missing-faq-schema',
 		'metaTitles',
 		'imageAltTags',
 		'canonicalUrls',

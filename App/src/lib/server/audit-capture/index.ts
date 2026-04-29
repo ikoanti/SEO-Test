@@ -68,6 +68,12 @@ export type AuditCaptureRequest = AuditCaptureRequestBase &
 				count: number;
 		  }
 		| {
+				kind: 'missing-product-schema' | 'missing-faq-schema';
+				domain: string;
+				entries: Array<{ page: string; issue: string }>;
+				count: number;
+		  }
+		| {
 				kind: 'pagespeed';
 				domain: string;
 				pageUrl: string;
@@ -368,6 +374,31 @@ export async function captureShopifyUrlEvidence(
 	});
 }
 
+export async function captureSchemaEvidence(
+	kind: 'missing-product-schema' | 'missing-faq-schema',
+	domain: string,
+	entries: Array<{ page: string; issue: string }>,
+	count = entries.length,
+	title = '',
+	description = '',
+	capturePageUrl?: string,
+	fallbackPageUrls: string[] = []
+) {
+	if (!entries.length) return null;
+	return captureAuditSidebarScreenshot({
+		pageUrl: screenshotPageUrl(entries, capturePageUrl),
+		fallbackPageUrls,
+		sidebarData: buildSidebarData(kind, {
+			kind,
+			title,
+			description,
+			domain,
+			count,
+			entries
+		})
+	});
+}
+
 export async function captureRobotsEvidence({
 	domain,
 	robotsUrl,
@@ -493,6 +524,18 @@ export async function runAuditCaptureRequest(request: AuditCaptureRequest) {
 			);
 		case 'shopify-urls':
 			return captureShopifyUrlEvidence(
+				request.domain,
+				request.entries,
+				request.count,
+				request.title,
+				request.description,
+				request.capturePageUrl,
+				request.fallbackCapturePageUrls
+			);
+		case 'missing-product-schema':
+		case 'missing-faq-schema':
+			return captureSchemaEvidence(
+				request.kind,
 				request.domain,
 				request.entries,
 				request.count,

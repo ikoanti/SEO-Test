@@ -114,6 +114,7 @@ migrate(
       ["missing-h1-tags", "Missing H1 tags"],
       ["multiple-h1-tags", "Multiple H1 tags"],
       ["missing-product-schema", "Missing product schema"],
+      ["missing-faq-schema", "Missing FAQ Schema"],
       ["metaTitles", "Meta Titles"],
       ["imageAltTags", "Image Alt Tags"],
       ["canonicalUrls", "Canonical URLs"],
@@ -280,6 +281,18 @@ Here’s how your product pages (that have dozens of reviews) look currently:
 By adding a piece of code and working together with the developers of your product review app, we’ll be able to achieve the same thing for your website.
 
 This usually doubles the click-through rates from organic search, which pushes you up even further in the rankings.`,
+      },
+      {
+        key: "missing-faq-schema",
+        findingTypeKey: "missing-faq-schema",
+        title: "Missing FAQ Schema",
+        priority: "High",
+        matchPattern: "Missing FAQ Schema",
+        body: `FAQ Schema helps search engines understand question-and-answer content on your site and can make FAQ pages easier for search engines and AI systems to interpret.
+
+During our review of {{domain}}, we found FAQ-style pages that do not include FAQPage structured data.
+
+Adding FAQ Schema to these pages is a quick technical SEO improvement that gives crawlers cleaner context about common customer questions, answers, policies, and purchase concerns.`,
       },
       {
         key: "meta-titles-too-long-unoptimized",

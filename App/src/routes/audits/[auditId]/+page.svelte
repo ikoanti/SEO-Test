@@ -440,6 +440,25 @@
 		);
 
 		addListPreview(
+			'missing-faq-schema',
+			'missing-faq-schema',
+			(item) =>
+			{
+				const findings = issueFindings(item);
+				const entries = findings
+					.map((finding) => {
+						const page = pageUrlFromFinding(finding);
+						return page ? { page, issue: issueText(finding, item) } : null;
+					})
+					.filter((entry): entry is { page: string; issue: string } => Boolean(entry));
+
+				return entries.length
+					? { kind: 'missing-faq-schema', title: sidebarTitle(item), description: sidebarDescription(item), domain, count: findings.length, entries }
+					: null;
+			}
+		);
+
+		addListPreview(
 			'imageAltTags',
 			'image-alts',
 			(item) =>

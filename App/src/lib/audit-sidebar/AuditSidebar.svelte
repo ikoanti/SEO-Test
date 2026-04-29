@@ -14,6 +14,7 @@
 	import PageSpeedPanel from './panels/PageSpeedPanel.svelte';
 	import PlaceholderPanel from './panels/PlaceholderPanel.svelte';
 	import ProductSchemaPanel from './panels/ProductSchemaPanel.svelte';
+	import SchemaIssuePanel from './panels/SchemaIssuePanel.svelte';
 	import ShopifyUrlsPanel from './panels/ShopifyUrlsPanel.svelte';
 	import type { AuditPanelData, AuditSidebarData } from './types';
 
@@ -95,6 +96,8 @@
 				<HeadingsPanel panel={activePanel} />
 			{:else if activePanel.kind === 'missing-product-schema'}
 				<ProductSchemaPanel panel={activePanel} />
+			{:else if activePanel.kind === 'missing-faq-schema'}
+				<SchemaIssuePanel panel={activePanel} />
 			{:else if activePanel.kind === 'meta-tags'}
 				<MetaTagsPanel panel={activePanel} />
 			{:else if activePanel.kind === 'canonicals'}

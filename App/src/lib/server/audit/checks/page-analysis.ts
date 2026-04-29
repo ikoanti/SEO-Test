@@ -32,20 +32,34 @@ function isProductLikePage(page: string, title: string, bodyText: string) {
 	);
 }
 
-function valueHasProductType(value: unknown): boolean {
+function isFaqLikePage(page: string, title: string, bodyText: string) {
+	try {
+		const pathname = new URL(page).pathname;
+		if (/\/faqs?(\/|$)|frequently-asked-questions/i.test(pathname)) return true;
+	} catch {
+		// Fall through to text heuristics.
+	}
+
+	const text = `${title} ${bodyText}`.slice(0, 30000);
+	if (/\b(faqs?|frequently asked questions)\b/i.test(text)) return true;
+	const questionMarks = (text.match(/\?/g) || []).length;
+	return questionMarks >= 4;
+}
+
+function valueHasSchemaType(value: unknown, schemaType: string): boolean {
 	if (!value || typeof value !== 'object') return false;
 
-	if (Array.isArray(value)) return value.some(valueHasProductType);
+	if (Array.isArray(value)) return value.some((item) => valueHasSchemaType(item, schemaType));
 
 	const record = value as Record<string, unknown>;
 	const typeValue = record['@type'];
 	const types = Array.isArray(typeValue) ? typeValue : [typeValue];
-	if (types.some((type) => String(type).toLowerCase() === 'product')) return true;
+	if (types.some((type) => String(type).toLowerCase() === schemaType.toLowerCase())) return true;
 
-	return Object.values(record).some(valueHasProductType);
+	return Object.values(record).some((item) => valueHasSchemaType(item, schemaType));
 }
 
-function hasProductJsonLd($: ReturnType<typeof loadDocument>) {
+function hasJsonLdSchemaType($: ReturnType<typeof loadDocument>, schemaType: string) {
 	return $('script[type="application/ld+json"]')
 		.toArray()
 		.some((element) => {
@@ -53,11 +67,19 @@ function hasProductJsonLd($: ReturnType<typeof loadDocument>) {
 			if (!raw) return false;
 
 			try {
-				return valueHasProductType(JSON.parse(raw));
+				return valueHasSchemaType(JSON.parse(raw), schemaType);
 			} catch {
 				return false;
 			}
 		});
+}
+
+function hasProductJsonLd($: ReturnType<typeof loadDocument>) {
+	return hasJsonLdSchemaType($, 'Product');
+}
+
+function hasFaqJsonLd($: ReturnType<typeof loadDocument>) {
+	return hasJsonLdSchemaType($, 'FAQPage');
 }
 
 export async function analyzeMetaAndHeadings(
@@ -73,6 +95,7 @@ export async function analyzeMetaAndHeadings(
 	const contentQuality = createListResult();
 	const shopifyUrls = createListResult();
 	const productSchema = createListResult();
+	const faqSchema = createListResult();
 
 	const titleMap = new Map();
 	const descriptionMap = new Map();
@@ -88,6 +111,7 @@ export async function analyzeMetaAndHeadings(
 	const contentQualityEvidence: Array<{ page: string; issue: string; wordCount?: number }> = [];
 	const shopifyUrlEvidence: Array<{ page: string; issue: string; pattern?: string }> = [];
 	const productSchemaEvidence: Array<{ page: string; issue: string }> = [];
+	const faqSchemaEvidence: Array<{ page: string; issue: string }> = [];
 	const maxEvidenceItems = 5;
 	const domain = (() => {
 		try {
@@ -159,6 +183,23 @@ export async function analyzeMetaAndHeadings(
 				});
 			} else if (productLikePage) {
 				addItem(summary, productSchema, 'pass', 'Product schema found', {
+					title: page,
+					page_url: page
+				});
+			}
+
+			const faqLikePage = isFaqLikePage(page, title, bodyText);
+			const faqJsonLd = hasFaqJsonLd($);
+			if (faqLikePage && !faqJsonLd) {
+				if (faqSchemaEvidence.length < maxEvidenceItems) {
+					faqSchemaEvidence.push({ page, issue: 'Missing FAQ Schema' });
+				}
+				addItem(summary, faqSchema, 'warn', 'Missing FAQ Schema', {
+					title: page,
+					page_url: page
+				});
+			} else if (faqLikePage) {
+				addItem(summary, faqSchema, 'pass', 'FAQ Schema found', {
 					title: page,
 					page_url: page
 				});
@@ -495,9 +536,27 @@ export async function analyzeMetaAndHeadings(
 		);
 	}
 
+	if (faqSchemaEvidence.length > 0) {
+		const issueCount = faqSchema.items.filter(
+			(item) => item.status === 'warn' || item.status === 'fail'
+		).length;
+		attachScreenshotRequest(
+			faqSchema.items.find((item) => item.status === 'warn' || item.status === 'fail'),
+			{
+				kind: 'missing-faq-schema',
+				reportTemplateKey: 'missing-faq-schema',
+				title: 'Missing FAQ Schema',
+				domain,
+				entries: faqSchemaEvidence,
+				count: issueCount
+			}
+		);
+	}
+
 	return {
 		h1Tags,
 		productSchema,
+		faqSchema,
 		metaTitles,
 		imageAltTags,
 		canonicalUrls,
