@@ -382,9 +382,9 @@
 		};
 
 		addListPreview(
-			'h1Tags',
-			'headings',
-			'Unoptimized Heading Tags',
+			'missing-h1-tags',
+			'missing-h1-tags',
+			'Missing H1 tags',
 			'Important pages are missing strong heading structure, which weakens topical clarity and makes page hierarchy less obvious to search engines.',
 			(item) =>
 			{
@@ -397,7 +397,28 @@
 					.filter((entry): entry is { page: string; issue: string } => Boolean(entry));
 
 				return entries.length
-					? { kind: 'headings', title: sidebarTitle(item, 'Unoptimized Heading Tags'), description: sidebarDescription(item, 'Important pages are missing strong heading structure, which weakens topical clarity and makes page hierarchy less obvious to search engines.'), domain, count: findings.length, entries }
+					? { kind: 'headings', title: sidebarTitle(item, 'Missing H1 tags'), description: sidebarDescription(item, 'Important pages are missing strong heading structure, which weakens topical clarity and makes page hierarchy less obvious to search engines.'), domain, count: findings.length, entries }
+					: null;
+			}
+		);
+
+		addListPreview(
+			'multiple-h1-tags',
+			'multiple-h1-tags',
+			'Multiple H1 tags',
+			'Pages should have one clear H1 heading so crawlers can identify the main topic without ambiguity.',
+			(item) =>
+			{
+				const findings = issueFindings(item);
+				const entries = findings
+					.map((finding) => {
+						const page = pageUrlFromFinding(finding);
+						return page ? { page, issue: issueText(finding, item.label) } : null;
+					})
+					.filter((entry): entry is { page: string; issue: string } => Boolean(entry));
+
+				return entries.length
+					? { kind: 'headings', title: sidebarTitle(item, 'Multiple H1 tags'), description: sidebarDescription(item, 'Pages should have one clear H1 heading so crawlers can identify the main topic without ambiguity.'), domain, count: findings.length, entries }
 					: null;
 			}
 		);

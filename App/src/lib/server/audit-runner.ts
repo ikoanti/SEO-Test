@@ -844,7 +844,7 @@ function templateCaptureRequest(
 
 	if (!findings.length) return null;
 
-	if (item.key === 'h1Tags') {
+	if (item.key === 'missing-h1-tags' || item.key === 'multiple-h1-tags' || item.key === 'h1Tags') {
 		const entries = findings
 			.map((finding) => {
 				const page = findingPage(finding);
@@ -970,7 +970,8 @@ const STEP_KEYS: Record<string, string[]> = {
 	robots: ['robotsTxt'],
 	sitemap: ['sitemap'],
 	'page-analysis': [
-		'h1Tags',
+		'missing-h1-tags',
+		'multiple-h1-tags',
 		'metaTitles',
 		'imageAltTags',
 		'canonicalUrls',

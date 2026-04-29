@@ -111,7 +111,8 @@ migrate(
     const findingTypes = [
       ["pageSpeed", "Unoptimized page speed"],
       ["openPageRank", "Open PageRank"],
-      ["h1Tags", "H1 Tags"],
+      ["missing-h1-tags", "Missing H1 tags"],
+      ["multiple-h1-tags", "Multiple H1 tags"],
       ["metaTitles", "Meta Titles"],
       ["imageAltTags", "Image Alt Tags"],
       ["canonicalUrls", "Canonical URLs"],
@@ -243,7 +244,7 @@ In other words, we’d be inviting AI Chatbots to crawl your site, and feature y
       },
       {
         key: "multiple-h1-tags",
-        findingTypeKey: "h1Tags",
+        findingTypeKey: "multiple-h1-tags",
         title: "Multiple H1 tags",
         priority: "High",
         matchPattern: "multiple h1|empty or multiple",
@@ -253,7 +254,7 @@ At the moment, you have {{count}} pages with multiple H1 tags, which is negative
       },
       {
         key: "missing-h1-tags",
-        findingTypeKey: "h1Tags",
+        findingTypeKey: "missing-h1-tags",
         title: "Missing H1 tags",
         priority: "High",
         matchPattern: "missing h1",
