@@ -1,4 +1,5 @@
 <script lang="ts">
+	import pageSpeedLogo from '$lib/assets/page-speed/google-pagespeed-insights.png';
 	import type { BasePanelData, PageSpeedStrategyData } from '../types';
 
 	let {
@@ -56,6 +57,9 @@
 </script>
 
 <section class="section">
+	<div class="pagespeed-brand">
+		<img src={pageSpeedLogo} alt="Google PageSpeed Insights" />
+	</div>
 	<h1 class="title">{panel?.title ?? 'PageSpeed Insights'}</h1>
 	<p class="copy">{panel?.description ?? ''}</p>
 </section>
@@ -90,6 +94,17 @@
 
 <style>
 	@import './panel-shared.css';
+
+	.pagespeed-brand {
+		width: min(100%, 240px);
+		margin: 0 0 16px;
+	}
+
+	.pagespeed-brand img {
+		display: block;
+		width: 100%;
+		height: auto;
+	}
 
 	.metric-stack {
 		display: grid;
