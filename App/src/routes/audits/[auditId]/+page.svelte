@@ -977,18 +977,9 @@
 				{/if}
 			</div>
 		{:else if activeTab === 'sidebar-preview'}
-			<div class="card audit-card sidebar-preview-card" id="card-sidebar-preview">
-				<h3 class="audit-card-title">Sidebar Preview</h3>
+			<div class="sidebar-preview-direct" id="card-sidebar-preview">
 				{#if sidebarPreviewData}
-					<div class="sidebar-preview-shell">
-						<div class="sidebar-preview-frame">
-							<AuditSidebar data={sidebarPreviewData} />
-						</div>
-					</div>
-				{:else}
-					<p class="muted report-status-note">
-						No sidebar preview is available for the current audit data yet.
-					</p>
+					<AuditSidebar data={sidebarPreviewData} />
 				{/if}
 			</div>
 		{:else if activeTab === 'report'}
@@ -1279,23 +1270,16 @@
 		margin-bottom: 0;
 	}
 
-	.sidebar-preview-card {
-		max-width: 980px;
-	}
-
-	.sidebar-preview-shell {
-		display: flex;
-		justify-content: center;
-		padding-top: 0.5rem;
-	}
-
-	.sidebar-preview-frame {
-		width: 420px;
-		height: 868px;
+	.sidebar-preview-direct {
+		width: min(100%, 420px);
+		height: min(868px, calc(100vh - 210px));
+		min-height: 640px;
 		overflow: hidden;
-		border-radius: 28px;
-		background: #ffffff;
-		box-shadow: 0 18px 40px rgba(15, 23, 42, 0.16);
+	}
+
+	.sidebar-preview-direct :global(.audit-sidebar) {
+		width: 100%;
+		height: 100%;
 	}
 
 	@media (max-width: 980px) {
@@ -1330,6 +1314,11 @@
 
 		.audit-section-nav a.active {
 			border-bottom-color: var(--goldenweb-primary);
+		}
+
+		.sidebar-preview-direct {
+			height: min(868px, calc(100vh - 185px));
+			min-height: 560px;
 		}
 	}
 </style>

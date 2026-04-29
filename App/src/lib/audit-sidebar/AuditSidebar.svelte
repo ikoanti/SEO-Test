@@ -37,24 +37,36 @@
 	$effect(() => {
 		activeTab;
 		tabs.length;
-		void tick().then(() => {
-			const activeButton = tabsContainer?.querySelector<HTMLButtonElement>('.tab.active');
-			if (!tabsContainer || !activeButton) return;
-
-			const containerWidth = tabsContainer.clientWidth;
-			const activeLeft = activeButton.offsetLeft;
-			const activeWidth = activeButton.offsetWidth;
-			const maxScroll = Math.max(0, tabsContainer.scrollWidth - containerWidth);
-			const targetLeft = Math.min(
-				maxScroll,
-				Math.max(0, activeLeft - (containerWidth - activeWidth) / 2)
-			);
-			tabsContainer.scrollLeft = targetLeft;
-		});
+		void tick().then(scrollActiveTabIntoView);
 	});
 
 	function setActiveTab(tabId: string) {
 		activeTab = tabId;
+	}
+
+	function scrollActiveTabIntoView() {
+		const activeButton = tabsContainer?.querySelector<HTMLButtonElement>('.tab.active');
+		if (!tabsContainer || !activeButton) return;
+
+		const gutter = 18;
+		const currentLeft = tabsContainer.scrollLeft;
+		const visibleLeft = currentLeft + gutter;
+		const visibleRight = currentLeft + tabsContainer.clientWidth - gutter;
+		const activeLeft = activeButton.offsetLeft;
+		const activeRight = activeLeft + activeButton.offsetWidth;
+		const maxScroll = Math.max(0, tabsContainer.scrollWidth - tabsContainer.clientWidth);
+		let targetLeft = currentLeft;
+
+		if (activeLeft < visibleLeft) {
+			targetLeft = activeLeft - gutter;
+		} else if (activeRight > visibleRight) {
+			targetLeft = activeRight - tabsContainer.clientWidth + gutter;
+		}
+
+		targetLeft = Math.min(maxScroll, Math.max(0, targetLeft));
+		if (Math.abs(targetLeft - currentLeft) > 1) {
+			tabsContainer.scrollTo({ left: targetLeft, behavior: 'smooth' });
+		}
 	}
 
 	let activePanel = $derived<AuditPanelData>(
