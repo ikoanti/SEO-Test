@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { tick } from 'svelte';
 	import AIBotVisibilityPanel from './panels/AIBotVisibilityPanel.svelte';
 	import BrokenLinksPanel from './panels/BrokenLinksPanel.svelte';
 	import CanonicalsPanel from './panels/CanonicalsPanel.svelte';
@@ -15,6 +14,7 @@
 	import ProductSchemaPanel from './panels/ProductSchemaPanel.svelte';
 	import SchemaIssuePanel from './panels/SchemaIssuePanel.svelte';
 	import ShopifyUrlsPanel from './panels/ShopifyUrlsPanel.svelte';
+	import AuditSidebarLayout from './AuditSidebarLayout.svelte';
 	import type { AuditPanelData, AuditSidebarData } from './types';
 
 	let { data = { activeTab: 'overview', tabs: [], panels: {} } }: { data?: AuditSidebarData } =
@@ -23,7 +23,6 @@
 	let tabs = $derived(data?.tabs ?? []);
 	let requestedActiveTab = $state<string | undefined>();
 	let activeTab = $state('overview');
-	let tabsContainer: HTMLDivElement | undefined = $state();
 
 	$effect(() => {
 		const requested = data?.activeTab ?? tabs[0]?.id ?? 'overview';
@@ -33,37 +32,8 @@
 		}
 	});
 
-	$effect(() => {
-		activeTab;
-		tabs.length;
-		void tick().then(scrollActiveTabIntoView);
-	});
-
 	function setActiveTab(tabId: string) {
 		activeTab = tabId;
-	}
-
-	function scrollActiveTabIntoView() {
-		const activeButton = tabsContainer?.querySelector<HTMLButtonElement>('.tab.active');
-		if (!tabsContainer || !activeButton) return;
-
-		const gutter = 18;
-		const containerRect = tabsContainer.getBoundingClientRect();
-		const activeRect = activeButton.getBoundingClientRect();
-		const currentLeft = tabsContainer.scrollLeft;
-		const visibleLeft = containerRect.left + gutter;
-		const visibleRight = containerRect.right - gutter;
-		const maxScroll = Math.max(0, tabsContainer.scrollWidth - tabsContainer.clientWidth);
-		let targetLeft = currentLeft;
-
-		if (activeRect.left < visibleLeft || activeRect.right > visibleRight) {
-			targetLeft = currentLeft + activeRect.left - containerRect.left - gutter;
-		}
-
-		targetLeft = Math.min(maxScroll, Math.max(0, targetLeft));
-		if (Math.abs(targetLeft - currentLeft) > 1) {
-			tabsContainer.scrollTo({ left: targetLeft, behavior: 'smooth' });
-		}
 	}
 
 	let activePanel = $derived<AuditPanelData>(
@@ -73,148 +43,49 @@
 	);
 </script>
 
-<aside class="audit-sidebar" data-capture={data?.captureMode ? 'true' : undefined}>
-	<div class="tabs-wrap">
-		<div class="tabs" bind:this={tabsContainer}>
-			{#each tabs as tab}
-				<button
-					class:active={tab.id === activeTab}
-					class="tab"
-					type="button"
-					data-active={tab.id === activeTab ? 'true' : undefined}
-					onclick={() => setActiveTab(tab.id)}
-				>
-					{tab.label}
-				</button>
-			{/each}
-		</div>
-	</div>
-	<div class="body">
-		<div class="audit-sidebar-panel">
-			{#if activePanel.kind === 'image-alts'}
-				<ImageAltsPanel panel={activePanel} />
-			{:else if activePanel.kind === 'ai-bot-visibility'}
-				<AIBotVisibilityPanel panel={activePanel} />
-			{:else if activePanel.kind === 'pagespeed'}
-				<PageSpeedPanel panel={activePanel} />
-			{:else if activePanel.kind === 'broken-links'}
-				<BrokenLinksPanel panel={activePanel} />
-			{:else if activePanel.kind === 'headings'}
-				<HeadingsPanel panel={activePanel} />
-			{:else if activePanel.kind === 'missing-product-schema'}
-				<ProductSchemaPanel panel={activePanel} />
-			{:else if activePanel.kind === 'missing-faq-schema'}
-				<SchemaIssuePanel panel={activePanel} />
-			{:else if activePanel.kind === 'missing-organization-schema'}
-				<SchemaIssuePanel panel={activePanel} />
-			{:else if activePanel.kind === 'unlinked-blog'}
-				<SchemaIssuePanel panel={activePanel} />
-			{:else if activePanel.kind === 'meta-tags'}
-				<MetaTagsPanel panel={activePanel} />
-			{:else if activePanel.kind === 'canonicals'}
-				<CanonicalsPanel panel={activePanel} />
-			{:else if activePanel.kind === 'internal-links'}
-				<InternalLinksPanel panel={activePanel} />
-			{:else if activePanel.kind === 'lazy-loading'}
-				<LazyLoadingPanel panel={activePanel} />
-			{:else if activePanel.kind === 'open-graph'}
-				<OpenGraphPanel panel={activePanel} />
-			{:else if activePanel.kind === 'content-quality'}
-				<ContentQualityPanel panel={activePanel} />
-			{:else if activePanel.kind === 'shopify-urls'}
-				<ShopifyUrlsPanel panel={activePanel} />
-			{:else}
-				<PlaceholderPanel panel={activePanel} />
-			{/if}
-		</div>
-	</div>
-</aside>
+{#snippet panelContent(panel: AuditPanelData)}
+	{#if panel.kind === 'image-alts'}
+		<ImageAltsPanel {panel} />
+	{:else if panel.kind === 'ai-bot-visibility'}
+		<AIBotVisibilityPanel {panel} />
+	{:else if panel.kind === 'pagespeed'}
+		<PageSpeedPanel {panel} />
+	{:else if panel.kind === 'broken-links'}
+		<BrokenLinksPanel {panel} />
+	{:else if panel.kind === 'headings'}
+		<HeadingsPanel {panel} />
+	{:else if panel.kind === 'missing-product-schema'}
+		<ProductSchemaPanel {panel} />
+	{:else if panel.kind === 'missing-faq-schema'}
+		<SchemaIssuePanel {panel} />
+	{:else if panel.kind === 'missing-organization-schema'}
+		<SchemaIssuePanel {panel} />
+	{:else if panel.kind === 'unlinked-blog'}
+		<SchemaIssuePanel {panel} />
+	{:else if panel.kind === 'meta-tags'}
+		<MetaTagsPanel {panel} />
+	{:else if panel.kind === 'canonicals'}
+		<CanonicalsPanel {panel} />
+	{:else if panel.kind === 'internal-links'}
+		<InternalLinksPanel {panel} />
+	{:else if panel.kind === 'lazy-loading'}
+		<LazyLoadingPanel {panel} />
+	{:else if panel.kind === 'open-graph'}
+		<OpenGraphPanel {panel} />
+	{:else if panel.kind === 'content-quality'}
+		<ContentQualityPanel {panel} />
+	{:else if panel.kind === 'shopify-urls'}
+		<ShopifyUrlsPanel {panel} />
+	{:else}
+		<PlaceholderPanel {panel} />
+	{/if}
+{/snippet}
 
-<style>
-	.audit-sidebar {
-		--panel-width: 100%;
-		--bg: #ffffff;
-		--text: #202124;
-		--muted: #5f6368;
-		--border: #e0e3e7;
-		--soft: #f2f4f7;
-		--tab-active-bg: #e8f0fe;
-		--tab-active-text: #1a73e8;
-		display: block;
-		box-sizing: border-box;
-		width: var(--panel-width);
-		max-width: 100%;
-		height: 100%;
-		overflow: hidden;
-		background: var(--bg);
-		font-family: Arial, Helvetica, sans-serif;
-		color: var(--text);
-	}
-
-	.tabs-wrap {
-		padding: 18px 0 14px;
-		border-bottom: 1px solid var(--border);
-		overflow: hidden;
-		flex: 0 0 auto;
-	}
-
-	.tabs {
-		display: flex;
-		gap: 8px;
-		flex-wrap: nowrap;
-		overflow-x: auto;
-		overflow-y: hidden;
-		scrollbar-width: none;
-		-ms-overflow-style: none;
-		padding: 0 18px 2px;
-		scroll-padding-left: 18px;
-		scroll-padding-right: 18px;
-	}
-
-	.audit-sidebar[data-capture='true'] .tabs {
-		flex-wrap: wrap;
-		overflow: visible;
-	}
-
-	.audit-sidebar[data-capture='true'] .tabs-wrap {
-		overflow: visible;
-	}
-
-	.tabs::-webkit-scrollbar {
-		display: none;
-	}
-
-	.tab {
-		border-radius: 999px;
-		padding: 9px 12px;
-		font-size: 13px;
-		font-weight: 700;
-		background: var(--soft);
-		color: var(--muted);
-		white-space: nowrap;
-		flex: 0 0 auto;
-		border: 0;
-		cursor: pointer;
-	}
-
-	.tab.active {
-		background: var(--tab-active-bg);
-		color: var(--tab-active-text);
-	}
-
-	.body {
-		width: 100%;
-		min-width: 0;
-		padding: 18px;
-		overflow: auto;
-		height: calc(100% - 69px);
-		box-sizing: border-box;
-		overscroll-behavior-x: contain;
-	}
-
-	.audit-sidebar-panel {
-		display: block;
-		color: #202124;
-		font-family: Arial, Helvetica, sans-serif;
-	}
-</style>
+<AuditSidebarLayout
+	{tabs}
+	{activeTab}
+	{activePanel}
+	captureMode={Boolean(data?.captureMode)}
+	onTabSelect={setActiveTab}
+	content={panelContent}
+/>
