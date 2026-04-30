@@ -457,15 +457,16 @@
 
 	.audit-card-grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+		grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
 		gap: 12px;
 	}
 
 	.audit-card {
 		display: grid;
-		gap: 12px;
-		align-content: space-between;
-		min-height: 86px;
+		grid-template-rows: auto auto;
+		gap: 10px;
+		min-height: 96px;
+		min-width: 0;
 		border: 1px solid rgba(148, 163, 184, 0.14);
 		border-radius: 12px;
 		padding: 14px;
@@ -480,19 +481,28 @@
 	.audit-card strong {
 		display: block;
 		min-width: 0;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
+		overflow-wrap: anywhere;
+		color: var(--text-primary);
+		font-size: 0.92rem;
+		line-height: 1.35;
+		white-space: normal;
 	}
 
 	.audit-status-chip {
-		flex: 0 0 auto;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		justify-self: start;
+		max-width: 100%;
 		border: 1px solid var(--border-color);
 		border-radius: 999px;
-		padding: 0.4rem 0.7rem;
+		padding: 0.34rem 0.58rem;
+		overflow-wrap: anywhere;
 		color: var(--text-muted);
-		font-size: 0.78rem;
+		font-size: 0.72rem;
 		font-weight: 900;
+		line-height: 1.1;
+		text-align: center;
 		text-transform: capitalize;
 	}
 
