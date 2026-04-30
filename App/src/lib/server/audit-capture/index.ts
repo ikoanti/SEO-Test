@@ -84,12 +84,6 @@ export type AuditCaptureRequest = AuditCaptureRequestBase &
 				pageSpeed: Record<string, unknown>;
 		  }
 		| {
-				kind: 'open-page-rank';
-				domain: string;
-				pageUrl: string;
-				openPageRank: Record<string, unknown>;
-		  }
-		| {
 				kind: 'robots';
 				domain: string;
 				robotsUrl: string;
@@ -134,28 +128,6 @@ export async function capturePageSpeedEvidence(
 			description,
 			domain,
 			pageSpeed
-		})
-	});
-}
-
-export async function captureOpenPageRankEvidence(
-	domain: string,
-	pageUrl: string,
-	openPageRank: Record<string, unknown>,
-	title = '',
-	description = '',
-	capturePageUrl?: string,
-	fallbackPageUrls: string[] = []
-) {
-	return captureAuditSidebarScreenshot({
-		pageUrl: capturePageUrl || pageUrl,
-		fallbackPageUrls,
-		sidebarData: buildSidebarData('open-page-rank', {
-			kind: 'open-page-rank',
-			title,
-			description,
-			domain,
-			openPageRank
 		})
 	});
 }
@@ -559,16 +531,6 @@ export async function runAuditCaptureRequest(request: AuditCaptureRequest) {
 				request.domain,
 				request.pageUrl,
 				request.pageSpeed,
-				request.title,
-				request.description,
-				request.capturePageUrl,
-				request.fallbackCapturePageUrls
-			);
-		case 'open-page-rank':
-			return captureOpenPageRankEvidence(
-				request.domain,
-				request.pageUrl,
-				request.openPageRank,
 				request.title,
 				request.description,
 				request.capturePageUrl,

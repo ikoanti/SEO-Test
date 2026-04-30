@@ -124,8 +124,7 @@ function buildSummary(audit: AuditSummaryResult) {
 		domain: audit.domain,
 		auditedAt: audit.auditedAt,
 		summary: audit.summary,
-		pageSpeed: audit.pageSpeed,
-		openPageRank: audit.openPageRank
+		pageSpeed: audit.pageSpeed
 	};
 }
 
@@ -495,10 +494,6 @@ function requestPageCandidates(request: AuditCaptureRequest) {
 		return uniquePageUrls([request.pageUrl]);
 	}
 
-	if (request.kind === 'open-page-rank') {
-		return uniquePageUrls([request.pageUrl]);
-	}
-
 	if (request.kind === 'robots') {
 		return homeLast(uniquePageUrls([request.robotsUrl, request.storefrontUrl]));
 	}
@@ -519,7 +514,7 @@ function chooseScreenshotPage(candidates: string[], usedPageKeys: Set<string>) {
 
 function screenshotAllocationPriority(request: AuditCaptureRequest) {
 	if (requestEntryPages(request).length) return 0;
-	if (request.kind === 'pagespeed' || request.kind === 'open-page-rank') return 1;
+	if (request.kind === 'pagespeed') return 1;
 	return 2;
 }
 
@@ -838,17 +833,6 @@ function templateCaptureRequest(
 		};
 	}
 
-	if (item.key === 'openPageRank' && audit.openPageRank && item.status !== 'pass') {
-		return {
-			kind: 'open-page-rank',
-			reportTemplateKey,
-			title,
-			domain,
-			pageUrl: url,
-			openPageRank: audit.openPageRank as Record<string, unknown>
-		};
-	}
-
 	if (!findings.length) return null;
 
 	if (item.key === 'missing-h1-tags' || item.key === 'multiple-h1-tags' || item.key === 'h1Tags') {
@@ -1014,8 +998,7 @@ const STEP_KEYS: Record<string, string[]> = {
 		'contentQuality',
 		'shopifyUrls'
 	],
-	pagespeed: ['pageSpeed'],
-	openpagerank: ['openPageRank']
+	pagespeed: ['pageSpeed']
 };
 
 type RunRegistry = Map<
@@ -1081,7 +1064,7 @@ async function syncProgressSnapshot(
 	token?: string
 ) {
 	const keySet = keysToSync ? new Set(keysToSync) : null;
-	attachMetricScreenshots(partialAudit, url, keySet || ['pageSpeed', 'openPageRank']);
+	attachMetricScreenshots(partialAudit, url, keySet || ['pageSpeed']);
 	const normalizedItems = buildNormalizedAuditItems(partialAudit).filter(
 		(item) => !keySet || keySet.has(item.key)
 	);
@@ -1176,7 +1159,7 @@ function collectScreenshotJobs(
 	runRegistry: RunRegistry,
 	templates: AuditReportTemplateRecord[] = []
 ) {
-	attachMetricScreenshots(audit, url, ['pageSpeed', 'openPageRank']);
+	attachMetricScreenshots(audit, url, ['pageSpeed']);
 
 	const jobs: ScreenshotJob[] = [];
 	const seen = new Set<string>();

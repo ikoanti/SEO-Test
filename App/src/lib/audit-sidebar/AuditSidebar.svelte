@@ -10,7 +10,6 @@
 	import LazyLoadingPanel from './panels/LazyLoadingPanel.svelte';
 	import MetaTagsPanel from './panels/MetaTagsPanel.svelte';
 	import OpenGraphPanel from './panels/OpenGraphPanel.svelte';
-	import OpenPageRankPanel from './panels/OpenPageRankPanel.svelte';
 	import PageSpeedPanel from './panels/PageSpeedPanel.svelte';
 	import PlaceholderPanel from './panels/PlaceholderPanel.svelte';
 	import ProductSchemaPanel from './panels/ProductSchemaPanel.svelte';
@@ -98,8 +97,6 @@
 				<AIBotVisibilityPanel panel={activePanel} />
 			{:else if activePanel.kind === 'pagespeed'}
 				<PageSpeedPanel panel={activePanel} />
-			{:else if activePanel.kind === 'open-page-rank'}
-				<OpenPageRankPanel panel={activePanel} />
 			{:else if activePanel.kind === 'broken-links'}
 				<BrokenLinksPanel panel={activePanel} />
 			{:else if activePanel.kind === 'headings'}

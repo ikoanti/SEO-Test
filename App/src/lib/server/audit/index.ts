@@ -1,7 +1,6 @@
 import { analyzeHomePage } from './checks/homepage';
 import { gatherPages } from './checks/crawl';
 import { analyzeMetaAndHeadings } from './checks/page-analysis';
-import { analyzeOpenPageRank } from './checks/openpagerank';
 import { analyzePageSpeed } from './checks/pagespeed';
 import { analyzeRobots } from './checks/robots';
 import { analyzeSitemap } from './checks/sitemap';
@@ -93,13 +92,6 @@ export async function runAudit(inputUrl: string, handlers: AuditHandlers = {}) {
 	partialAudit.pageSpeed = pageSpeed;
 	await notifyStepComplete('pagespeed');
 
-	await notifyStepStart('openpagerank');
-	const openPageRank = await runStep(logger, 'openpagerank', () =>
-		analyzeOpenPageRank(urlObj.hostname, logger)
-	);
-	partialAudit.openPageRank = openPageRank;
-	await notifyStepComplete('openpagerank');
-
 	return {
 		domain: urlObj.hostname,
 		auditedAt,
@@ -109,7 +101,6 @@ export async function runAudit(inputUrl: string, handlers: AuditHandlers = {}) {
 			discoveredLinks: links
 		},
 		pageSpeed,
-		openPageRank,
 		robotsTxt,
 		sitemap,
 		...homeResults,

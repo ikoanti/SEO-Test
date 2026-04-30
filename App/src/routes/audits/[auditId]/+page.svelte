@@ -11,7 +11,6 @@
 	import AuditFindingCard from '$lib/components/AuditFindingCard.svelte';
 	import AuditOverviewCard from '$lib/components/AuditOverviewCard.svelte';
 	import CustomCheckmark from '$lib/components/CustomCheckmark.svelte';
-	import OpenPageRankCard from '$lib/components/OpenPageRankCard.svelte';
 	import PageSpeedCard from '$lib/components/PageSpeedCard.svelte';
 	import SegmentedPicker from '$lib/components/SegmentedPicker.svelte';
 	import { FileText, FileUp, Image as ImageIcon } from 'lucide-svelte';
@@ -178,9 +177,6 @@
 		if (Object.keys(auditValue).length > 0) return auditValue;
 		return getRecord(itemByKey(key)?.findings?.[0]?.meta);
 	};
-	const displayValue = (value: unknown, fallback = '-') =>
-		value === undefined || value === null || value === '' ? fallback : String(value);
-	const openPageRank = () => metricSection('openPageRank');
 	const pageSpeed = () => metricSection('pageSpeed');
 
 	function parseMeta(value: unknown) {
@@ -264,7 +260,6 @@
 		const domain = currentDomain();
 		const itemMap = new Map(pageData.normalizedItems.map((item) => [item.key, item]));
 		const pageSpeedItem = itemMap.get('pageSpeed');
-		const openPageRankItem = itemMap.get('openPageRank');
 
 		if (Object.keys(pageSpeed()).length > 0) {
 			const label = sidebarTitle(pageSpeedItem);
@@ -277,21 +272,6 @@
 					description: sidebarDescription(pageSpeedItem),
 					domain,
 					pageSpeed: pageSpeed()
-				})
-			});
-		}
-
-		if (Object.keys(openPageRank()).length > 0) {
-			const label = sidebarTitle(openPageRankItem);
-			items.push({
-				key: 'open-page-rank',
-				label,
-				data: buildSidebarData('open-page-rank', {
-					kind: 'open-page-rank',
-					title: label,
-					description: sidebarDescription(openPageRankItem),
-					domain,
-					openPageRank: openPageRank()
 				})
 			});
 		}
@@ -888,14 +868,7 @@
 
 				<div class="audit-report-sections">
 					{#each auditFindingItems as item (item.key)}
-						{#if item.key === 'openPageRank'}
-							<OpenPageRankCard
-								title={item.label}
-								pageRank={displayValue(openPageRank().pageRank)}
-								globalRank={displayValue(openPageRank().globalRank)}
-								screenshot={item.screenshot}
-							/>
-						{:else if item.key === 'pageSpeed'}
+						{#if item.key === 'pageSpeed'}
 							<PageSpeedCard title={item.label} pageSpeedData={pageSpeed()} screenshot={item.screenshot} />
 						{:else}
 							<AuditFindingCard {item} />

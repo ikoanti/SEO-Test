@@ -26,10 +26,6 @@ export type AuditResult = {
 		mobile?: { score?: number | string; metrics?: Record<string, unknown> };
 		desktop?: { score?: number | string; metrics?: Record<string, unknown> };
 	};
-	openPageRank?: {
-		pageRank?: string;
-		globalRank?: string;
-	};
 	[key: string]: unknown;
 };
 
@@ -51,7 +47,6 @@ export type NormalizedAuditFindingType = {
 
 export const SECTION_LABELS: Array<[string, string]> = [
 	['pageSpeed', 'Unoptimized page speed'],
-	['openPageRank', 'Open PageRank'],
 	['missing-h1-tags', 'Missing H1 tags'],
 	['multiple-h1-tags', 'Multiple H1 tags'],
 	['missing-product-schema', 'Missing product schema'],
@@ -300,22 +295,6 @@ export function buildNormalizedAuditItems(audit: AuditResult): NormalizedAuditFi
 			continue;
 		}
 
-		if (key === 'openPageRank' && value && typeof value === 'object') {
-			const stats = value as NonNullable<AuditResult['openPageRank']>;
-			items.push(
-				buildMetricSection(
-					key,
-					label,
-					order,
-					`PageRank ${stats.pageRank ?? 'N/A'} / Global ${stats.globalRank ?? 'N/A'}`,
-					stats as Record<string, unknown>,
-					'info'
-				)
-			);
-			order += 1;
-			continue;
-		}
-
 		if (value && typeof value === 'object' && Array.isArray((value as AuditListSection).items)) {
 			items.push(buildListSection(key, label, order, value as AuditListSection));
 			order += 1;
@@ -339,7 +318,7 @@ function setScreenshotRequest(target: Record<string, unknown>, request: AuditCap
 export function attachMetricScreenshots(
 	audit: AuditResult,
 	pageUrl: string,
-	keys: Iterable<string> = ['pageSpeed', 'openPageRank']
+	keys: Iterable<string> = ['pageSpeed']
 ) {
 	const requestedKeys = new Set(keys);
 	const domain =
@@ -364,19 +343,4 @@ export function attachMetricScreenshots(
 		});
 	}
 
-	if (
-		requestedKeys.has('openPageRank') &&
-		audit.openPageRank &&
-		typeof audit.openPageRank === 'object'
-	) {
-		const openPageRank = audit.openPageRank as Record<string, unknown>;
-		setScreenshotRequest(openPageRank, {
-			kind: 'open-page-rank',
-			reportTemplateKey: 'open-page-rank',
-			title: 'Open PageRank',
-			domain,
-			pageUrl,
-			openPageRank: snapshotRecord(openPageRank)
-		});
-	}
 }

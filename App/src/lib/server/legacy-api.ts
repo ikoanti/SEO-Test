@@ -34,20 +34,6 @@ export function getPocketBaseStatus() {
 	};
 }
 
-export async function fetchOpenPageRank(domain: string) {
-	if (!env.OPEN_PAGE_RANK_API_KEY) {
-		throw new Error('OPEN_PAGE_RANK_API_KEY is not configured on the server');
-	}
-
-	const response = await axios.get('https://openpagerank.com/api/v1.0/getPageRank', {
-		params: { 'domains[]': domain },
-		headers: { 'API-OPR': env.OPEN_PAGE_RANK_API_KEY },
-		timeout: 10000
-	});
-
-	return response.data;
-}
-
 export async function fetchProxyText(url: string) {
 	const response = await axios.get(url, {
 		headers: { 'User-Agent': USER_AGENT },

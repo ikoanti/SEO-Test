@@ -45,14 +45,6 @@ export type PageSpeedStrategyData = {
 	metrics?: Record<string, string | number | undefined>;
 };
 
-export type OpenPageRankPanelData = BasePanelData & {
-	kind: 'open-page-rank';
-	openPageRank?: {
-		pageRank?: string | number;
-		globalRank?: string | number;
-	};
-};
-
 export type PlaceholderPanelData = BasePanelData & {
 	kind: 'placeholder';
 };
@@ -61,7 +53,6 @@ export type AuditPanelData =
 	| AIBotVisibilityPanelData
 	| MetaTagsPanelData
 	| PageSpeedPanelData
-	| OpenPageRankPanelData
 	| PlaceholderPanelData
 	| BasePanelData;
 

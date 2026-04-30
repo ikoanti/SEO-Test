@@ -253,9 +253,7 @@ export async function buildAuditPageData(
 		return {
 			id: template.id,
 			key:
-				findingTypeKey === 'pageSpeed' || findingTypeKey === 'openPageRank'
-					? findingTypeKey
-					: template.key,
+				findingTypeKey === 'pageSpeed' ? findingTypeKey : template.key,
 			label: template.title,
 			status,
 			runStatus: sourceItem?.runStatus,
