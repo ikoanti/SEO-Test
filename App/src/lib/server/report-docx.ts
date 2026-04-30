@@ -38,11 +38,7 @@ const SUBTITLE_SIZE = 28;
 const LOGO_WIDTH_PX = 242;
 const LOGO_HEIGHT_PX = 59;
 const EMPTY_LINE_MARKER_PREFIX = 'GW_EMPTY_LINE';
-const PRIORITY_DROPDOWN_MARKER_PREFIX = 'GW_PRIORITY_DROPDOWN';
-const PRIORITY_VALUES: ReportPriority[] = ['Urgent', 'High', 'Medium'];
 let emptyLineIndex = 0;
-
-const priorityDropdownMarkers = new Map<string, ReportPriority>();
 
 function text(value: unknown, fallback = '') {
 	const raw = String(value ?? '').trim();
@@ -124,14 +120,6 @@ function pageBreak() {
 	});
 }
 
-function escapeXmlAttribute(value: string) {
-	return value
-		.replaceAll('&', '&amp;')
-		.replaceAll('"', '&quot;')
-		.replaceAll('<', '&lt;')
-		.replaceAll('>', '&gt;');
-}
-
 function priorityStyle(priority: ReportProblemPreview['priority']) {
 	if (priority === 'Urgent') {
 		return { color: 'b10202', fill: 'ffcfc9' };
@@ -142,12 +130,6 @@ function priorityStyle(priority: ReportProblemPreview['priority']) {
 	return { color: '473821', fill: 'ffe5a0' };
 }
 
-function priorityDropdownMarker(index: number, priority: ReportPriority) {
-	const marker = `${PRIORITY_DROPDOWN_MARKER_PREFIX}_${index}`;
-	priorityDropdownMarkers.set(marker, priority);
-	return marker;
-}
-
 function problemHeading(index: number, problem: ReportProblemPreview) {
 	const style = priorityStyle(problem.priority);
 
@@ -155,7 +137,7 @@ function problemHeading(index: number, problem: ReportProblemPreview) {
 		children: [
 			textRun(`Problem ${index}: ${problem.title}`, { bold: true }),
 			textRun('Priority: ', { break: 1, size: SMALL_SIZE }),
-			textRun(priorityDropdownMarker(index, problem.priority), {
+			textRun(problem.priority, {
 				size: SMALL_SIZE,
 				color: style.color,
 				shading: {
@@ -181,22 +163,6 @@ async function withDocxXmlFixes(body: Buffer) {
 		emptyLineMarkerPattern,
 		'<w:p$1><w:pPr><w:spacing w:before="0" w:after="0"/><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:color w:val="FFFFFF"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t xml:space="preserve"> </w:t></w:r></w:p>'
 	);
-
-	for (const [marker, priority] of priorityDropdownMarkers.entries()) {
-		const markerPattern = new RegExp(
-			`<w:r\\b[^>]*>(?:(?!<\\/w:r>).)*<w:t\\b[^>]*>${marker}<\\/w:t>(?:(?!<\\/w:r>).)*<\\/w:r>`,
-			'g'
-		);
-		const style = priorityStyle(priority);
-		const listItems = PRIORITY_VALUES.map(
-			(value) =>
-				`<w:listItem w:displayText="${escapeXmlAttribute(value)}" w:value="${escapeXmlAttribute(value)}"/>`
-		).join('');
-		documentXml = documentXml.replace(
-			markerPattern,
-			`<w:sdt><w:sdtPr><w:alias w:val="Priority"/><w:tag w:val="${marker}"/><w:dropDownList>${listItems}</w:dropDownList></w:sdtPr><w:sdtContent><w:r><w:rPr><w:rFonts w:ascii="${FONT}" w:hAnsi="${FONT}"/><w:color w:val="${style.color}"/><w:shd w:fill="${style.fill}"/><w:sz w:val="${SMALL_SIZE}"/><w:szCs w:val="${SMALL_SIZE}"/></w:rPr><w:t>${escapeXmlAttribute(priority)}</w:t></w:r></w:sdtContent></w:sdt>`
-		);
-	}
 
 	zip.file('word/document.xml', documentXml);
 	return zip.generateAsync({ type: 'nodebuffer' });
@@ -331,7 +297,6 @@ export async function generateTemplateReportDocx(
 	priorityOverrides: ReportPriorityOverrides = {}
 ) {
 	emptyLineIndex = 0;
-	priorityDropdownMarkers.clear();
 	const domain = domainName(pageData);
 	const documentTitle = `${reportDisplayName(pageData)} - Mini Technical SEO Audit`;
 	const problems = reportProblems(pageData, templates, priorityOverrides);

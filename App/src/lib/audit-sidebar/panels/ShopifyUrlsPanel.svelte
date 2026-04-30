@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { X } from 'lucide-svelte';
-	import shopifyLogo from '$lib/assets/shopify/shopify-logo.png';
 	import type { AuditEntry, BasePanelData } from '../types';
 	import AuditPanel from '../AuditPanel.svelte';
 
@@ -28,7 +27,6 @@
 
 {#snippet header()}
 	<div class="shopify-brand">
-		<img src={shopifyLogo} alt="Shopify" />
 		<h1>Unoptimized Shopify URL Structured</h1>
 	</div>
 {/snippet}
@@ -63,15 +61,8 @@
 		margin: 0 0 16px;
 	}
 
-	.shopify-brand img {
-		display: block;
-		width: 100%;
-		height: auto;
-		object-fit: contain;
-	}
-
 	.shopify-brand h1 {
-		margin: 16px 0 0;
+		margin: 0;
 		color: #202124;
 		font-size: 28px;
 		font-weight: 700;
