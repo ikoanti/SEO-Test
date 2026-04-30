@@ -122,8 +122,9 @@ export const actions = {
 
 		try {
 			await updateWebsiteRecord(websiteId, { display_name: displayName }, locals.pbToken);
-			return { websiteUpdated: true };
+			throw redirect(303, '/audits');
 		} catch (error) {
+			if (isRedirect(error)) throw error;
 			return fail(400, {
 				createError: error instanceof Error ? error.message : 'Failed to update website.'
 			});

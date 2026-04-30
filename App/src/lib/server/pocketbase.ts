@@ -319,9 +319,13 @@ export async function getOrCreateWebsiteForAudit(
 			.collection(WEBSITES_COLLECTION)
 			.getFirstListItem(`domain = "${escapeFilterValue(domain)}"`);
 		if (input.display_name?.trim() && website.display_name !== displayName) {
-			return pb.collection(WEBSITES_COLLECTION).update(website.id, {
+			const updatedWebsite = await pb.collection(WEBSITES_COLLECTION).update(website.id, {
 				display_name: displayName
 			});
+			if (updatedWebsite.display_name !== displayName) {
+				throw new Error('PocketBase did not persist the submitted display name.');
+			}
+			return updatedWebsite;
 		}
 		return website;
 	} catch (error) {
@@ -342,9 +346,16 @@ export async function updateWebsiteRecord(
 	token?: string
 ) {
 	const pb = createAuthedClient(token);
-	return pb.collection(WEBSITES_COLLECTION).update(websiteId, {
-		...(input.display_name !== undefined ? { display_name: input.display_name.trim() } : {})
+	const displayName = input.display_name?.trim();
+	const website = await pb.collection(WEBSITES_COLLECTION).update(websiteId, {
+		...(input.display_name !== undefined ? { display_name: displayName } : {})
 	});
+
+	if (displayName !== undefined && website.display_name !== displayName) {
+		throw new Error('PocketBase did not persist the submitted display name.');
+	}
+
+	return website;
 }
 
 export async function createAuditRecord(
