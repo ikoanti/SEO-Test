@@ -104,22 +104,19 @@
 		return '';
 	}
 
-	function displayFindingDetail(finding: AuditFindingView) {
-		const title = normalizedText(finding.title);
-		const detail = String(finding.detail || '').trim();
-		return normalizedText(detail) === title ? '' : detail;
-	}
-
-	function openGraphFindingTitle(finding: AuditFindingView) {
+	function findingPrimaryText(finding: AuditFindingView) {
 		return finding.detail || finding.title || finding.status || 'Finding';
 	}
 
-	function openGraphFindingDetail(finding: AuditFindingView) {
+	function findingSecondaryText(finding: AuditFindingView) {
 		const title = String(finding.title || '').trim();
-		return normalizedText(title) === normalizedText(openGraphFindingTitle(finding)) ? '' : title;
+		const href = displayHref(finding);
+		if (!title || normalizedText(title) === normalizedText(findingPrimaryText(finding))) return '';
+		if (href && normalizedText(title) === normalizedText(href)) return '';
+		return title;
 	}
 
-	function groupedRows(prefix: string, findings: AuditFindingView[], valueAsDetail = false) {
+	function groupedRows(prefix: string, findings: AuditFindingView[]) {
 		const rows: RenderRow[] = [];
 		const groups: Record<string, AuditFindingView[]> = {};
 		const order: string[] = [];
@@ -169,10 +166,8 @@
 				rows.push({
 					key: `${prefix}-${finding.id}`,
 					status: finding.status || 'info',
-					title: valueAsDetail
-						? openGraphFindingTitle(finding)
-						: finding.title || finding.status || 'Finding',
-					detail: valueAsDetail ? openGraphFindingDetail(finding) : displayFindingDetail(finding),
+					title: findingPrimaryText(finding),
+					detail: findingSecondaryText(finding),
 					href: displayHref(finding),
 					codeSnippet:
 						typeof finding.meta?.codeSnippet === 'string' ? finding.meta.codeSnippet : undefined
@@ -183,53 +178,9 @@
 		return rows;
 	}
 
-	function issueGroupTitle(finding: AuditFindingView) {
-		return finding.detail || finding.title || finding.status || 'Findings';
-	}
-
-	function groupedIssueSections(
-		prefix: string,
-		findings: AuditFindingView[],
-		cardTitle: string,
-		valueAsDetail = false
-	): RenderGroup[] {
-		const groupedFindings: Record<string, AuditFindingView[]> = {};
-		const order: string[] = [];
-
-		for (const finding of findings) {
-			const title = issueGroupTitle(finding);
-			if (!groupedFindings[title]) {
-				groupedFindings[title] = [];
-				order.push(title);
-			}
-			groupedFindings[title].push(finding);
-		}
-
-		return order
-			.map((title) => {
-				const rows = groupedRows(`${prefix}-${title}`, groupedFindings[title] || [], valueAsDetail);
-				const displayRows = rows.filter(
-					(row) =>
-						!(
-							normalizedText(row.title) === normalizedText(cardTitle) &&
-							!row.detail &&
-							!row.href &&
-							!row.urlList?.length &&
-							!row.codeSnippet
-						)
-				);
-				const titleMatchesCard = normalizedText(title) === normalizedText(cardTitle);
-				const singleRowRepeatsTitle =
-					displayRows.length === 1 &&
-					normalizedText(displayRows[0]?.title) === normalizedText(title) &&
-					!displayRows[0]?.urlList?.length;
-				return {
-					key: `${prefix}-${title}`,
-					title: titleMatchesCard || singleRowRepeatsTitle ? undefined : title,
-					rows: displayRows
-				};
-			})
-			.filter((group) => group.rows.length > 0);
+	function rowSection(prefix: string, findings: AuditFindingView[]): RenderGroup[] {
+		const rows = groupedRows(prefix, findings);
+		return rows.length ? [{ key: prefix, rows }] : [];
 	}
 
 	const pills = $derived(statPills(item));
@@ -269,10 +220,7 @@
 	const hiddenWarnCount = $derived.by(() =>
 		Math.max(findingsByStatus.warn.length - visibleWarnFindings.length, 0)
 	);
-	const shouldShowValueAsDetail = $derived(item.key === 'openGraph');
-	const warnGroups = $derived(
-		groupedIssueSections('warn', visibleWarnFindings, item.label, shouldShowValueAsDetail)
-	);
+	const warnGroups = $derived(rowSection('warn', visibleWarnFindings));
 	const visibleInfoFindings = $derived.by(() => {
 		if (selectedStatus === 'info' || showAllInfoFindings) {
 			return findingsByStatus.info;
@@ -284,9 +232,7 @@
 	const hiddenInfoCount = $derived.by(() =>
 		Math.max(findingsByStatus.info.length - visibleInfoFindings.length, 0)
 	);
-	const infoGroups = $derived(
-		groupedIssueSections('info', visibleInfoFindings, item.label, shouldShowValueAsDetail)
-	);
+	const infoGroups = $derived(rowSection('info', visibleInfoFindings));
 	const visiblePassFindings = $derived.by(() => {
 		if (selectedStatus === 'pass' || showPassedFindings) {
 			return findingsByStatus.pass;
@@ -298,9 +244,7 @@
 	const hiddenPassCount = $derived.by(() =>
 		Math.max(findingsByStatus.pass.length - visiblePassFindings.length, 0)
 	);
-	const passGroups = $derived(
-		groupedIssueSections('pass', visiblePassFindings, item.label, shouldShowValueAsDetail)
-	);
+	const passGroups = $derived(rowSection('pass', visiblePassFindings));
 	const hasVisibleFindings = $derived.by(
 		() =>
 			findingsByStatus.warn.length > 0 ||
