@@ -40,6 +40,7 @@
 	let createSheetOpen = $state(false);
 	let auditRows = $state<AuditCreateRow[]>([{ displayName: '', domain: '' }]);
 	let editingWebsiteId = $state<string | null>(null);
+	let editingWebsiteDisplayName = $state('');
 	const pendingAuditStatuses = new Set(['queued', 'running']);
 
 	const hasPendingAudits = $derived(
@@ -172,9 +173,11 @@
 		return `${dateText}, ${timeText}`;
 	}
 
-	function editWebsiteName(websiteId?: string) {
+	function editWebsiteName(website: WebsiteGroup['website']) {
+		const websiteId = website.id;
 		if (!websiteId) return;
 		editingWebsiteId = websiteId;
+		editingWebsiteDisplayName = websiteDisplayName(website);
 		void tick().then(() => {
 			document.querySelector<HTMLInputElement>(`[data-website-name="${websiteId}"]`)?.focus();
 		});
@@ -182,6 +185,7 @@
 
 	function stopEditingWebsiteName() {
 		editingWebsiteId = null;
+		editingWebsiteDisplayName = '';
 	}
 
 	function cancelWebsiteNameEdit(event: MouseEvent) {
@@ -196,7 +200,7 @@
 	}
 
 	$effect(() => {
-		if (!hasPendingAudits) {
+		if (!hasPendingAudits || editingWebsiteId) {
 			stopStatusRefresh();
 			return;
 		}
@@ -266,7 +270,7 @@
 									<input
 										name="displayName"
 										type="text"
-										value={websiteDisplayName(group.website)}
+										bind:value={editingWebsiteDisplayName}
 										aria-label={`Display name for ${websiteDisplayName(group.website)}`}
 										data-website-name={group.website.id}
 										onkeydown={(event) => {
@@ -300,7 +304,7 @@
 									<button
 										type="button"
 										class="website-name-edit"
-										onclick={() => editWebsiteName(group.website.id)}
+										onclick={() => editWebsiteName(group.website)}
 										aria-label={`Edit display name for ${websiteDisplayName(group.website)}`}
 									>
 										<Pencil size={14} />
