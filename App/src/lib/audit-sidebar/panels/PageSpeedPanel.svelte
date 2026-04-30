@@ -60,7 +60,6 @@
 	<div class="pagespeed-brand">
 		<img src={pageSpeedLogo} alt="Google PageSpeed Insights" />
 	</div>
-	<p class="copy">{panel?.description ?? ''}</p>
 </section>
 <section class="section">
 	<div class="metric-stack">

@@ -101,9 +101,6 @@
 	{#if panel?.title}
 		<h1 class="title">{panel.title}</h1>
 	{/if}
-	{#if panel?.description}
-		<p class="copy">{panel.description}</p>
-	{/if}
 </section>
 <section class="section">
 	<div class="summary">

@@ -28,9 +28,6 @@
 	{#if panel?.title}
 		<h1 class="title">{panel.title}</h1>
 	{/if}
-	{#if panel?.description}
-		<p class="copy">{panel.description}</p>
-	{/if}
 </section>
 <section class="section">
 	<div class="summary">
@@ -89,13 +86,6 @@
 		line-height: 1.08;
 		font-weight: 700;
 		color: #d93025;
-	}
-
-	.copy {
-		margin: 10px 0 0;
-		font-size: 13px;
-		line-height: 1.55;
-		color: #5f6368;
 	}
 
 	.summary {
