@@ -1,11 +1,29 @@
 <script lang="ts">
+	import { X } from 'lucide-svelte';
 	import shopifyLogo from '$lib/assets/shopify/shopify-logo.png';
-	import type { BasePanelData } from '../types';
+	import type { AuditEntry, BasePanelData } from '../types';
 	import AuditPanel from '../AuditPanel.svelte';
-	import IssueList from '../IssueList.svelte';
 
 	let { panel }: { panel?: BasePanelData } = $props();
 	let entries = $derived(Array.isArray(panel?.entries) ? panel.entries : []);
+
+	function groupedByPattern(entries: AuditEntry[]) {
+		const groups = new Map<string, string[]>();
+
+		for (const entry of entries) {
+			const pattern = String(entry.pattern || '/collections/{collection}/products/{product}').trim();
+			const page = String(entry.page || entry.link || '').trim();
+			if (!page) continue;
+
+			if (!groups.has(pattern)) groups.set(pattern, []);
+			const pages = groups.get(pattern);
+			if (pages && !pages.includes(page)) pages.push(page);
+		}
+
+		return [...groups.entries()].map(([pattern, pages]) => ({ pattern, pages }));
+	}
+
+	const patternGroups = $derived(groupedByPattern(entries));
 </script>
 
 {#snippet header()}
@@ -15,13 +33,26 @@
 {/snippet}
 
 {#snippet content()}
-	<IssueList
-		{entries}
-		fields={[
-			{ label: 'Page', key: 'page' },
-			{ label: 'Pattern', key: 'pattern', strong: true }
-		]}
-	/>
+	<div class="pattern-list">
+		{#each patternGroups as group (group.pattern)}
+			<article class="pattern-card">
+				<header class="pattern-head">
+					<span class="pattern-badge"><X size={14} strokeWidth={3} aria-hidden="true" /></span>
+					<p class="pattern-value">{group.pattern}</p>
+				</header>
+				<div class="offending-links">
+					<p class="links-label">Offending links</p>
+					<ul>
+						{#each group.pages as page}
+							<li>
+								<a href={page} target="_blank" rel="noreferrer">{page}</a>
+							</li>
+						{/each}
+					</ul>
+				</div>
+			</article>
+		{/each}
+	</div>
 {/snippet}
 
 <AuditPanel {header} {content} />
@@ -37,5 +68,84 @@
 		width: 100%;
 		height: auto;
 		object-fit: contain;
+	}
+
+	.pattern-list {
+		display: grid;
+		gap: 12px;
+		margin-top: 16px;
+	}
+
+	.pattern-card {
+		padding: 16px;
+		border: 1px solid #e0e3e7;
+		border-radius: 14px;
+		background: #fff;
+		overflow: hidden;
+	}
+
+	.pattern-head {
+		display: grid;
+		grid-template-columns: 22px minmax(0, 1fr);
+		gap: 10px;
+		align-items: center;
+	}
+
+	.pattern-badge {
+		display: grid;
+		width: 22px;
+		height: 22px;
+		place-items: center;
+		border-radius: 999px;
+		color: #d93025;
+		background: #fce8e6;
+	}
+
+	.pattern-value {
+		margin: 0;
+		min-width: 0;
+		color: #d93025;
+		font-size: 15px;
+		font-weight: 800;
+		line-height: 1.35;
+		overflow-wrap: anywhere;
+	}
+
+	.offending-links {
+		margin-top: 14px;
+	}
+
+	.links-label {
+		margin: 0 0 8px;
+		color: #5f6368;
+		font-size: 11px;
+		font-weight: 700;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+	}
+
+	.offending-links ul {
+		display: grid;
+		gap: 8px;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.offending-links li {
+		min-width: 0;
+	}
+
+	.offending-links a {
+		color: #2563eb;
+		font-size: 12px;
+		line-height: 1.45;
+		text-decoration: none;
+		overflow-wrap: anywhere;
+		word-break: break-word;
+	}
+
+	.offending-links a:hover {
+		text-decoration: underline;
 	}
 </style>
