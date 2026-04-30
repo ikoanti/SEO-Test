@@ -63,7 +63,7 @@
 
 	.shopify-brand h1 {
 		margin: 0;
-		color: #202124;
+		color: #d93025;
 		font-size: 28px;
 		font-weight: 700;
 		line-height: 1.08;
