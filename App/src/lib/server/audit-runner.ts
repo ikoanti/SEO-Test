@@ -788,8 +788,11 @@ function templateIssueMatcher(pattern: string | undefined) {
 
 	try {
 		const regex = new RegExp(pattern, 'i');
-		return (finding: NormalizedFinding) =>
-			regex.test(`${finding.title || ''} ${finding.detail || ''}`);
+		return (finding: NormalizedFinding) => {
+			const detail = String(finding.detail || '').trim();
+			const title = String(finding.title || '').trim();
+			return regex.test(detail || title);
+		};
 	} catch {
 		return undefined;
 	}

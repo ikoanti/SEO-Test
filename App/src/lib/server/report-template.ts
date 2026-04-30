@@ -111,7 +111,11 @@ function issueMatcher(pattern: string | undefined) {
 
 	try {
 		const regex = new RegExp(pattern, 'i');
-		return (finding: Finding) => regex.test(`${finding.title || ''} ${finding.detail || ''}`);
+		return (finding: Finding) => {
+			const detail = String(finding.detail || '').trim();
+			const title = String(finding.title || '').trim();
+			return regex.test(detail || title);
+		};
 	} catch {
 		return undefined;
 	}

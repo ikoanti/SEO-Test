@@ -79,8 +79,11 @@ function issueMatcher(pattern: string | undefined) {
 
 	try {
 		const regex = new RegExp(pattern, 'i');
-		return (finding: Record<string, unknown>) =>
-			regex.test(`${finding.title || ''} ${finding.detail || ''}`);
+		return (finding: Record<string, unknown>) => {
+			const detail = String(finding.detail || '').trim();
+			const title = String(finding.title || '').trim();
+			return regex.test(detail || title);
+		};
 	} catch {
 		return undefined;
 	}
