@@ -100,7 +100,7 @@ export async function analyzeMetaAndHeadings(
 	const titleMap = new Map();
 	const descriptionMap = new Map();
 	const missingH1Evidence: Array<{ page: string; issue: string }> = [];
-	const multipleH1Evidence: Array<{ page: string; issue: string }> = [];
+	const multipleH1Evidence: Array<{ page: string; issue: string; headings?: string[] }> = [];
 	const imageAltEvidence: Array<{ page: string; image: string; issue?: string }> = [];
 	const metaTitleEvidence: Array<{ page: string; issue: string; value?: string }> = [];
 	const longDescriptionEvidence: Array<{ page: string; issue: string; value?: string }> = [];
@@ -126,6 +126,9 @@ export async function analyzeMetaAndHeadings(
 			const response = await fetchText(page);
 			const $ = loadDocument(response.data);
 			const h1Count = $('h1').length;
+			const h1Headings = $('h1')
+				.toArray()
+				.map((element) => $(element).text().replace(/\s+/g, ' ').trim());
 			const emptyH1 = $('h1').filter(
 				(_: number, element: AnyNode) => !$(element).text().trim()
 			).length;
@@ -154,7 +157,7 @@ export async function analyzeMetaAndHeadings(
 			if (headingIssue === 'Missing H1 tag' && missingH1Evidence.length < maxEvidenceItems) {
 				missingH1Evidence.push({ page, issue: headingIssue });
 			} else if (headingIssue && multipleH1Evidence.length < maxEvidenceItems) {
-				multipleH1Evidence.push({ page, issue: headingIssue });
+				multipleH1Evidence.push({ page, issue: headingIssue, headings: h1Headings });
 			}
 
 			if (h1Count === 1 && emptyH1 === 0) {
@@ -167,7 +170,11 @@ export async function analyzeMetaAndHeadings(
 					h1Tags,
 					'warn',
 					emptyH1 > 0 ? 'Empty or multiple H1 tags found' : 'Multiple H1 tags found',
-					{ title: `${page} (${h1Count} H1 tags)` }
+					{
+						title: `${page} (${h1Count} H1 tags)`,
+						page_url: page,
+						meta: { headings: h1Headings }
+					}
 				);
 			}
 

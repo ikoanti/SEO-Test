@@ -18,7 +18,7 @@ export type AuditCaptureRequest = AuditCaptureRequestBase &
 		| {
 				kind: 'headings';
 				domain: string;
-				entries: Array<{ page: string; issue: string }>;
+				entries: Array<{ page: string; issue: string; headings?: string[] }>;
 				count: number;
 		  }
 		| {
@@ -141,7 +141,7 @@ export async function capturePageSpeedEvidence(
 
 export async function captureHeadingEvidence(
 	domain: string,
-	entries: Array<{ page: string; issue: string }>,
+	entries: Array<{ page: string; issue: string; headings?: string[] }>,
 	count = entries.length,
 	title = '',
 	description = '',

@@ -13,6 +13,7 @@ export type AuditEntry = {
 	property?: string;
 	pattern?: string;
 	wordCount?: number;
+	headings?: string[];
 	status?: 'pass' | 'warn' | 'info';
 };
 

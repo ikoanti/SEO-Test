@@ -210,6 +210,10 @@
 		return String(finding.detail || finding.title || item.label || '');
 	}
 
+	function stringArray(value: unknown) {
+		return Array.isArray(value) ? value.map((item) => String(item)) : [];
+	}
+
 	function issueFindings(item: AuditItemView) {
 		return item.findings.filter((finding) => finding.status === 'warn');
 	}
@@ -318,9 +322,14 @@
 			const entries = findings
 				.map((finding) => {
 					const page = pageUrlFromFinding(finding);
-					return page ? { page, issue: issueText(finding, item) } : null;
+					const meta = parseMeta(finding.meta);
+					const nestedMeta = parseMeta(meta.meta);
+					const headings = stringArray(nestedMeta.headings || meta.headings);
+					return page ? { page, issue: issueText(finding, item), headings } : null;
 				})
-				.filter((entry): entry is { page: string; issue: string } => Boolean(entry));
+				.filter(
+					(entry): entry is { page: string; issue: string; headings: string[] } => Boolean(entry)
+				);
 
 			return entries.length
 				? {

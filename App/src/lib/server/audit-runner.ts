@@ -720,7 +720,15 @@ function captureEntryFromFinding(
 	}
 
 	if (
-		request.kind === 'headings' ||
+		request.kind === 'headings'
+	) {
+		const headings = Array.isArray(nestedMeta.headings)
+			? nestedMeta.headings.map((heading) => String(heading))
+			: [];
+		return headings.length ? { page, issue, headings } : { page, issue };
+	}
+
+	if (
 		request.kind === 'missing-product-schema' ||
 		request.kind === 'missing-faq-schema' ||
 		request.kind === 'missing-organization-schema' ||
