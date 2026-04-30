@@ -358,8 +358,8 @@ export async function updateWebsiteRecord(
 	return website;
 }
 
-export async function saveWebsiteGoogleDocExport(
-	websiteId: string,
+export async function saveAuditGoogleDocExport(
+	auditId: string,
 	input: {
 		google_drive_folder_id: string;
 		google_drive_folder_name: string;
@@ -371,7 +371,7 @@ export async function saveWebsiteGoogleDocExport(
 	token?: string
 ) {
 	const pb = createAuthedClient(token);
-	return pb.collection(WEBSITES_COLLECTION).update(websiteId, {
+	return pb.collection(AUDITS_COLLECTION).update(auditId, {
 		google_drive_folder_id: input.google_drive_folder_id,
 		google_drive_folder_name: input.google_drive_folder_name,
 		google_doc_id: input.google_doc_id,

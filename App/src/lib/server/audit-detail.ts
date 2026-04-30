@@ -25,12 +25,6 @@ function getWebsite(auditRecord: Record<string, unknown>) {
 						url?: string;
 						domain?: string;
 						display_name?: string;
-						google_drive_folder_id?: string;
-						google_drive_folder_name?: string;
-						google_doc_id?: string;
-						google_doc_name?: string;
-						google_doc_url?: string;
-						google_doc_exported_at?: string;
 					};
 			  }
 			| undefined
@@ -44,7 +38,25 @@ function compactAuditRecord(auditRecord: Record<string, unknown>) {
 		report_status:
 			typeof auditRecord.report_status === 'string' ? auditRecord.report_status : undefined,
 		created: typeof auditRecord.created === 'string' ? auditRecord.created : undefined,
-		updated: typeof auditRecord.updated === 'string' ? auditRecord.updated : undefined
+		updated: typeof auditRecord.updated === 'string' ? auditRecord.updated : undefined,
+		google_drive_folder_id:
+			typeof auditRecord.google_drive_folder_id === 'string'
+				? auditRecord.google_drive_folder_id
+				: undefined,
+		google_drive_folder_name:
+			typeof auditRecord.google_drive_folder_name === 'string'
+				? auditRecord.google_drive_folder_name
+				: undefined,
+		google_doc_id:
+			typeof auditRecord.google_doc_id === 'string' ? auditRecord.google_doc_id : undefined,
+		google_doc_name:
+			typeof auditRecord.google_doc_name === 'string' ? auditRecord.google_doc_name : undefined,
+		google_doc_url:
+			typeof auditRecord.google_doc_url === 'string' ? auditRecord.google_doc_url : undefined,
+		google_doc_exported_at:
+			typeof auditRecord.google_doc_exported_at === 'string'
+				? auditRecord.google_doc_exported_at
+				: undefined
 	};
 }
 
@@ -55,13 +67,7 @@ function compactWebsiteRecord(auditRecord: Record<string, unknown>) {
 		url: website?.url,
 		domain: website?.domain,
 		display_name: website?.display_name,
-		name: website?.display_name || website?.domain || website?.url,
-		google_drive_folder_id: website?.google_drive_folder_id,
-		google_drive_folder_name: website?.google_drive_folder_name,
-		google_doc_id: website?.google_doc_id,
-		google_doc_name: website?.google_doc_name,
-		google_doc_url: website?.google_doc_url,
-		google_doc_exported_at: website?.google_doc_exported_at
+		name: website?.display_name || website?.domain || website?.url
 	};
 }
 

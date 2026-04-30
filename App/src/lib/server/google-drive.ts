@@ -110,24 +110,38 @@ async function getOrCreateFolder(parentFolderId: string, name: string) {
 	return { id: created.data.id, name: created.data.name || name };
 }
 
-async function findGoogleDoc(parentFolderId: string, name: string) {
+async function updateGoogleDoc(input: { id: string; name: string; body: Buffer }) {
 	const drive = driveClient();
-	const escapedName = escapeDriveQueryValue(name);
-	const escapedParent = escapeDriveQueryValue(parentFolderId);
-	const existing = await drive.files.list({
-		q: [
-			`mimeType = '${GOOGLE_DOC_MIME_TYPE}'`,
-			`name = '${escapedName}'`,
-			`'${escapedParent}' in parents`,
-			'trashed = false'
-		].join(' and '),
-		fields: 'files(id,name,webViewLink)',
-		pageSize: 1,
-		supportsAllDrives: true,
-		includeItemsFromAllDrives: true
+	return drive.files.update({
+		fileId: input.id,
+		requestBody: {
+			name: input.name,
+			mimeType: GOOGLE_DOC_MIME_TYPE
+		},
+		media: {
+			mimeType: DOCX_MIME_TYPE,
+			body: Readable.from(input.body)
+		},
+		fields: 'id,name,webViewLink',
+		supportsAllDrives: true
 	});
+}
 
-	return existing.data.files?.[0] || null;
+async function createGoogleDoc(input: { folderId: string; name: string; body: Buffer }) {
+	const drive = driveClient();
+	return drive.files.create({
+		requestBody: {
+			name: input.name,
+			mimeType: GOOGLE_DOC_MIME_TYPE,
+			parents: [input.folderId]
+		},
+		media: {
+			mimeType: DOCX_MIME_TYPE,
+			body: Readable.from(input.body)
+		},
+		fields: 'id,name,webViewLink',
+		supportsAllDrives: true
+	});
 }
 
 async function setPageless(documentId: string) {
@@ -155,42 +169,16 @@ export async function uploadAuditDocxAsGoogleDoc(input: {
 	domain: string;
 	filename: string;
 	body: Buffer | Uint8Array | ArrayBuffer;
+	existingDocumentId?: string;
 }): Promise<UploadedGoogleDoc> {
 	const rootFolderId = requiredEnv('GOOGLE_DRIVE_AUDIT_ROOT_FOLDER_ID');
 	await assertPagelessAccess();
 	const folder = await getOrCreateFolder(rootFolderId, websiteFolderName(input.domain));
-	const drive = driveClient();
 	const body = bodyBuffer(input.body);
 	const documentName = googleDocName(input.filename);
-	const existingDocument = await findGoogleDoc(folder.id, documentName);
-
-	if (existingDocument?.id) {
-		await setPageless(existingDocument.id);
-
-		return {
-			id: existingDocument.id,
-			name: existingDocument.name || documentName,
-			url:
-				existingDocument.webViewLink ||
-				`https://docs.google.com/document/d/${existingDocument.id}/edit`,
-			folderId: folder.id,
-			folderName: folder.name
-		};
-	}
-
-	const uploaded = await drive.files.create({
-		requestBody: {
-			name: documentName,
-			mimeType: GOOGLE_DOC_MIME_TYPE,
-			parents: [folder.id]
-		},
-		media: {
-			mimeType: DOCX_MIME_TYPE,
-			body: Readable.from(body)
-		},
-		fields: 'id,name,webViewLink',
-		supportsAllDrives: true
-	});
+	const uploaded = input.existingDocumentId
+		? await updateGoogleDoc({ id: input.existingDocumentId, name: documentName, body })
+		: await createGoogleDoc({ folderId: folder.id, name: documentName, body });
 
 	if (!uploaded.data.id) throw new Error('Google Drive did not return a document id.');
 	await setPageless(uploaded.data.id);

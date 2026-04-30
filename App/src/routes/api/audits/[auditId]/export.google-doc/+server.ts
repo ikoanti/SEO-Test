@@ -1,7 +1,7 @@
 import { error, json } from '@sveltejs/kit';
 import { buildAuditPageData } from '$lib/server/audit-detail';
 import { uploadAuditDocxAsGoogleDoc } from '$lib/server/google-drive';
-import { listAuditReportTemplates, saveWebsiteGoogleDocExport } from '$lib/server/pocketbase';
+import { listAuditReportTemplates, saveAuditGoogleDocExport } from '$lib/server/pocketbase';
 import { generateTemplateReportDocx } from '$lib/server/report-docx';
 import {
 	priorityOverridesFromEntries,
@@ -19,12 +19,6 @@ function domainName(pageData: Awaited<ReturnType<typeof buildAuditPageData>>) {
 		pageData.website?.url ||
 		'audit'
 	);
-}
-
-function websiteId(pageData: Awaited<ReturnType<typeof buildAuditPageData>>) {
-	const id = pageData.website?.id;
-	if (!id) throw error(500, 'Audit website record is missing.');
-	return id;
 }
 
 export const POST = async ({ params, locals, request }) => {
@@ -63,10 +57,11 @@ export const POST = async ({ params, locals, request }) => {
 	const googleDoc = await uploadAuditDocxAsGoogleDoc({
 		domain: domainName(pageData),
 		filename: file.filename,
-		body: file.body
+		body: file.body,
+		existingDocumentId: pageData.auditRecord?.google_doc_id
 	});
-	await saveWebsiteGoogleDocExport(
-		websiteId(pageData),
+	await saveAuditGoogleDocExport(
+		params.auditId,
 		{
 			google_drive_folder_id: googleDoc.folderId,
 			google_drive_folder_name: googleDoc.folderName,

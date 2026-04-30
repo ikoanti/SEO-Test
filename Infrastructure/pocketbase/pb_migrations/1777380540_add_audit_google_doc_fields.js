@@ -1,6 +1,6 @@
 migrate(
   (app) => {
-    const collection = app.findCollectionByNameOrId("websites");
+    const collection = app.findCollectionByNameOrId("audits");
 
     addTextField(collection, "google_drive_folder_id", 255);
     addTextField(collection, "google_drive_folder_name", 255);
@@ -12,7 +12,7 @@ migrate(
     app.save(collection);
   },
   (app) => {
-    const collection = app.findCollectionByNameOrId("websites");
+    const collection = app.findCollectionByNameOrId("audits");
 
     removeField(collection, "google_drive_folder_id");
     removeField(collection, "google_drive_folder_name");
