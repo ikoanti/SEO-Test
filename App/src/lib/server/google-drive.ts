@@ -68,13 +68,7 @@ function websiteFolderName(domain: string) {
 }
 
 function googleDocName(filename: string) {
-	const baseName = filename
-		.replace(/\.docx$/i, '')
-		.replace(/-/g, ' ')
-		.replace(/\s+/g, ' ')
-		.trim();
-	const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
-	return `${baseName || 'Mini SEO Audit'} - ${timestamp}`;
+	return filename.replace(/\.docx$/i, '').trim() || 'Mini Technical SEO Audit';
 }
 
 function bodyBuffer(body: Buffer | Uint8Array | ArrayBuffer) {

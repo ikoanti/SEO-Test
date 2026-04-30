@@ -63,6 +63,10 @@ function domainName(pageData: ReportPageData) {
 	);
 }
 
+function reportDisplayName(pageData: ReportPageData) {
+	return text(pageData.website?.display_name, domainName(pageData));
+}
+
 function emptyLine() {
 	emptyLineIndex += 1;
 	return new Paragraph({
@@ -280,10 +284,10 @@ function reportProblems(
 }
 
 function documentFilename(pageData: ReportPageData) {
-	const name = domainName(pageData)
-		.replace(/[^a-z0-9._-]+/gi, '-')
-		.replace(/^-+|-+$/g, '');
-	return `Mini-SEO-Audit-${name || 'audit'}.docx`;
+	const name = reportDisplayName(pageData)
+		.replace(/[<>:"/\\|?*\x00-\x1f]+/g, '-')
+		.trim();
+	return `${name || 'Audit'} - Mini Technical SEO Audit.docx`;
 }
 
 export async function generateTemplateReportDocx(
@@ -294,6 +298,7 @@ export async function generateTemplateReportDocx(
 ) {
 	emptyLineIndex = 0;
 	const domain = domainName(pageData);
+	const documentTitle = `${reportDisplayName(pageData)} - Mini Technical SEO Audit`;
 	const problems = reportProblems(pageData, templates, priorityOverrides);
 	const header = await reportHeader();
 	const children: Paragraph[] = [
@@ -392,7 +397,7 @@ export async function generateTemplateReportDocx(
 
 	const document = new Document({
 		creator: 'GoldenWeb',
-		title: `Mini Technical SEO Audit - ${domain}`,
+		title: documentTitle,
 		styles: {
 			default: {
 				document: {
