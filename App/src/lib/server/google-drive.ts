@@ -110,6 +110,26 @@ async function getOrCreateFolder(parentFolderId: string, name: string) {
 	return { id: created.data.id, name: created.data.name || name };
 }
 
+async function findGoogleDoc(parentFolderId: string, name: string) {
+	const drive = driveClient();
+	const escapedName = escapeDriveQueryValue(name);
+	const escapedParent = escapeDriveQueryValue(parentFolderId);
+	const existing = await drive.files.list({
+		q: [
+			`mimeType = '${GOOGLE_DOC_MIME_TYPE}'`,
+			`name = '${escapedName}'`,
+			`'${escapedParent}' in parents`,
+			'trashed = false'
+		].join(' and '),
+		fields: 'files(id,name,webViewLink)',
+		pageSize: 1,
+		supportsAllDrives: true,
+		includeItemsFromAllDrives: true
+	});
+
+	return existing.data.files?.[0] || null;
+}
+
 async function setPageless(documentId: string) {
 	const docs = docsClient();
 	await docs.documents.batchUpdate({
@@ -141,9 +161,26 @@ export async function uploadAuditDocxAsGoogleDoc(input: {
 	const folder = await getOrCreateFolder(rootFolderId, websiteFolderName(input.domain));
 	const drive = driveClient();
 	const body = bodyBuffer(input.body);
+	const documentName = googleDocName(input.filename);
+	const existingDocument = await findGoogleDoc(folder.id, documentName);
+
+	if (existingDocument?.id) {
+		await setPageless(existingDocument.id);
+
+		return {
+			id: existingDocument.id,
+			name: existingDocument.name || documentName,
+			url:
+				existingDocument.webViewLink ||
+				`https://docs.google.com/document/d/${existingDocument.id}/edit`,
+			folderId: folder.id,
+			folderName: folder.name
+		};
+	}
+
 	const uploaded = await drive.files.create({
 		requestBody: {
-			name: googleDocName(input.filename),
+			name: documentName,
 			mimeType: GOOGLE_DOC_MIME_TYPE,
 			parents: [folder.id]
 		},
