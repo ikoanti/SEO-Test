@@ -99,6 +99,27 @@
 	-webkit-line-clamp: 2;
 }
 
+.card-link {
+	display: -webkit-box;
+	margin-top: 12px;
+	min-width: 0;
+	overflow: hidden;
+	color: #2563eb;
+	font-size: 12px;
+	font-weight: 500;
+	line-height: 1.45;
+	text-decoration: none;
+	text-overflow: ellipsis;
+	overflow-wrap: anywhere;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+	line-clamp: 2;
+}
+
+.card-link:hover {
+	text-decoration: underline;
+}
+
 .meta {
 	margin-top: 10px;
 	display: grid;

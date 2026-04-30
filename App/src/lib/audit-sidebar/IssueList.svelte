@@ -24,6 +24,46 @@
 		fields?: IssueListField[];
 		item?: Snippet<[any]>;
 	} = $props();
+
+	function fieldValue(entry: AuditEntry, field: IssueListField) {
+		return field.getValue?.(entry) ?? entry[field.key];
+	}
+
+	function hasValue(value: unknown) {
+		return value !== undefined && value !== null && value !== '';
+	}
+
+	function stringValue(value: unknown) {
+		return String(value ?? '').trim();
+	}
+
+	function evidenceValue(entry: AuditEntry) {
+		return (
+			stringValue(entry.value) ||
+			stringValue(entry.link) ||
+			stringValue(entry.property) ||
+			stringValue(entry.image) ||
+			stringValue(entry.issue) ||
+			'Issue detected'
+		);
+	}
+
+	function bottomLink(entry: AuditEntry) {
+		return stringValue(entry.page) || (!entry.page ? stringValue(entry.link) : '');
+	}
+
+	function metaFields(entry: AuditEntry) {
+		const evidence = evidenceValue(entry);
+		const link = bottomLink(entry);
+		return fields.filter((field) => {
+			const value = fieldValue(entry, field);
+			if (!hasValue(value)) return false;
+			if (field.key === 'page') return false;
+			if (field.key === 'link' && stringValue(value) === link) return false;
+			if (stringValue(value) === evidence) return false;
+			return true;
+		});
+	}
 </script>
 
 <div class="list">
@@ -31,15 +71,18 @@
 		{#if item}
 			{@render item(entry)}
 		{:else}
+			{@const evidence = evidenceValue(entry)}
+			{@const link = bottomLink(entry)}
+			{@const visibleMetaFields = metaFields(entry)}
 			<article class="card">
 				<div class="card-head">
 					<div class="badge"><X size={14} strokeWidth={3} aria-hidden="true" /></div>
-					<p class="card-title">{entry.issue}</p>
+					<p class="card-title">{evidence}</p>
 				</div>
-				<div class="meta">
-					{#each fields as field}
-						{@const value = field.getValue?.(entry) ?? entry[field.key]}
-						{#if value !== undefined && value !== null && value !== ''}
+				{#if visibleMetaFields.length}
+					<div class="meta">
+						{#each visibleMetaFields as field}
+							{@const value = fieldValue(entry, field)}
 							<div>
 								<p class="meta-label">{field.label}</p>
 								<p
@@ -50,9 +93,12 @@
 									<FormattedValue {value} />
 								</p>
 							</div>
-						{/if}
-					{/each}
-				</div>
+						{/each}
+					</div>
+				{/if}
+				{#if link}
+					<a class="card-link" href={link} target="_blank" rel="noreferrer">{link}</a>
+				{/if}
 			</article>
 		{/if}
 	{/each}
@@ -106,6 +152,27 @@
 		-webkit-box-orient: vertical;
 		-webkit-line-clamp: 2;
 		line-clamp: 2;
+	}
+
+	.card-link {
+		display: -webkit-box;
+		margin-top: 12px;
+		min-width: 0;
+		overflow: hidden;
+		color: #2563eb;
+		font-size: 12px;
+		font-weight: 500;
+		line-height: 1.45;
+		text-decoration: none;
+		text-overflow: ellipsis;
+		overflow-wrap: anywhere;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+	}
+
+	.card-link:hover {
+		text-decoration: underline;
 	}
 
 	.meta {

@@ -41,7 +41,6 @@
 					<p class="pattern-value">{group.pattern}</p>
 				</header>
 				<div class="offending-links">
-					<p class="links-label">Offending links</p>
 					<ul>
 						{#each group.pages as page}
 							<li>
@@ -109,19 +108,16 @@
 		font-weight: 800;
 		line-height: 1.35;
 		overflow-wrap: anywhere;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		display: -webkit-box;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
 	}
 
 	.offending-links {
 		margin-top: 14px;
-	}
-
-	.links-label {
-		margin: 0 0 8px;
-		color: #5f6368;
-		font-size: 11px;
-		font-weight: 700;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
 	}
 
 	.offending-links ul {

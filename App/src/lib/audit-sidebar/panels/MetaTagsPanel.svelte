@@ -4,7 +4,6 @@
 	import type { AuditEntry, BasePanelData } from '../types';
 	import AuditPanel from '../AuditPanel.svelte';
 	import IssueList from '../IssueList.svelte';
-	import FormattedValue from './FormattedValue.svelte';
 
 	type MetaGroup = AuditEntry & { pages: string[] };
 
@@ -68,38 +67,31 @@
 {/snippet}
 
 {#snippet metaItem(entry: MetaGroup)}
+	{@const evidence = entry.value || entry.issue || 'Issue detected'}
 	<article class="card">
 		<div class="card-head">
 			<div class="badge"><X size={14} strokeWidth={3} aria-hidden="true" /></div>
-			<p class="card-title">{entry.issue}</p>
+			<p class="card-title">{evidence}</p>
 		</div>
-		<div class="meta">
-			{#if entry.value}
+		{#if entry.value && entry.issue}
+			<div class="meta">
 				<div>
-					<p class="meta-label">
-						{entry.issue?.includes('description') ? 'Description' : 'Title'}
-					</p>
-					<p class="meta-value meta-value-strong meta-value-preview">
-						<FormattedValue value={entry.value} />
-					</p>
+					<p class="meta-label">Issue</p>
+					<p class="meta-value">{entry.issue}</p>
 				</div>
-			{/if}
-			{#if entry.pages.length === 1}
-				<div>
-					<p class="meta-label">Page</p>
-					<p class="meta-value"><FormattedValue value={entry.pages[0]} /></p>
-				</div>
-			{:else if entry.pages.length > 1}
-				<div>
-					<p class="meta-label">Pages</p>
-					<ul class="meta-value-list">
-						{#each entry.pages as page}
-							<li><FormattedValue value={page} /></li>
-						{/each}
-					</ul>
-				</div>
-			{/if}
-		</div>
+			</div>
+		{/if}
+		{#if entry.pages.length === 1}
+			<a class="card-link" href={entry.pages[0]} target="_blank" rel="noreferrer">{entry.pages[0]}</a>
+		{:else if entry.pages.length > 1}
+			<ul class="card-link-list">
+				{#each entry.pages as page}
+					<li>
+						<a href={page} target="_blank" rel="noreferrer">{page}</a>
+					</li>
+				{/each}
+			</ul>
+		{/if}
 	</article>
 {/snippet}
 
@@ -111,4 +103,36 @@
 
 <style>
 	@import './panel-shared.css';
+
+	.card-link-list {
+		display: grid;
+		gap: 6px;
+		margin: 12px 0 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.card-link-list li {
+		min-width: 0;
+	}
+
+	.card-link-list a {
+		display: -webkit-box;
+		min-width: 0;
+		overflow: hidden;
+		color: #2563eb;
+		font-size: 12px;
+		font-weight: 500;
+		line-height: 1.45;
+		text-decoration: none;
+		text-overflow: ellipsis;
+		overflow-wrap: anywhere;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+	}
+
+	.card-link-list a:hover {
+		text-decoration: underline;
+	}
 </style>
