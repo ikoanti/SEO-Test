@@ -43,8 +43,6 @@
 
 <style>
 	.tabs-wrap {
-		padding: 18px 0 14px;
-		border-bottom: 1px solid var(--border);
 		overflow: hidden;
 		flex: 0 0 auto;
 		min-width: 0;
@@ -53,7 +51,7 @@
 	.horizontal-scrollview {
 		min-width: 0;
 		max-width: 100%;
-		padding: 0 18px 2px;
+		padding: 18px 18px 14px;
 		overflow-x: auto;
 		overflow-y: hidden;
 		overscroll-behavior-x: contain;

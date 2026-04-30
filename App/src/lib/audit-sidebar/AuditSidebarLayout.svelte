@@ -23,6 +23,7 @@
 <aside class="audit-sidebar">
 	<div class="vstack">
 		<AuditTabs {tabs} {activeTab} {captureMode} onSelect={onTabSelect} />
+		<div class="divider" aria-hidden="true"></div>
 		<div class="body">
 			<div class="audit-sidebar-panel">
 				{@render content(activePanel)}
@@ -57,6 +58,13 @@
 		height: 100%;
 		min-height: 0;
 		flex-direction: column;
+	}
+
+	.divider {
+		width: 100%;
+		height: 1px;
+		flex: 0 0 auto;
+		background: var(--border);
 	}
 
 	.body {
