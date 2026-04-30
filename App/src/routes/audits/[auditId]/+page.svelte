@@ -1125,34 +1125,36 @@
 							</p>
 						{/if}
 
-						<div class="report-export-actions">
-							<button
-								type="button"
-								class="audit-primary-button"
-								disabled={!reportSelectionIsValid() || googleExportIsRunning()}
-								onclick={exportGoogleDoc}
-							>
-								<Cloud size={18} />
-								<span>{googleExportIsRunning() ? 'Exporting...' : 'Export to Google Docs'}</span>
-							</button>
-							<button
-								type="submit"
-								class="audit-secondary-button"
-								disabled={!reportSelectionIsValid()}
-							>
-								<FileText size={18} />
-								<span>Download DOCX</span>
-							</button>
+						<div class="report-export-strip">
+							<div class="report-export-actions">
+								<button
+									type="button"
+									class="audit-primary-button"
+									disabled={!reportSelectionIsValid() || googleExportIsRunning()}
+									onclick={exportGoogleDoc}
+								>
+									<Cloud size={18} />
+									<span>{googleExportIsRunning() ? 'Exporting...' : 'Export to Google Docs'}</span>
+								</button>
+								<button
+									type="submit"
+									class="audit-secondary-button"
+									disabled={!reportSelectionIsValid()}
+								>
+									<FileText size={18} />
+									<span>Download DOCX</span>
+								</button>
+							</div>
+							{#if googleExportUrl}
+								<a class="google-doc-link" href={googleExportUrl} target="_blank" rel="noreferrer">
+									<ExternalLink size={17} />
+									<span>Open Google Doc</span>
+								</a>
+							{/if}
+							{#if googleExportError}
+								<p class="report-error">{googleExportError}</p>
+							{/if}
 						</div>
-						{#if googleExportUrl}
-							<a class="google-doc-link" href={googleExportUrl} target="_blank" rel="noreferrer">
-								<ExternalLink size={17} />
-								<span>Open Google Doc</span>
-							</a>
-						{/if}
-						{#if googleExportError}
-							<p class="report-error">{googleExportError}</p>
-						{/if}
 					</form>
 				{:else}
 					<p class="muted report-status-note">
@@ -1297,6 +1299,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.85rem;
+		padding-bottom: 0.75rem;
 	}
 
 	.report-preview-item {
@@ -1366,6 +1369,23 @@
 		letter-spacing: 0;
 	}
 
+	.report-export-strip {
+		position: sticky;
+		z-index: 5;
+		bottom: 0;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
+		margin: 0 -1.5rem -1.5rem;
+		padding: 1rem 1.5rem;
+		border-top: 1px solid var(--border-color);
+		border-radius: 0 0 18px 18px;
+		background: rgba(9, 14, 22, 0.96);
+		backdrop-filter: blur(12px);
+		box-shadow: 0 -14px 34px rgba(0, 0, 0, 0.24);
+	}
+
 	.report-export-actions {
 		display: flex;
 		flex-wrap: wrap;
@@ -1385,6 +1405,7 @@
 	.google-doc-link {
 		display: inline-flex;
 		align-items: center;
+		flex: 0 0 auto;
 		gap: 0.45rem;
 		width: fit-content;
 		color: var(--goldenweb-primary);
@@ -1421,6 +1442,25 @@
 
 	.report-preview-proof-placeholder {
 		color: var(--text-muted);
+	}
+
+	@media (max-width: 760px) {
+		.report-export-strip {
+			align-items: stretch;
+			flex-direction: column;
+			margin-right: -1rem;
+			margin-left: -1rem;
+			padding: 0.85rem 1rem;
+		}
+
+		.report-export-actions {
+			flex-direction: column;
+		}
+
+		.report-export-actions :global(button),
+		.report-export-actions button {
+			width: 100%;
+		}
 	}
 
 	.ai-visibility-results {
