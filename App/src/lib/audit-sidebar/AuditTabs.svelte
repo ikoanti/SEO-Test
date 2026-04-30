@@ -16,7 +16,7 @@
 	let scrollView: HTMLDivElement | undefined;
 
 	$effect(() => {
-		if (captureMode || !scrollView || !activeTab) return;
+		if (!scrollView || !activeTab) return;
 
 		const activeButton = scrollView.querySelector<HTMLButtonElement>('[data-active="true"]');
 		activeButton?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
@@ -65,21 +65,6 @@
 		gap: 8px;
 		flex-wrap: nowrap;
 		min-width: max-content;
-	}
-
-	.tabs-wrap[data-capture='true'],
-	.tabs-wrap[data-capture='true'] .horizontal-scrollview {
-		overflow: visible;
-	}
-
-	.tabs-wrap[data-capture='true'] .horizontal-scrollview {
-		max-width: none;
-	}
-
-	.tabs-wrap[data-capture='true'] .tabs {
-		display: flex;
-		min-width: 0;
-		flex-wrap: wrap;
 	}
 
 	.tab {
