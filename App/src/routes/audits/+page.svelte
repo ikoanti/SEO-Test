@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import { Plus, RotateCw, Search, X } from 'lucide-svelte';
+	import { Check, Pencil, Plus, RotateCw, Search, X } from 'lucide-svelte';
 	import { onMount, tick } from 'svelte';
 	import type { ActionData } from './$types';
 
@@ -163,6 +163,11 @@
 		editingWebsiteId = null;
 	}
 
+	function cancelWebsiteNameEdit(event: MouseEvent) {
+		event.preventDefault();
+		stopEditingWebsiteName();
+	}
+
 	function stopStatusRefresh() {
 		if (!refreshInterval) return;
 		window.clearInterval(refreshInterval);
@@ -235,12 +240,7 @@
 					<header class="website-row-header">
 						<div class="website-title-block">
 							{#if editingWebsiteId === group.website.id}
-								<form
-									method="POST"
-									action="?/updateWebsite"
-									class="website-name-form"
-									onfocusout={stopEditingWebsiteName}
-								>
+								<form method="POST" action="?/updateWebsite" class="website-name-form">
 									<input type="hidden" name="websiteId" value={group.website.id} />
 									<input
 										name="displayName"
@@ -255,16 +255,36 @@
 											}
 										}}
 									/>
+									<div class="website-name-actions">
+										<button
+											type="submit"
+											class="website-name-action"
+											aria-label="Save display name"
+										>
+											<Check size={15} />
+										</button>
+										<button
+											type="button"
+											class="website-name-action"
+											aria-label="Cancel display name edit"
+											onclick={cancelWebsiteNameEdit}
+										>
+											<X size={15} />
+										</button>
+									</div>
 								</form>
 							{:else}
-								<button
-									type="button"
-									class="website-name-button"
-									onclick={() => editWebsiteName(group.website.id)}
-									aria-label={`Edit display name for ${websiteDisplayName(group.website)}`}
-								>
-									{websiteDisplayName(group.website)}
-								</button>
+								<div class="website-name-display">
+									<span class="website-name-text">{websiteDisplayName(group.website)}</span>
+									<button
+										type="button"
+										class="website-name-edit"
+										onclick={() => editWebsiteName(group.website.id)}
+										aria-label={`Edit display name for ${websiteDisplayName(group.website)}`}
+									>
+										<Pencil size={14} />
+									</button>
+								</div>
 							{/if}
 							<p class="muted">{group.website.domain || websiteUrl(group.website)}</p>
 						</div>
@@ -407,11 +427,20 @@
 		min-width: 0;
 	}
 
-	.website-name-button,
-	.website-name-form input {
-		display: block;
+	.website-name-display,
+	.website-name-form {
+		display: grid;
+		grid-template-columns: minmax(0, auto) auto;
+		align-items: center;
+		justify-content: start;
+		gap: 8px;
 		width: 100%;
 		margin: 0 0 4px;
+	}
+
+	.website-name-text,
+	.website-name-form input {
+		min-width: 0;
 		border: 1px solid transparent;
 		border-radius: 6px;
 		padding: 0;
@@ -425,17 +454,46 @@
 		text-align: left;
 	}
 
-	.website-name-button {
-		cursor: text;
+	.website-name-text {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
-	.website-name-form {
-		margin: 0;
+	.website-name-form input {
+		width: min(320px, 100%);
 	}
 
 	.website-name-form input:focus {
 		outline: none;
 		border-color: rgba(148, 163, 184, 0.28);
+	}
+
+	.website-name-edit,
+	.website-name-action {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 28px;
+		height: 28px;
+		border: 1px solid transparent;
+		border-radius: 999px;
+		background: transparent;
+		color: var(--text-muted);
+		cursor: pointer;
+	}
+
+	.website-name-edit:hover,
+	.website-name-action:hover {
+		border-color: rgba(148, 163, 184, 0.24);
+		background: rgba(255, 255, 255, 0.04);
+		color: var(--text-primary);
+	}
+
+	.website-name-actions {
+		display: flex;
+		align-items: center;
+		gap: 4px;
 	}
 
 	.website-title-block p {
