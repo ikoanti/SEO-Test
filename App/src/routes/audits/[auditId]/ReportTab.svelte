@@ -143,6 +143,26 @@
 </div>
 
 <style>
+	#card-report {
+		--report-border: rgba(58, 71, 88, 0.9);
+		background: var(--card-bg);
+		border-color: var(--report-border);
+		color: var(--text-main);
+	}
+
+	#card-report :global(button),
+	#card-report :global(a),
+	#card-report :global(input) {
+		outline-color: var(--goldenweb-primary);
+	}
+
+	#card-report :global(button:focus-visible),
+	.google-doc-link:focus-visible,
+	.report-preview-item:has(input:focus-visible) {
+		outline: 2px solid var(--goldenweb-primary);
+		outline-offset: 3px;
+	}
+
 	.report-error {
 		margin: 0.75rem 0;
 		color: #fca5a5;
@@ -178,7 +198,7 @@
 
 	.report-selection-count {
 		flex: 0 0 auto;
-		border: 1px solid var(--border-color);
+		border: 1px solid var(--report-border);
 		border-radius: 999px;
 		padding: 0.55rem 0.85rem;
 		color: var(--text-muted);
@@ -198,7 +218,7 @@
 		grid-template-columns: auto 1fr;
 		gap: 0.9rem;
 		padding: 1rem;
-		border: 1px solid var(--border-color);
+		border: 1px solid var(--report-border);
 		border-radius: 18px;
 		background: rgba(9, 14, 22, 0.28);
 		cursor: pointer;
@@ -253,7 +273,7 @@
 		gap: 1rem;
 		margin: 0 -1.5rem -1.5rem;
 		padding: 1rem 1.5rem;
-		border-top: 1px solid var(--border-color);
+		border-top: 1px solid var(--report-border);
 		border-radius: 0 0 18px 18px;
 		background: rgba(9, 14, 22, 0.96);
 		backdrop-filter: blur(12px);
@@ -271,9 +291,15 @@
 		align-items: center;
 		justify-content: center;
 		gap: 0.5rem;
-		border: 1px solid var(--border-color);
+		border: 1px solid var(--report-border);
 		background: rgba(15, 23, 42, 0.86);
 		color: var(--text-primary);
+	}
+
+	.audit-secondary-button:hover,
+	.audit-secondary-button:focus-visible {
+		border-color: rgba(255, 183, 27, 0.72);
+		background: rgba(15, 23, 42, 0.96);
 	}
 
 	.google-doc-link {
@@ -302,7 +328,7 @@
 		aspect-ratio: 16 / 9;
 		max-height: 260px;
 		overflow: hidden;
-		border: 1px solid var(--border-color);
+		border: 1px solid var(--report-border);
 		border-radius: 12px;
 		background: rgba(148, 163, 184, 0.08);
 	}
