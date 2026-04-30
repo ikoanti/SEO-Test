@@ -1272,8 +1272,7 @@
 
 	.sidebar-preview-direct {
 		width: min(100%, 420px);
-		height: min(868px, calc(100vh - 210px));
-		min-height: 640px;
+		height: 868px;
 		overflow: hidden;
 	}
 
@@ -1314,11 +1313,6 @@
 
 		.audit-section-nav a.active {
 			border-bottom-color: var(--goldenweb-primary);
-		}
-
-		.sidebar-preview-direct {
-			height: min(868px, calc(100vh - 185px));
-			min-height: 560px;
 		}
 	}
 </style>
