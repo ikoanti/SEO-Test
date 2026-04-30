@@ -2,11 +2,7 @@ import { error } from '@sveltejs/kit';
 import { buildAuditPageData } from '$lib/server/audit-detail';
 import { generateTemplateReportDocx } from '$lib/server/report-docx';
 import { listAuditReportTemplates } from '$lib/server/pocketbase';
-import {
-	priorityOverridesFromEntries,
-	selectedTemplateKeys,
-	validateReportSelection
-} from '$lib/server/report-export-options';
+import { selectedTemplateKeys, validateReportSelection } from '$lib/server/report-export-options';
 
 export const GET = async ({ params, locals, url }) => {
 	if (!locals.user) {
@@ -29,16 +25,10 @@ export const GET = async ({ params, locals, url }) => {
 	);
 	validateReportSelection(selectedKeys, availableKeys);
 	const selectedSet = new Set(selectedKeys);
-	const priorityOverrides = priorityOverridesFromEntries(url.searchParams.entries(), selectedSet);
 	const templates = (await listAuditReportTemplates(locals.pbToken)).filter((template) =>
 		selectedSet.has(template.key)
 	);
-	const file = await generateTemplateReportDocx(
-		pageData,
-		templates,
-		locals.pbToken,
-		priorityOverrides
-	);
+	const file = await generateTemplateReportDocx(pageData, templates, locals.pbToken);
 
 	return new Response(new Uint8Array(file.body), {
 		headers: {

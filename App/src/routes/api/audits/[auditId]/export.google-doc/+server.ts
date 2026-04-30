@@ -3,11 +3,7 @@ import { buildAuditPageData } from '$lib/server/audit-detail';
 import { uploadAuditDocxAsGoogleDoc } from '$lib/server/google-drive';
 import { listAuditReportTemplates, saveAuditGoogleDocExport } from '$lib/server/pocketbase';
 import { generateTemplateReportDocx } from '$lib/server/report-docx';
-import {
-	priorityOverridesFromEntries,
-	selectedTemplateKeys,
-	validateReportSelection
-} from '$lib/server/report-export-options';
+import { selectedTemplateKeys, validateReportSelection } from '$lib/server/report-export-options';
 
 function domainName(pageData: Awaited<ReturnType<typeof buildAuditPageData>>) {
 	const summary = pageData.summary as { domain?: string } | null;
@@ -44,16 +40,10 @@ export const POST = async ({ params, locals, request }) => {
 	validateReportSelection(selectedKeys, availableKeys);
 
 	const selectedSet = new Set(selectedKeys);
-	const priorityOverrides = priorityOverridesFromEntries(formData.entries(), selectedSet);
 	const templates = (await listAuditReportTemplates(locals.pbToken)).filter((template) =>
 		selectedSet.has(template.key)
 	);
-	const file = await generateTemplateReportDocx(
-		pageData,
-		templates,
-		locals.pbToken,
-		priorityOverrides
-	);
+	const file = await generateTemplateReportDocx(pageData, templates, locals.pbToken);
 	const googleDoc = await uploadAuditDocxAsGoogleDoc({
 		domain: domainName(pageData),
 		filename: file.filename,

@@ -138,7 +138,6 @@
 	const pageData = $derived(liveData ?? data);
 	let activeTab = $state<AuditTab>('findings');
 	let selectedReportKeys = $state<string[]>([]);
-	let reportPriorities = $state<Record<string, 'Urgent' | 'High' | 'Medium'>>({});
 	let reportSelectionSeed = $state('');
 	let reportFormElement = $state<HTMLFormElement | undefined>();
 	let googleExportStatus = $state<'idle' | 'running' | 'done' | 'error'>('idle');
@@ -739,9 +738,6 @@
 					pageData.reportPreviewItems?.some((item) => item.key === key)
 				)
 			: (pageData.reportPreviewItems || []).slice(0, 10).map((item) => item.key);
-		reportPriorities = Object.fromEntries(
-			(pageData.reportPreviewItems || []).map((item) => [item.key, item.priority])
-		);
 		googleExportStatus = 'idle';
 		googleExportUrl = '';
 		googleExportError = '';
@@ -1087,17 +1083,7 @@
 										<div class="report-preview-body">
 											<div class="report-preview-heading">
 												<span>{item.title}</span>
-												<div class="report-priority-control">
-													<span>Priority</span>
-													<select
-														name={`reportPriority:${item.key}`}
-														bind:value={reportPriorities[item.key]}
-													>
-														<option value="Urgent">Urgent</option>
-														<option value="High">High</option>
-														<option value="Medium">Medium</option>
-													</select>
-												</div>
+												<span class="report-priority">{item.priority}</span>
 											</div>
 											{#each item.paragraphs as paragraph, index (`${item.key}-paragraph-${index}`)}
 												<p>{paragraph}</p>
@@ -1344,29 +1330,12 @@
 		font-weight: 900;
 	}
 
-	.report-priority-control {
+	.report-priority {
 		flex: 0 0 auto;
-		display: inline-flex;
-		align-items: center;
-		gap: 0.5rem;
 		color: var(--goldenweb-primary);
 		font-size: 0.8rem;
 		text-transform: uppercase;
 		letter-spacing: 0.06em;
-	}
-
-	.report-priority-control select {
-		min-width: 7.5rem;
-		border: 1px solid var(--border-color);
-		border-radius: 8px;
-		padding: 0.45rem 0.6rem;
-		background: rgba(15, 23, 42, 0.95);
-		color: var(--text-primary);
-		font: inherit;
-		font-size: 0.85rem;
-		font-weight: 800;
-		text-transform: none;
-		letter-spacing: 0;
 	}
 
 	.report-export-strip {
