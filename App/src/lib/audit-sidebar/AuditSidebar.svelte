@@ -73,7 +73,7 @@
 	);
 </script>
 
-<aside class="audit-sidebar">
+<aside class="audit-sidebar" data-capture={data?.captureMode ? 'true' : undefined}>
 	<div class="tabs-wrap">
 		<div class="tabs" bind:this={tabsContainer}>
 			{#each tabs as tab}
@@ -169,6 +169,15 @@
 		padding: 0 18px 2px;
 		scroll-padding-left: 18px;
 		scroll-padding-right: 18px;
+	}
+
+	.audit-sidebar[data-capture='true'] .tabs {
+		flex-wrap: wrap;
+		overflow: visible;
+	}
+
+	.audit-sidebar[data-capture='true'] .tabs-wrap {
+		overflow: visible;
 	}
 
 	.tabs::-webkit-scrollbar {

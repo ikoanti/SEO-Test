@@ -1,5 +1,6 @@
 import { captureAuditSidebarScreenshot } from './renderer';
 import { buildSidebarData } from '$lib/audit-sidebar';
+import type { AuditSidebarData } from '$lib/audit-sidebar';
 
 type AuditCaptureRequestBase = {
 	reportTemplateKey?: string;
@@ -7,6 +8,7 @@ type AuditCaptureRequestBase = {
 	description?: string;
 	capturePageUrl?: string;
 	fallbackCapturePageUrls?: string[];
+	sidebarTabs?: AuditSidebarData['tabs'];
 	captureCandidatePageUrls?: string[];
 	captureCandidateEntries?: Array<Record<string, unknown> & { page: string }>;
 };
@@ -117,18 +119,23 @@ export async function capturePageSpeedEvidence(
 	title = '',
 	description = '',
 	capturePageUrl?: string,
-	fallbackPageUrls: string[] = []
+	fallbackPageUrls: string[] = [],
+	sidebarTabs?: AuditSidebarData['tabs']
 ) {
 	return captureAuditSidebarScreenshot({
 		pageUrl: capturePageUrl || pageUrl,
 		fallbackPageUrls,
-		sidebarData: buildSidebarData('pagespeed', {
-			kind: 'pagespeed',
-			title,
-			description,
-			domain,
-			pageSpeed
-		})
+		sidebarData: buildSidebarData(
+			'pagespeed',
+			{
+				kind: 'pagespeed',
+				title,
+				description,
+				domain,
+				pageSpeed
+			},
+			sidebarTabs
+		)
 	});
 }
 
@@ -139,20 +146,25 @@ export async function captureHeadingEvidence(
 	title = '',
 	description = '',
 	capturePageUrl?: string,
-	fallbackPageUrls: string[] = []
+	fallbackPageUrls: string[] = [],
+	sidebarTabs?: AuditSidebarData['tabs']
 ) {
 	if (!entries.length) return null;
 	return captureAuditSidebarScreenshot({
 		pageUrl: screenshotPageUrl(entries, capturePageUrl),
 		fallbackPageUrls,
-		sidebarData: buildSidebarData('headings', {
-			kind: 'headings',
-			title,
-			description,
-			domain,
-			count,
-			entries
-		})
+		sidebarData: buildSidebarData(
+			'headings',
+			{
+				kind: 'headings',
+				title,
+				description,
+				domain,
+				count,
+				entries
+			},
+			sidebarTabs
+		)
 	});
 }
 
@@ -163,20 +175,25 @@ export async function captureImageAltEvidence(
 	title = '',
 	description = '',
 	capturePageUrl?: string,
-	fallbackPageUrls: string[] = []
+	fallbackPageUrls: string[] = [],
+	sidebarTabs?: AuditSidebarData['tabs']
 ) {
 	if (!entries.length) return null;
 	return captureAuditSidebarScreenshot({
 		pageUrl: screenshotPageUrl(entries, capturePageUrl),
 		fallbackPageUrls,
-		sidebarData: buildSidebarData('image-alts', {
-			kind: 'image-alts',
-			title,
-			description,
-			domain,
-			count,
-			entries
-		})
+		sidebarData: buildSidebarData(
+			'image-alts',
+			{
+				kind: 'image-alts',
+				title,
+				description,
+				domain,
+				count,
+				entries
+			},
+			sidebarTabs
+		)
 	});
 }
 
@@ -187,22 +204,27 @@ export async function captureMetaEvidence(
 	title = '',
 	description = '',
 	capturePageUrl?: string,
-	fallbackPageUrls: string[] = []
+	fallbackPageUrls: string[] = [],
+	sidebarTabs?: AuditSidebarData['tabs']
 ) {
 	if (!entries.length) return null;
 	const pageUrl = screenshotPageUrl(entries, capturePageUrl);
 	return captureAuditSidebarScreenshot({
 		pageUrl,
 		fallbackPageUrls,
-		sidebarData: buildSidebarData('meta-tags', {
-			kind: 'meta-tags',
-			title,
-			description,
-			domain,
-			count,
-			activePageUrl: pageUrl,
-			entries
-		})
+		sidebarData: buildSidebarData(
+			'meta-tags',
+			{
+				kind: 'meta-tags',
+				title,
+				description,
+				domain,
+				count,
+				activePageUrl: pageUrl,
+				entries
+			},
+			sidebarTabs
+		)
 	});
 }
 
@@ -213,20 +235,25 @@ export async function captureCanonicalEvidence(
 	title = '',
 	description = '',
 	capturePageUrl?: string,
-	fallbackPageUrls: string[] = []
+	fallbackPageUrls: string[] = [],
+	sidebarTabs?: AuditSidebarData['tabs']
 ) {
 	if (!entries.length) return null;
 	return captureAuditSidebarScreenshot({
 		pageUrl: screenshotPageUrl(entries, capturePageUrl),
 		fallbackPageUrls,
-		sidebarData: buildSidebarData('canonicals', {
-			kind: 'canonicals',
-			title,
-			description,
-			domain,
-			count,
-			entries
-		})
+		sidebarData: buildSidebarData(
+			'canonicals',
+			{
+				kind: 'canonicals',
+				title,
+				description,
+				domain,
+				count,
+				entries
+			},
+			sidebarTabs
+		)
 	});
 }
 
@@ -237,20 +264,25 @@ export async function captureInternalLinksEvidence(
 	title = '',
 	description = '',
 	capturePageUrl?: string,
-	fallbackPageUrls: string[] = []
+	fallbackPageUrls: string[] = [],
+	sidebarTabs?: AuditSidebarData['tabs']
 ) {
 	if (!entries.length) return null;
 	return captureAuditSidebarScreenshot({
 		pageUrl: screenshotPageUrl(entries, capturePageUrl),
 		fallbackPageUrls,
-		sidebarData: buildSidebarData('internal-links', {
-			kind: 'internal-links',
-			title,
-			description,
-			domain,
-			count,
-			entries
-		})
+		sidebarData: buildSidebarData(
+			'internal-links',
+			{
+				kind: 'internal-links',
+				title,
+				description,
+				domain,
+				count,
+				entries
+			},
+			sidebarTabs
+		)
 	});
 }
 
@@ -261,20 +293,25 @@ export async function captureLazyLoadingEvidence(
 	title = '',
 	description = '',
 	capturePageUrl?: string,
-	fallbackPageUrls: string[] = []
+	fallbackPageUrls: string[] = [],
+	sidebarTabs?: AuditSidebarData['tabs']
 ) {
 	if (!entries.length) return null;
 	return captureAuditSidebarScreenshot({
 		pageUrl: screenshotPageUrl(entries, capturePageUrl),
 		fallbackPageUrls,
-		sidebarData: buildSidebarData('lazy-loading', {
-			kind: 'lazy-loading',
-			title,
-			description,
-			domain,
-			count,
-			entries
-		})
+		sidebarData: buildSidebarData(
+			'lazy-loading',
+			{
+				kind: 'lazy-loading',
+				title,
+				description,
+				domain,
+				count,
+				entries
+			},
+			sidebarTabs
+		)
 	});
 }
 
@@ -285,20 +322,25 @@ export async function captureOpenGraphEvidence(
 	title = '',
 	description = '',
 	capturePageUrl?: string,
-	fallbackPageUrls: string[] = []
+	fallbackPageUrls: string[] = [],
+	sidebarTabs?: AuditSidebarData['tabs']
 ) {
 	if (!entries.length) return null;
 	return captureAuditSidebarScreenshot({
 		pageUrl: screenshotPageUrl(entries, capturePageUrl),
 		fallbackPageUrls,
-		sidebarData: buildSidebarData('open-graph', {
-			kind: 'open-graph',
-			title,
-			description,
-			domain,
-			count,
-			entries
-		})
+		sidebarData: buildSidebarData(
+			'open-graph',
+			{
+				kind: 'open-graph',
+				title,
+				description,
+				domain,
+				count,
+				entries
+			},
+			sidebarTabs
+		)
 	});
 }
 
@@ -309,20 +351,25 @@ export async function captureContentQualityEvidence(
 	title = '',
 	description = '',
 	capturePageUrl?: string,
-	fallbackPageUrls: string[] = []
+	fallbackPageUrls: string[] = [],
+	sidebarTabs?: AuditSidebarData['tabs']
 ) {
 	if (!entries.length) return null;
 	return captureAuditSidebarScreenshot({
 		pageUrl: screenshotPageUrl(entries, capturePageUrl),
 		fallbackPageUrls,
-		sidebarData: buildSidebarData('content-quality', {
-			kind: 'content-quality',
-			title,
-			description,
-			domain,
-			count,
-			entries
-		})
+		sidebarData: buildSidebarData(
+			'content-quality',
+			{
+				kind: 'content-quality',
+				title,
+				description,
+				domain,
+				count,
+				entries
+			},
+			sidebarTabs
+		)
 	});
 }
 
@@ -333,20 +380,25 @@ export async function captureShopifyUrlEvidence(
 	title = '',
 	description = '',
 	capturePageUrl?: string,
-	fallbackPageUrls: string[] = []
+	fallbackPageUrls: string[] = [],
+	sidebarTabs?: AuditSidebarData['tabs']
 ) {
 	if (!entries.length) return null;
 	return captureAuditSidebarScreenshot({
 		pageUrl: screenshotPageUrl(entries, capturePageUrl),
 		fallbackPageUrls,
-		sidebarData: buildSidebarData('shopify-urls', {
-			kind: 'shopify-urls',
-			title,
-			description,
-			domain,
-			count,
-			entries
-		})
+		sidebarData: buildSidebarData(
+			'shopify-urls',
+			{
+				kind: 'shopify-urls',
+				title,
+				description,
+				domain,
+				count,
+				entries
+			},
+			sidebarTabs
+		)
 	});
 }
 
@@ -362,20 +414,25 @@ export async function captureSchemaEvidence(
 	title = '',
 	description = '',
 	capturePageUrl?: string,
-	fallbackPageUrls: string[] = []
+	fallbackPageUrls: string[] = [],
+	sidebarTabs?: AuditSidebarData['tabs']
 ) {
 	if (!entries.length) return null;
 	return captureAuditSidebarScreenshot({
 		pageUrl: screenshotPageUrl(entries, capturePageUrl),
 		fallbackPageUrls,
-		sidebarData: buildSidebarData(kind, {
+		sidebarData: buildSidebarData(
 			kind,
-			title,
-			description,
-			domain,
-			count,
-			entries
-		})
+			{
+				kind,
+				title,
+				description,
+				domain,
+				count,
+				entries
+			},
+			sidebarTabs
+		)
 	});
 }
 
@@ -389,7 +446,8 @@ export async function captureRobotsEvidence({
 	title = '',
 	description = '',
 	capturePageUrl,
-	fallbackCapturePageUrls = []
+	fallbackCapturePageUrls = [],
+	sidebarTabs
 }: {
 	domain: string;
 	robotsUrl: string;
@@ -401,6 +459,7 @@ export async function captureRobotsEvidence({
 	description?: string;
 	capturePageUrl?: string;
 	fallbackCapturePageUrls?: string[];
+	sidebarTabs?: AuditSidebarData['tabs'];
 }) {
 	return captureAuditSidebarScreenshot({
 		pageUrl: capturePageUrl || robotsUrl,
@@ -408,15 +467,19 @@ export async function captureRobotsEvidence({
 			...fallbackCapturePageUrls,
 			...(!fallbackCapturePageUrls.includes(storefrontUrl) ? [storefrontUrl] : [])
 		],
-		sidebarData: buildSidebarData('ai-bot-visibility', {
-			kind: 'ai-bot-visibility',
-			title,
-			description,
-			domain,
-			foundAgents,
-			entries,
-			count: count ?? entries.length
-		})
+		sidebarData: buildSidebarData(
+			'ai-bot-visibility',
+			{
+				kind: 'ai-bot-visibility',
+				title,
+				description,
+				domain,
+				foundAgents,
+				entries,
+				count: count ?? entries.length
+			},
+			sidebarTabs
+		)
 	});
 }
 
@@ -430,7 +493,8 @@ export async function runAuditCaptureRequest(request: AuditCaptureRequest) {
 				request.title,
 				request.description,
 				request.capturePageUrl,
-				request.fallbackCapturePageUrls
+				request.fallbackCapturePageUrls,
+				request.sidebarTabs
 			);
 		case 'image-alts':
 			return captureImageAltEvidence(
@@ -440,7 +504,8 @@ export async function runAuditCaptureRequest(request: AuditCaptureRequest) {
 				request.title,
 				request.description,
 				request.capturePageUrl,
-				request.fallbackCapturePageUrls
+				request.fallbackCapturePageUrls,
+				request.sidebarTabs
 			);
 		case 'meta-tags':
 			return captureMetaEvidence(
@@ -450,7 +515,8 @@ export async function runAuditCaptureRequest(request: AuditCaptureRequest) {
 				request.title,
 				request.description,
 				request.capturePageUrl,
-				request.fallbackCapturePageUrls
+				request.fallbackCapturePageUrls,
+				request.sidebarTabs
 			);
 		case 'canonicals':
 			return captureCanonicalEvidence(
@@ -460,7 +526,8 @@ export async function runAuditCaptureRequest(request: AuditCaptureRequest) {
 				request.title,
 				request.description,
 				request.capturePageUrl,
-				request.fallbackCapturePageUrls
+				request.fallbackCapturePageUrls,
+				request.sidebarTabs
 			);
 		case 'internal-links':
 			return captureInternalLinksEvidence(
@@ -470,7 +537,8 @@ export async function runAuditCaptureRequest(request: AuditCaptureRequest) {
 				request.title,
 				request.description,
 				request.capturePageUrl,
-				request.fallbackCapturePageUrls
+				request.fallbackCapturePageUrls,
+				request.sidebarTabs
 			);
 		case 'lazy-loading':
 			return captureLazyLoadingEvidence(
@@ -480,7 +548,8 @@ export async function runAuditCaptureRequest(request: AuditCaptureRequest) {
 				request.title,
 				request.description,
 				request.capturePageUrl,
-				request.fallbackCapturePageUrls
+				request.fallbackCapturePageUrls,
+				request.sidebarTabs
 			);
 		case 'open-graph':
 			return captureOpenGraphEvidence(
@@ -490,7 +559,8 @@ export async function runAuditCaptureRequest(request: AuditCaptureRequest) {
 				request.title,
 				request.description,
 				request.capturePageUrl,
-				request.fallbackCapturePageUrls
+				request.fallbackCapturePageUrls,
+				request.sidebarTabs
 			);
 		case 'content-quality':
 			return captureContentQualityEvidence(
@@ -500,7 +570,8 @@ export async function runAuditCaptureRequest(request: AuditCaptureRequest) {
 				request.title,
 				request.description,
 				request.capturePageUrl,
-				request.fallbackCapturePageUrls
+				request.fallbackCapturePageUrls,
+				request.sidebarTabs
 			);
 		case 'shopify-urls':
 			return captureShopifyUrlEvidence(
@@ -510,7 +581,8 @@ export async function runAuditCaptureRequest(request: AuditCaptureRequest) {
 				request.title,
 				request.description,
 				request.capturePageUrl,
-				request.fallbackCapturePageUrls
+				request.fallbackCapturePageUrls,
+				request.sidebarTabs
 			);
 		case 'missing-product-schema':
 		case 'missing-faq-schema':
@@ -524,7 +596,8 @@ export async function runAuditCaptureRequest(request: AuditCaptureRequest) {
 				request.title,
 				request.description,
 				request.capturePageUrl,
-				request.fallbackCapturePageUrls
+				request.fallbackCapturePageUrls,
+				request.sidebarTabs
 			);
 		case 'pagespeed':
 			return capturePageSpeedEvidence(
@@ -534,7 +607,8 @@ export async function runAuditCaptureRequest(request: AuditCaptureRequest) {
 				request.title,
 				request.description,
 				request.capturePageUrl,
-				request.fallbackCapturePageUrls
+				request.fallbackCapturePageUrls,
+				request.sidebarTabs
 			);
 		case 'robots':
 			return captureRobotsEvidence(request);

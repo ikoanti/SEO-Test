@@ -60,4 +60,5 @@ export type AuditSidebarData = {
 	activeTab?: string;
 	tabs?: AuditTab[];
 	panels?: Record<string, AuditPanelData | undefined>;
+	captureMode?: boolean;
 };

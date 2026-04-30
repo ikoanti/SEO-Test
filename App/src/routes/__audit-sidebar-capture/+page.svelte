@@ -10,7 +10,7 @@
 
 <div class="capture-stage" data-sidebar-stage>
 	<div class="sidebar-frame" data-sidebar-frame>
-		<AuditSidebar data={data.sidebarData} />
+		<AuditSidebar data={{ ...data.sidebarData, captureMode: true }} />
 	</div>
 </div>
 

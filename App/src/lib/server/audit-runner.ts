@@ -1,4 +1,5 @@
 import { runAudit } from '$lib/server/audit';
+import type { AuditTab } from '$lib/audit-sidebar';
 import {
 	attachMetricScreenshots,
 	buildNormalizedAuditItems,
@@ -301,6 +302,24 @@ function screenshotJobKey(
 	return `${input.auditId}:${input.findingTypeId}:${input.runId}:${input.reportTemplateKey}`;
 }
 
+function screenshotActiveTab(request: AuditCaptureRequest) {
+	if (request.kind === 'robots') return 'ai-bot-visibility';
+	return request.kind;
+}
+
+function screenshotTabsForJobs(jobs: ScreenshotJob[]): AuditTab[] {
+	const tabs = new Map<string, AuditTab>();
+	for (const job of jobs) {
+		const id = screenshotActiveTab(job.request);
+		if (tabs.has(id)) continue;
+		tabs.set(id, {
+			id,
+			label: job.request.title || job.title || id
+		});
+	}
+	return [...tabs.values()];
+}
+
 async function processScreenshotJob(input: ScreenshotJob, token?: string) {
 	const key = screenshotJobKey(input);
 	if (
@@ -521,9 +540,9 @@ function screenshotAllocationPriority(request: AuditCaptureRequest) {
 function isCaptureEntry(entry: unknown): entry is CaptureEntry {
 	return Boolean(
 		entry &&
-			typeof entry === 'object' &&
-			'page' in entry &&
-			typeof (entry as { page?: unknown }).page === 'string'
+		typeof entry === 'object' &&
+		'page' in entry &&
+		typeof (entry as { page?: unknown }).page === 'string'
 	);
 }
 
@@ -612,7 +631,9 @@ function findingMatchesCaptureRequest(request: AuditCaptureRequest, finding: Nor
 	if (templateKey === 'missing-h1-tags') return detail === 'Missing H1 tag';
 	if (templateKey === 'multiple-h1-tags') {
 		const normalizedDetail = detail.toLowerCase();
-		return normalizedDetail.includes('multiple h1') || normalizedDetail.includes('empty or multiple');
+		return (
+			normalizedDetail.includes('multiple h1') || normalizedDetail.includes('empty or multiple')
+		);
 	}
 	if (templateKey === 'meta-titles-too-long-unoptimized') {
 		return detail === 'Meta title too long' || detail === 'Missing meta title';
@@ -1236,6 +1257,14 @@ function collectScreenshotJobs(
 				findings.length ? findings : item.findings
 			);
 		}
+	}
+
+	const sidebarTabs = screenshotTabsForJobs(jobs);
+	for (const job of jobs) {
+		job.request = {
+			...job.request,
+			sidebarTabs
+		};
 	}
 
 	return allocateScreenshotPages(jobs);
