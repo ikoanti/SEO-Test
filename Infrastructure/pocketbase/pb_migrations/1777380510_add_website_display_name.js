@@ -1,15 +1,18 @@
 migrate(
   (app) => {
     const collection = app.findCollectionByNameOrId("websites");
-    const hasDisplayName = collection.fields
-      .toArray()
-      .some((field) => field.name === "display_name");
+    let hasDisplayName = true;
+
+    try {
+      collection.fields.getByName("display_name");
+    } catch {
+      hasDisplayName = false;
+    }
 
     if (!hasDisplayName) {
       collection.fields.add(
         new TextField({
           name: "display_name",
-          type: "text",
           required: false,
           max: 255,
           presentable: true,
