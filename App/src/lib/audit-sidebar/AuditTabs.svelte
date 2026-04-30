@@ -53,6 +53,7 @@
 	.horizontal-scrollview {
 		min-width: 0;
 		max-width: 100%;
+		padding: 0 18px 2px;
 		overflow-x: auto;
 		overflow-y: hidden;
 		overscroll-behavior-x: contain;
@@ -65,7 +66,6 @@
 		display: inline-flex;
 		gap: 8px;
 		flex-wrap: nowrap;
-		padding: 0 18px 2px;
 		min-width: max-content;
 	}
 
