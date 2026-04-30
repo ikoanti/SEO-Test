@@ -49,18 +49,16 @@
 		if (!tabsContainer || !activeButton) return;
 
 		const gutter = 18;
+		const containerRect = tabsContainer.getBoundingClientRect();
+		const activeRect = activeButton.getBoundingClientRect();
 		const currentLeft = tabsContainer.scrollLeft;
-		const visibleLeft = currentLeft + gutter;
-		const visibleRight = currentLeft + tabsContainer.clientWidth - gutter;
-		const activeLeft = activeButton.offsetLeft;
-		const activeRight = activeLeft + activeButton.offsetWidth;
+		const visibleLeft = containerRect.left + gutter;
+		const visibleRight = containerRect.right - gutter;
 		const maxScroll = Math.max(0, tabsContainer.scrollWidth - tabsContainer.clientWidth);
 		let targetLeft = currentLeft;
 
-		if (activeLeft < visibleLeft) {
-			targetLeft = activeLeft - gutter;
-		} else if (activeRight > visibleRight) {
-			targetLeft = activeRight - tabsContainer.clientWidth + gutter;
+		if (activeRect.left < visibleLeft || activeRect.right > visibleRight) {
+			targetLeft = currentLeft + activeRect.left - containerRect.left - gutter;
 		}
 
 		targetLeft = Math.min(maxScroll, Math.max(0, targetLeft));
