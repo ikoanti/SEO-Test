@@ -226,7 +226,7 @@
 		if (pills.pass > 0) statuses.push('pass');
 		if (pills.warn > 0) statuses.push('warn');
 		if (pills.info > 0) statuses.push('info');
-		return statuses.length ? statuses : (['pass', 'warn', 'info'] as AuditFindingStatusFilter[]);
+		return statuses;
 	});
 	const targetStatusForFilter: Record<AuditFindingStatusFilter, AuditFindingStatus> = {
 		pass: 'pass',
@@ -288,14 +288,7 @@
 			findingsByStatus.info.length > 0 ||
 			findingsByStatus.pass.length > 0
 	);
-	const showSummaryRow = $derived(
-		Boolean(
-			item &&
-			!item.findings?.length &&
-			(!selectedStatus || item.status === targetStatusForFilter[selectedStatus])
-		)
-	);
-	const summaryItem = $derived(showSummaryRow ? item : undefined);
+	const showEmptyState = $derived(Boolean(item && !hasVisibleFindings && !selectedStatus));
 	const cardScreenshot = $derived.by(() => {
 		if (item?.screenshot?.image_url) {
 			return {
@@ -322,13 +315,15 @@
 			</figure>
 		{/if}
 	</div>
-	<AuditStatusPills
-		pass={pills.pass}
-		warn={pills.warn}
-		info={pills.info}
-		statuses={visiblePillStatuses}
-		bind:selectedStatus
-	/>
+	{#if visiblePillStatuses.length}
+		<AuditStatusPills
+			pass={pills.pass}
+			warn={pills.warn}
+			info={pills.info}
+			statuses={visiblePillStatuses}
+			bind:selectedStatus
+		/>
+	{/if}
 	<ul class="check-list">
 		{#if hasVisibleFindings}
 			{#each warnGroups as group (group.key)}
@@ -421,11 +416,8 @@
 					</button>
 				</li>
 			{/if}
-		{:else if summaryItem}
-			<AuditFindingRow
-				status={summaryItem.status || 'info'}
-				title={summaryItem.summary || 'No findings.'}
-			/>
+		{:else if showEmptyState}
+			<li class="empty-state">No issues found.</li>
 		{:else if isPassSectionExpandable}
 			<li class="group-toggle-item">
 				<button
@@ -516,6 +508,13 @@
 
 	.issue-group-heading-info {
 		color: var(--status-info);
+	}
+
+	.empty-state {
+		padding: 0;
+		color: var(--text-muted);
+		font-size: 0.95rem;
+		list-style: none;
 	}
 
 	.audit-evidence {
