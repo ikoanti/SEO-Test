@@ -4,7 +4,8 @@ import {
 	createWorkflowRecord,
 	getOrCreateWebsiteRecord,
 	getWorkflowByAuditId,
-	listAudits
+	listAudits,
+	updateWebsiteRecord
 } from '$lib/server/pocketbase';
 import { queueAuditWorkflow } from '$lib/server/audit-runner';
 
@@ -87,6 +88,27 @@ export const load = async ({ locals, url }) => {
 };
 
 export const actions = {
+	updateWebsite: async ({ request, locals }) => {
+		const data = await request.formData();
+		const websiteId = String(data.get('websiteId') || '').trim();
+		const displayName = String(data.get('displayName') || '').trim();
+
+		if (!websiteId) {
+			return fail(400, { createError: 'Website is missing.' });
+		}
+		if (!displayName) {
+			return fail(400, { createError: 'Display name is required.' });
+		}
+
+		try {
+			await updateWebsiteRecord(websiteId, { display_name: displayName }, locals.pbToken);
+			return { websiteUpdated: true };
+		} catch (error) {
+			return fail(400, {
+				createError: error instanceof Error ? error.message : 'Failed to update website.'
+			});
+		}
+	},
 	create: async ({ request, locals }) => {
 		const data = await request.formData();
 		const urls = [...data.getAll('urls'), data.get('url')]

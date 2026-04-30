@@ -35,6 +35,7 @@
 	let refreshInterval: number | undefined;
 	let createSheetOpen = $state(false);
 	let auditUrls = $state<string[]>(['']);
+	let editingWebsiteId = $state<string | null>(null);
 	const pendingAuditStatuses = new Set(['queued', 'running']);
 
 	const hasPendingAudits = $derived(
@@ -141,6 +142,18 @@
 		});
 	}
 
+	function editWebsiteName(websiteId?: string) {
+		if (!websiteId) return;
+		editingWebsiteId = websiteId;
+		void tick().then(() => {
+			document.querySelector<HTMLInputElement>(`[data-website-name="${websiteId}"]`)?.focus();
+		});
+	}
+
+	function stopEditingWebsiteName() {
+		editingWebsiteId = null;
+	}
+
 	function stopStatusRefresh() {
 		if (!refreshInterval) return;
 		window.clearInterval(refreshInterval);
@@ -212,7 +225,38 @@
 				<section class="website-row">
 					<header class="website-row-header">
 						<div class="website-title-block">
-							<h2>{websiteDisplayName(group.website)}</h2>
+							{#if editingWebsiteId === group.website.id}
+								<form
+									method="POST"
+									action="?/updateWebsite"
+									class="website-name-form"
+									onfocusout={stopEditingWebsiteName}
+								>
+									<input type="hidden" name="websiteId" value={group.website.id} />
+									<input
+										name="displayName"
+										type="text"
+										value={websiteDisplayName(group.website)}
+										aria-label={`Display name for ${websiteDisplayName(group.website)}`}
+										data-website-name={group.website.id}
+										onkeydown={(event) => {
+											if (event.key === 'Escape') {
+												event.preventDefault();
+												stopEditingWebsiteName();
+											}
+										}}
+									/>
+								</form>
+							{:else}
+								<button
+									type="button"
+									class="website-name-button"
+									onclick={() => editWebsiteName(group.website.id)}
+									aria-label={`Edit display name for ${websiteDisplayName(group.website)}`}
+								>
+									{websiteDisplayName(group.website)}
+								</button>
+							{/if}
 							<p class="muted">{group.website.domain || websiteUrl(group.website)}</p>
 						</div>
 						<div class="website-row-actions">
@@ -354,10 +398,35 @@
 		min-width: 0;
 	}
 
-	.website-title-block h2 {
+	.website-name-button,
+	.website-name-form input {
+		display: block;
+		width: 100%;
 		margin: 0 0 4px;
+		border: 1px solid transparent;
+		border-radius: 6px;
+		padding: 0;
+		background: transparent;
 		color: var(--text-primary);
 		font-size: 1.15rem;
+		font-family: inherit;
+		font-weight: 800;
+		line-height: 1.25;
+		letter-spacing: 0;
+		text-align: left;
+	}
+
+	.website-name-button {
+		cursor: text;
+	}
+
+	.website-name-form {
+		margin: 0;
+	}
+
+	.website-name-form input:focus {
+		outline: none;
+		border-color: rgba(148, 163, 184, 0.28);
 	}
 
 	.website-title-block p {
