@@ -40,7 +40,11 @@
 	<div class="audit-report-sections">
 		{#each auditFindingItems as item (item.key)}
 			{#if item.key === 'pageSpeed'}
-				<PageSpeedCard title={item.label} pageSpeedData={pageSpeed()} screenshot={item.screenshot} />
+				<PageSpeedCard
+					title={item.label}
+					pageSpeedData={pageSpeed()}
+					screenshot={item.screenshot}
+				/>
 			{:else}
 				<AuditFindingCard {item} />
 			{/if}
