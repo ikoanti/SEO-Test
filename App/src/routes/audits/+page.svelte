@@ -135,11 +135,20 @@
 		if (!raw) return '';
 		const date = new Date(raw);
 		if (Number.isNaN(date.getTime())) return '';
-		return date.toLocaleDateString(undefined, {
-			month: 'short',
+		const dateText = date.toLocaleDateString(undefined, {
+			weekday: 'short',
+			month: 'long',
 			day: 'numeric',
 			year: 'numeric'
 		});
+		const timeText = date
+			.toLocaleTimeString(undefined, {
+				hour: 'numeric',
+				minute: '2-digit'
+			})
+			.replace(/\s/g, '')
+			.toLowerCase();
+		return `${dateText}, ${timeText}`;
 	}
 
 	function editWebsiteName(websiteId?: string) {
