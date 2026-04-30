@@ -504,6 +504,10 @@ function requestEntryPages(request: AuditCaptureRequest) {
 
 function requestPageCandidates(request: AuditCaptureRequest) {
 	const entryPages = requestEntryPages(request);
+	if (request.kind === 'shopify-urls' && request.captureCandidatePageUrls?.length) {
+		return uniquePageUrls(request.captureCandidatePageUrls);
+	}
+
 	const explicitCandidates = homeLast(
 		uniquePageUrls([...(request.captureCandidatePageUrls || []), ...entryPages])
 	);
@@ -544,6 +548,33 @@ function isCaptureEntry(entry: unknown): entry is CaptureEntry {
 		'page' in entry &&
 		typeof (entry as { page?: unknown }).page === 'string'
 	);
+}
+
+function absoluteAuditUrl(origin: string, value: unknown) {
+	if (typeof value !== 'string' || !value.trim()) return '';
+
+	try {
+		const url = new URL(value, origin);
+		return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : '';
+	} catch {
+		return '';
+	}
+}
+
+function shopifyUrlCaptureCandidates(audit: AuditSummaryResult, origin: string) {
+	const sitemap = audit.sitemap;
+	const items =
+		sitemap && typeof sitemap === 'object' && Array.isArray((sitemap as { items?: unknown }).items)
+			? ((sitemap as { items: Array<Record<string, unknown>> }).items || [])
+			: [];
+	const detectedSitemaps = items
+		.filter((item) => item.status === 'pass')
+		.map((item) => {
+			const detail = String(item.detail || '');
+			return absoluteAuditUrl(origin, detail.match(/^Found at\s+(.+)$/i)?.[1] || '');
+		});
+
+	return uniquePageUrls([...detectedSitemaps, `${origin.replace(/\/+$/, '')}/sitemap.xml`, origin]);
 }
 
 function reorderEntriesBySelectedPage<TRequest extends AuditCaptureRequest>(
@@ -762,13 +793,16 @@ function enrichCaptureRequestWithCandidates(
 		...existingCandidateEntries,
 		...candidateEntries
 	]);
-	const captureCandidatePageUrls = homeLast(
-		uniquePageUrls([
-			...(request.captureCandidatePageUrls || []),
-			...captureCandidateEntries.map((entry) => entry.page),
-			...existingEntries.map((entry) => entry.page)
-		])
-	);
+	const captureCandidatePageUrls =
+		request.kind === 'shopify-urls' && request.captureCandidatePageUrls?.length
+			? uniquePageUrls(request.captureCandidatePageUrls)
+			: homeLast(
+					uniquePageUrls([
+						...(request.captureCandidatePageUrls || []),
+						...captureCandidateEntries.map((entry) => entry.page),
+						...existingEntries.map((entry) => entry.page)
+					])
+				);
 
 	return {
 		...request,
@@ -961,6 +995,7 @@ function templateCaptureRequest(
 					reportTemplateKey,
 					title,
 					domain,
+					captureCandidatePageUrls: shopifyUrlCaptureCandidates(audit, url),
 					entries,
 					count: findings.length
 				}
@@ -1222,7 +1257,14 @@ function collectScreenshotJobs(
 			findings: NormalizedFinding[] = item.findings
 		) => {
 			if (!request) return;
-			const enrichedRequest = enrichCaptureRequestWithCandidates(request, findings);
+			const captureTargetedRequest =
+				request.kind === 'shopify-urls'
+					? {
+							...request,
+							captureCandidatePageUrls: shopifyUrlCaptureCandidates(audit, url)
+						}
+					: request;
+			const enrichedRequest = enrichCaptureRequestWithCandidates(captureTargetedRequest, findings);
 			const reportTemplateKey = enrichedRequest.reportTemplateKey || enrichedRequest.kind;
 			const key = screenshotJobKey({
 				auditId,
