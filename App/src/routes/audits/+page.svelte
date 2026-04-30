@@ -369,7 +369,7 @@
 							name="displayNames"
 							type="text"
 							value={row.displayName}
-							placeholder={index === 0 ? 'MacabiSkirt.com' : 'Display name'}
+							placeholder="Display name"
 							aria-label={`Website display name ${index + 1}`}
 							oninput={(event) => handleAuditRowInput(index, 'displayName', event)}
 						/>
@@ -378,7 +378,7 @@
 							type="text"
 							inputmode="url"
 							value={row.domain}
-							placeholder={index === 0 ? 'macabiskirt.com' : 'domain.com'}
+							placeholder="Domain"
 							aria-label={`Website domain ${index + 1}`}
 							data-audit-domain-index={index}
 							oninput={(event) => handleAuditRowInput(index, 'domain', event)}
