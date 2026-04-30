@@ -16,6 +16,18 @@
 			return value;
 		}
 	}
+
+	function displayLink(value?: string) {
+		if (!value) return '';
+
+		try {
+			const url = new URL(value);
+			const filename = url.pathname.split('/').filter(Boolean).at(-1);
+			return filename ? `${url.hostname}/.../${filename}` : url.hostname;
+		} catch {
+			return value;
+		}
+	}
 </script>
 
 {#snippet highlight()}
@@ -38,6 +50,9 @@
 				</div>
 				{#if entry.page}
 					<p class="page-link">{displayPage(entry.page)}</p>
+				{/if}
+				{#if entry.image}
+					<p class="image-link">{displayLink(entry.image)}</p>
 				{/if}
 			</article>
 		{/each}
@@ -116,6 +131,16 @@
 		line-height: 1.45;
 		font-weight: 500;
 		color: #202124;
+		overflow-wrap: anywhere;
+		word-break: break-word;
+	}
+
+	.image-link {
+		margin: 3px 0 0;
+		min-width: 0;
+		font-size: 11px;
+		line-height: 1.4;
+		color: #5f6368;
 		overflow-wrap: anywhere;
 		word-break: break-word;
 	}
