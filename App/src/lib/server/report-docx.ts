@@ -51,11 +51,11 @@ function getRecord(value: unknown): Record<string, unknown> {
 function domainName(pageData: ReportPageData) {
 	const summary = getRecord(pageData.summary);
 	return text(
-		pageData.auditRecord?.name ||
-			pageData.runRecord.name ||
+		pageData.website?.display_name ||
+			pageData.website?.name ||
 			summary.domain ||
-			pageData.auditRecord?.url ||
-			pageData.runRecord.url,
+			pageData.website?.domain ||
+			pageData.website?.url,
 		'this website'
 	);
 }

@@ -3,13 +3,15 @@ import type { AuditReportTemplateRecord } from '$lib/server/pocketbase';
 export type ReportPageData = {
 	auditId: string;
 	runRecord: {
-		url?: string;
-		name?: string;
 		[key: string]: unknown;
 	};
-	auditRecord: {
-		name?: string;
+	website?: {
 		url?: string;
+		domain?: string;
+		display_name?: string;
+		name?: string;
+	};
+	auditRecord: {
 		[key: string]: unknown;
 	} | null;
 	audit: Record<string, unknown> | null;
@@ -91,11 +93,11 @@ function metricNumber(value: unknown) {
 function domainName(pageData: ReportPageData) {
 	const summary = getRecord(pageData.summary);
 	return text(
-		pageData.auditRecord?.name ||
-			pageData.runRecord.name ||
+		pageData.website?.display_name ||
+			pageData.website?.name ||
 			summary.domain ||
-			pageData.auditRecord?.url ||
-			pageData.runRecord.url,
+			pageData.website?.domain ||
+			pageData.website?.url,
 		'this website'
 	);
 }

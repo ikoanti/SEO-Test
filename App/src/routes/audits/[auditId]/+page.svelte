@@ -55,14 +55,16 @@
 		auditId: string;
 		runRecord: {
 			status?: string;
-			url?: string;
-			name?: string;
 			error_message?: string;
 			run_log?: string;
 		};
-		auditRecord: {
-			name?: string;
+		website?: {
 			url?: string;
+			domain?: string;
+			display_name?: string;
+			name?: string;
+		};
+		auditRecord: {
 			report_status?: string;
 		} | null;
 		reportRecord: {
@@ -151,7 +153,9 @@
 		{ key: 'sidebar-preview', label: 'Sidebar' },
 		{ key: 'report', label: 'Export' }
 	];
-	const auditFindingItems = $derived(pageData.findingDisplayItems || pageData.normalizedItems || []);
+	const auditFindingItems = $derived(
+		pageData.findingDisplayItems || pageData.normalizedItems || []
+	);
 	const auditNavItems: AuditNavItem[] = $derived(
 		auditFindingItems.map((item) => ({
 			key: item.key,
@@ -160,10 +164,10 @@
 		}))
 	);
 	const pageTitle = () =>
-		pageData.auditRecord?.name ||
-		pageData.runRecord?.name ||
-		pageData.auditRecord?.url ||
-		pageData.runRecord?.url;
+		pageData.website?.display_name ||
+		pageData.website?.name ||
+		pageData.website?.domain ||
+		pageData.website?.url;
 	let activeAuditSection = $state('');
 
 	const itemByKey = (key: string) => pageData.normalizedItems?.find((item) => item.key === key);
@@ -248,11 +252,7 @@
 			return pageData.summary.domain;
 		}
 
-		try {
-			return new URL(pageData.runRecord.url || '').hostname;
-		} catch {
-			return 'this domain';
-		}
+		return pageData.website?.domain || pageData.website?.url || 'this domain';
 	}
 
 	function buildSidebarPreviewItems(): SidebarPreviewItem[] {
@@ -292,333 +292,360 @@
 			});
 		};
 
-		addListPreview(
-			'missing-h1-tags',
-			'missing-h1-tags',
-			(item) =>
-			{
-				const findings = issueFindings(item);
-				const entries = findings
-					.map((finding) => {
-						const page = pageUrlFromFinding(finding);
-						return page ? { page, issue: issueText(finding, item) } : null;
-					})
-					.filter((entry): entry is { page: string; issue: string } => Boolean(entry));
+		addListPreview('missing-h1-tags', 'missing-h1-tags', (item) => {
+			const findings = issueFindings(item);
+			const entries = findings
+				.map((finding) => {
+					const page = pageUrlFromFinding(finding);
+					return page ? { page, issue: issueText(finding, item) } : null;
+				})
+				.filter((entry): entry is { page: string; issue: string } => Boolean(entry));
 
-				return entries.length
-					? { kind: 'headings', title: sidebarTitle(item), description: sidebarDescription(item), domain, count: findings.length, entries }
-					: null;
-			}
-		);
+			return entries.length
+				? {
+						kind: 'headings',
+						title: sidebarTitle(item),
+						description: sidebarDescription(item),
+						domain,
+						count: findings.length,
+						entries
+					}
+				: null;
+		});
 
-		addListPreview(
-			'multiple-h1-tags',
-			'multiple-h1-tags',
-			(item) =>
-			{
-				const findings = issueFindings(item);
-				const entries = findings
-					.map((finding) => {
-						const page = pageUrlFromFinding(finding);
-						return page ? { page, issue: issueText(finding, item) } : null;
-					})
-					.filter((entry): entry is { page: string; issue: string } => Boolean(entry));
+		addListPreview('multiple-h1-tags', 'multiple-h1-tags', (item) => {
+			const findings = issueFindings(item);
+			const entries = findings
+				.map((finding) => {
+					const page = pageUrlFromFinding(finding);
+					return page ? { page, issue: issueText(finding, item) } : null;
+				})
+				.filter((entry): entry is { page: string; issue: string } => Boolean(entry));
 
-				return entries.length
-					? { kind: 'headings', title: sidebarTitle(item), description: sidebarDescription(item), domain, count: findings.length, entries }
-					: null;
-			}
-		);
+			return entries.length
+				? {
+						kind: 'headings',
+						title: sidebarTitle(item),
+						description: sidebarDescription(item),
+						domain,
+						count: findings.length,
+						entries
+					}
+				: null;
+		});
 
-		addListPreview(
-			'missing-product-schema',
-			'missing-product-schema',
-			(item) =>
-			{
-				const findings = issueFindings(item);
-				const entries = findings
-					.map((finding) => {
-						const page = pageUrlFromFinding(finding);
-						return page ? { page, issue: issueText(finding, item) } : null;
-					})
-					.filter((entry): entry is { page: string; issue: string } => Boolean(entry));
+		addListPreview('missing-product-schema', 'missing-product-schema', (item) => {
+			const findings = issueFindings(item);
+			const entries = findings
+				.map((finding) => {
+					const page = pageUrlFromFinding(finding);
+					return page ? { page, issue: issueText(finding, item) } : null;
+				})
+				.filter((entry): entry is { page: string; issue: string } => Boolean(entry));
 
-				return entries.length
-					? { kind: 'missing-product-schema', title: sidebarTitle(item), description: sidebarDescription(item), domain, count: findings.length, entries }
-					: null;
-			}
-		);
+			return entries.length
+				? {
+						kind: 'missing-product-schema',
+						title: sidebarTitle(item),
+						description: sidebarDescription(item),
+						domain,
+						count: findings.length,
+						entries
+					}
+				: null;
+		});
 
-		addListPreview(
-			'missing-faq-schema',
-			'missing-faq-schema',
-			(item) =>
-			{
-				const findings = issueFindings(item);
-				const entries = findings
-					.map((finding) => {
-						const page = pageUrlFromFinding(finding);
-						return page ? { page, issue: issueText(finding, item) } : null;
-					})
-					.filter((entry): entry is { page: string; issue: string } => Boolean(entry));
+		addListPreview('missing-faq-schema', 'missing-faq-schema', (item) => {
+			const findings = issueFindings(item);
+			const entries = findings
+				.map((finding) => {
+					const page = pageUrlFromFinding(finding);
+					return page ? { page, issue: issueText(finding, item) } : null;
+				})
+				.filter((entry): entry is { page: string; issue: string } => Boolean(entry));
 
-				return entries.length
-					? { kind: 'missing-faq-schema', title: sidebarTitle(item), description: sidebarDescription(item), domain, count: findings.length, entries }
-					: null;
-			}
-		);
+			return entries.length
+				? {
+						kind: 'missing-faq-schema',
+						title: sidebarTitle(item),
+						description: sidebarDescription(item),
+						domain,
+						count: findings.length,
+						entries
+					}
+				: null;
+		});
 
-		addListPreview(
-			'missing-organization-schema',
-			'missing-organization-schema',
-			(item) =>
-			{
-				const findings = issueFindings(item);
-				const entries = findings
-					.map((finding) => {
-						const page = pageUrlFromFinding(finding);
-						return page ? { page, issue: issueText(finding, item) } : null;
-					})
-					.filter((entry): entry is { page: string; issue: string } => Boolean(entry));
+		addListPreview('missing-organization-schema', 'missing-organization-schema', (item) => {
+			const findings = issueFindings(item);
+			const entries = findings
+				.map((finding) => {
+					const page = pageUrlFromFinding(finding);
+					return page ? { page, issue: issueText(finding, item) } : null;
+				})
+				.filter((entry): entry is { page: string; issue: string } => Boolean(entry));
 
-				return entries.length
-					? { kind: 'missing-organization-schema', title: sidebarTitle(item), description: sidebarDescription(item), domain, count: findings.length, entries }
-					: null;
-			}
-		);
+			return entries.length
+				? {
+						kind: 'missing-organization-schema',
+						title: sidebarTitle(item),
+						description: sidebarDescription(item),
+						domain,
+						count: findings.length,
+						entries
+					}
+				: null;
+		});
 
-		addListPreview(
-			'unlinked-blog',
-			'unlinked-blog',
-			(item) =>
-			{
-				const findings = issueFindings(item);
-				const entries = findings
-					.map((finding) => {
-						const page = pageUrlFromFinding(finding);
-						return page ? { page, issue: issueText(finding, item) } : null;
-					})
-					.filter((entry): entry is { page: string; issue: string } => Boolean(entry));
+		addListPreview('unlinked-blog', 'unlinked-blog', (item) => {
+			const findings = issueFindings(item);
+			const entries = findings
+				.map((finding) => {
+					const page = pageUrlFromFinding(finding);
+					return page ? { page, issue: issueText(finding, item) } : null;
+				})
+				.filter((entry): entry is { page: string; issue: string } => Boolean(entry));
 
-				return entries.length
-					? { kind: 'unlinked-blog', title: sidebarTitle(item), description: sidebarDescription(item), domain, count: findings.length, entries }
-					: null;
-			}
-		);
+			return entries.length
+				? {
+						kind: 'unlinked-blog',
+						title: sidebarTitle(item),
+						description: sidebarDescription(item),
+						domain,
+						count: findings.length,
+						entries
+					}
+				: null;
+		});
 
-		addListPreview(
-			'imageAltTags',
-			'image-alts',
-			(item) =>
-			{
-				const findings = issueFindings(item);
-				const entries = findings
-					.map((finding) => {
-						const meta = parseMeta(finding.meta);
-						const page = pageUrlFromFinding(finding);
-						const image = extractFirstHttpUrl(meta.title) || extractFirstHttpUrl(finding.title);
-						return page && image ? { page, image, issue: issueText(finding, item) } : null;
-					})
-					.filter(
-						(entry): entry is { page: string; image: string; issue: string } => Boolean(entry)
-					);
+		addListPreview('imageAltTags', 'image-alts', (item) => {
+			const findings = issueFindings(item);
+			const entries = findings
+				.map((finding) => {
+					const meta = parseMeta(finding.meta);
+					const page = pageUrlFromFinding(finding);
+					const image = extractFirstHttpUrl(meta.title) || extractFirstHttpUrl(finding.title);
+					return page && image ? { page, image, issue: issueText(finding, item) } : null;
+				})
+				.filter((entry): entry is { page: string; image: string; issue: string } => Boolean(entry));
 
-				return entries.length
-					? { kind: 'image-alts', title: sidebarTitle(item), description: sidebarDescription(item), domain, count: findings.length, entries }
-					: null;
-			}
-		);
+			return entries.length
+				? {
+						kind: 'image-alts',
+						title: sidebarTitle(item),
+						description: sidebarDescription(item),
+						domain,
+						count: findings.length,
+						entries
+					}
+				: null;
+		});
 
-		addListPreview(
-			'metaTitles',
-			'meta-tags',
-			(item) =>
-			{
-				const findings = issueFindings(item);
-				const entries = findings
-					.map((finding) => {
-						const page = pageUrlFromFinding(finding);
-						if (!page) return null;
-						const value = entryValue(finding);
-						return value
-							? { page, issue: issueText(finding, item), value }
-							: { page, issue: issueText(finding, item) };
-					})
-					.filter((entry): entry is { page: string; issue: string; value?: string } => Boolean(entry));
-
-				return entries.length
-					? { kind: 'meta-tags', title: sidebarTitle(item), description: sidebarDescription(item), domain, count: findings.length, activePageUrl: entries[0]?.page || '', entries }
-					: null;
-			}
-		);
-
-		addListPreview(
-			'canonicalUrls',
-			'canonicals',
-			(item) =>
-			{
-				const findings = issueFindings(item);
-				const entries = findings
-					.map((finding) => {
-						const page = pageUrlFromFinding(finding);
-						if (!page) return null;
-						const value = entryValue(finding);
-						return value
-							? { page, issue: issueText(finding, item), value }
-							: { page, issue: issueText(finding, item) };
-					})
-					.filter((entry): entry is { page: string; issue: string; value?: string } => Boolean(entry));
-
-				return entries.length
-					? { kind: 'canonicals', title: sidebarTitle(item), description: sidebarDescription(item), domain, count: findings.length, entries }
-					: null;
-			}
-		);
-
-		addListPreview(
-			'internalLinks',
-			'internal-links',
-			(item) =>
-			{
-				const findings = issueFindings(item);
-				const entries = findings.reduce<Array<{ page: string; issue: string; count?: number }>>(
-					(accumulator, finding) => {
-						const meta = parseMeta(finding.meta);
-						const page = pageUrlFromFinding(finding);
-						if (!page) return accumulator;
-						accumulator.push({
-							page,
-							issue: issueText(finding, item),
-							count:
-								typeof meta.count === 'number'
-									? meta.count
-									: Number(meta.count || 0) || undefined
-						});
-						return accumulator;
-					},
-					[]
+		addListPreview('metaTitles', 'meta-tags', (item) => {
+			const findings = issueFindings(item);
+			const entries = findings
+				.map((finding) => {
+					const page = pageUrlFromFinding(finding);
+					if (!page) return null;
+					const value = entryValue(finding);
+					return value
+						? { page, issue: issueText(finding, item), value }
+						: { page, issue: issueText(finding, item) };
+				})
+				.filter((entry): entry is { page: string; issue: string; value?: string } =>
+					Boolean(entry)
 				);
 
-				return entries.length
-					? { kind: 'internal-links', title: sidebarTitle(item), description: sidebarDescription(item), domain, count: findings.length, entries }
-					: null;
-			}
-		);
+			return entries.length
+				? {
+						kind: 'meta-tags',
+						title: sidebarTitle(item),
+						description: sidebarDescription(item),
+						domain,
+						count: findings.length,
+						activePageUrl: entries[0]?.page || '',
+						entries
+					}
+				: null;
+		});
 
-		addListPreview(
-			'lazyLoadImages',
-			'lazy-loading',
-			(item) =>
-			{
-				const findings = issueFindings(item);
-				const entries = findings
-					.map((finding) => {
-						const meta = parseMeta(finding.meta);
-						const page = pageUrlFromFinding(finding);
-						const image =
-							extractFirstHttpUrl(meta.title) ||
-							extractFirstHttpUrl(meta.image) ||
-							extractFirstHttpUrl(finding.title);
-						return page && image ? { page, issue: issueText(finding, item), image } : null;
-					})
-					.filter((entry): entry is { page: string; issue: string; image: string } => Boolean(entry));
-
-				return entries.length
-					? { kind: 'lazy-loading', title: sidebarTitle(item), description: sidebarDescription(item), domain, count: findings.length, entries }
-					: null;
-			}
-		);
-
-		addListPreview(
-			'openGraph',
-			'open-graph',
-			(item) =>
-			{
-				const findings = issueFindings(item);
-				const entries = findings.reduce<
-					Array<{ page: string; issue: string; property?: string }>
-				>(
-					(accumulator, finding) => {
-						const meta = parseMeta(finding.meta);
-						const page = pageUrlFromFinding(finding);
-						if (!page) return accumulator;
-						accumulator.push({
-							page,
-							issue: issueText(finding, item),
-							property:
-								typeof meta.property === 'string'
-									? meta.property
-									: typeof meta.tag === 'string'
-										? meta.tag
-										: undefined
-						});
-						return accumulator;
-					},
-					[]
+		addListPreview('canonicalUrls', 'canonicals', (item) => {
+			const findings = issueFindings(item);
+			const entries = findings
+				.map((finding) => {
+					const page = pageUrlFromFinding(finding);
+					if (!page) return null;
+					const value = entryValue(finding);
+					return value
+						? { page, issue: issueText(finding, item), value }
+						: { page, issue: issueText(finding, item) };
+				})
+				.filter((entry): entry is { page: string; issue: string; value?: string } =>
+					Boolean(entry)
 				);
 
-				return entries.length
-					? { kind: 'open-graph', title: sidebarTitle(item), description: sidebarDescription(item), domain, count: findings.length, entries }
-					: null;
-			}
-		);
+			return entries.length
+				? {
+						kind: 'canonicals',
+						title: sidebarTitle(item),
+						description: sidebarDescription(item),
+						domain,
+						count: findings.length,
+						entries
+					}
+				: null;
+		});
 
-		addListPreview(
-			'contentQuality',
-			'content-quality',
-			(item) =>
-			{
-				const findings = issueFindings(item);
-				const entries = findings.reduce<Array<{ page: string; issue: string; wordCount?: number }>>(
-					(accumulator, finding) => {
-						const meta = parseMeta(finding.meta);
-						const page = pageUrlFromFinding(finding);
-						if (!page) return accumulator;
-						accumulator.push({
-							page,
-							issue: issueText(finding, item),
-							wordCount:
-								typeof meta.wordCount === 'number'
-									? meta.wordCount
-									: Number(meta.wordCount || meta.value || 0) || undefined
-						});
-						return accumulator;
-					},
-					[]
+		addListPreview('internalLinks', 'internal-links', (item) => {
+			const findings = issueFindings(item);
+			const entries = findings.reduce<Array<{ page: string; issue: string; count?: number }>>(
+				(accumulator, finding) => {
+					const meta = parseMeta(finding.meta);
+					const page = pageUrlFromFinding(finding);
+					if (!page) return accumulator;
+					accumulator.push({
+						page,
+						issue: issueText(finding, item),
+						count:
+							typeof meta.count === 'number' ? meta.count : Number(meta.count || 0) || undefined
+					});
+					return accumulator;
+				},
+				[]
+			);
+
+			return entries.length
+				? {
+						kind: 'internal-links',
+						title: sidebarTitle(item),
+						description: sidebarDescription(item),
+						domain,
+						count: findings.length,
+						entries
+					}
+				: null;
+		});
+
+		addListPreview('lazyLoadImages', 'lazy-loading', (item) => {
+			const findings = issueFindings(item);
+			const entries = findings
+				.map((finding) => {
+					const meta = parseMeta(finding.meta);
+					const page = pageUrlFromFinding(finding);
+					const image =
+						extractFirstHttpUrl(meta.title) ||
+						extractFirstHttpUrl(meta.image) ||
+						extractFirstHttpUrl(finding.title);
+					return page && image ? { page, issue: issueText(finding, item), image } : null;
+				})
+				.filter((entry): entry is { page: string; issue: string; image: string } => Boolean(entry));
+
+			return entries.length
+				? {
+						kind: 'lazy-loading',
+						title: sidebarTitle(item),
+						description: sidebarDescription(item),
+						domain,
+						count: findings.length,
+						entries
+					}
+				: null;
+		});
+
+		addListPreview('openGraph', 'open-graph', (item) => {
+			const findings = issueFindings(item);
+			const entries = findings.reduce<Array<{ page: string; issue: string; property?: string }>>(
+				(accumulator, finding) => {
+					const meta = parseMeta(finding.meta);
+					const page = pageUrlFromFinding(finding);
+					if (!page) return accumulator;
+					accumulator.push({
+						page,
+						issue: issueText(finding, item),
+						property:
+							typeof meta.property === 'string'
+								? meta.property
+								: typeof meta.tag === 'string'
+									? meta.tag
+									: undefined
+					});
+					return accumulator;
+				},
+				[]
+			);
+
+			return entries.length
+				? {
+						kind: 'open-graph',
+						title: sidebarTitle(item),
+						description: sidebarDescription(item),
+						domain,
+						count: findings.length,
+						entries
+					}
+				: null;
+		});
+
+		addListPreview('contentQuality', 'content-quality', (item) => {
+			const findings = issueFindings(item);
+			const entries = findings.reduce<Array<{ page: string; issue: string; wordCount?: number }>>(
+				(accumulator, finding) => {
+					const meta = parseMeta(finding.meta);
+					const page = pageUrlFromFinding(finding);
+					if (!page) return accumulator;
+					accumulator.push({
+						page,
+						issue: issueText(finding, item),
+						wordCount:
+							typeof meta.wordCount === 'number'
+								? meta.wordCount
+								: Number(meta.wordCount || meta.value || 0) || undefined
+					});
+					return accumulator;
+				},
+				[]
+			);
+
+			return entries.length
+				? {
+						kind: 'content-quality',
+						title: sidebarTitle(item),
+						description: sidebarDescription(item),
+						domain,
+						count: findings.length,
+						entries
+					}
+				: null;
+		});
+
+		addListPreview('shopifyUrls', 'shopify-urls', (item) => {
+			const findings = issueFindings(item);
+			const entries = findings
+				.map((finding) => {
+					const page = pageUrlFromFinding(finding);
+					return page
+						? {
+								page,
+								issue: issueText(finding, item),
+								pattern: '/collections/{collection}/products/{product}'
+							}
+						: null;
+				})
+				.filter((entry): entry is { page: string; issue: string; pattern: string } =>
+					Boolean(entry)
 				);
 
-				return entries.length
-					? { kind: 'content-quality', title: sidebarTitle(item), description: sidebarDescription(item), domain, count: findings.length, entries }
-					: null;
-			}
-		);
-
-		addListPreview(
-			'shopifyUrls',
-			'shopify-urls',
-			(item) =>
-			{
-				const findings = issueFindings(item);
-				const entries = findings
-					.map((finding) => {
-						const page = pageUrlFromFinding(finding);
-						return page
-							? {
-									page,
-									issue: issueText(finding, item),
-									pattern: '/collections/{collection}/products/{product}'
-								}
-							: null;
-					})
-					.filter(
-						(entry): entry is { page: string; issue: string; pattern: string } => Boolean(entry)
-					);
-
-				return entries.length
-					? { kind: 'shopify-urls', title: sidebarTitle(item), description: sidebarDescription(item), domain, count: findings.length, entries }
-					: null;
-			}
-		);
+			return entries.length
+				? {
+						kind: 'shopify-urls',
+						title: sidebarTitle(item),
+						description: sidebarDescription(item),
+						domain,
+						count: findings.length,
+						entries
+					}
+				: null;
+		});
 
 		const robotsItem = itemMap.get('robotsTxt');
 		const robotsRequestMeta =
@@ -869,7 +896,11 @@
 				<div class="audit-report-sections">
 					{#each auditFindingItems as item (item.key)}
 						{#if item.key === 'pageSpeed'}
-							<PageSpeedCard title={item.label} pageSpeedData={pageSpeed()} screenshot={item.screenshot} />
+							<PageSpeedCard
+								title={item.label}
+								pageSpeedData={pageSpeed()}
+								screenshot={item.screenshot}
+							/>
 						{:else}
 							<AuditFindingCard {item} />
 						{/if}

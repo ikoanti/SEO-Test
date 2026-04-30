@@ -31,12 +31,17 @@ function compactAuditRecord(auditRecord: Record<string, unknown>) {
 		report_status:
 			typeof auditRecord.report_status === 'string' ? auditRecord.report_status : undefined,
 		created: typeof auditRecord.created === 'string' ? auditRecord.created : undefined,
-		updated: typeof auditRecord.updated === 'string' ? auditRecord.updated : undefined,
-		url: getWebsite(auditRecord)?.url,
-		name:
-			getWebsite(auditRecord)?.display_name ||
-			getWebsite(auditRecord)?.domain ||
-			getWebsite(auditRecord)?.url
+		updated: typeof auditRecord.updated === 'string' ? auditRecord.updated : undefined
+	};
+}
+
+function compactWebsiteRecord(auditRecord: Record<string, unknown>) {
+	const website = getWebsite(auditRecord);
+	return {
+		url: website?.url,
+		domain: website?.domain,
+		display_name: website?.display_name,
+		name: website?.display_name || website?.domain || website?.url
 	};
 }
 
@@ -285,15 +290,14 @@ export async function buildAuditPageData(
 		auditRecord.selected_report_template_keys_json
 	);
 	const isPendingRun = ['queued', 'running'].includes(String(workflowRecord.status || ''));
+	const website = compactWebsiteRecord(auditRecord);
 	const reportPageData = {
 		auditId: auditRecord.id,
 		runRecord: {
-			url: getWebsite(auditRecord)?.url,
-			name:
-				getWebsite(auditRecord)?.display_name ||
-				getWebsite(auditRecord)?.domain ||
-				getWebsite(auditRecord)?.url
+			url: website.url,
+			name: website.name
 		},
+		website,
 		auditRecord: compactAuditRecord(auditRecord),
 		audit,
 		summary: buildDisplayedSummary(
@@ -330,11 +334,10 @@ export async function buildAuditPageData(
 		workflowRecord,
 		runRecord: {
 			status: workflowRecord.status,
-			url: getWebsite(auditRecord)?.url,
-			name: getWebsite(auditRecord)?.domain || getWebsite(auditRecord)?.url,
 			error_message: workflowRecord.error_message,
 			run_log: workflowRecord.run_log
 		},
+		website,
 		auditRecord: compactAuditRecord(auditRecord),
 		reportRecord: {
 			status: String(auditRecord.report_status || 'idle'),
