@@ -59,10 +59,17 @@
 			run_log?: string;
 		};
 		website?: {
+			id?: string;
 			url?: string;
 			domain?: string;
 			display_name?: string;
 			name?: string;
+			google_drive_folder_id?: string;
+			google_drive_folder_name?: string;
+			google_doc_id?: string;
+			google_doc_name?: string;
+			google_doc_url?: string;
+			google_doc_exported_at?: string;
 		};
 		auditRecord: {
 			report_status?: string;

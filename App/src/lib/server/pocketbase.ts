@@ -358,6 +358,29 @@ export async function updateWebsiteRecord(
 	return website;
 }
 
+export async function saveWebsiteGoogleDocExport(
+	websiteId: string,
+	input: {
+		google_drive_folder_id: string;
+		google_drive_folder_name: string;
+		google_doc_id: string;
+		google_doc_name: string;
+		google_doc_url: string;
+		google_doc_exported_at?: string;
+	},
+	token?: string
+) {
+	const pb = createAuthedClient(token);
+	return pb.collection(WEBSITES_COLLECTION).update(websiteId, {
+		google_drive_folder_id: input.google_drive_folder_id,
+		google_drive_folder_name: input.google_drive_folder_name,
+		google_doc_id: input.google_doc_id,
+		google_doc_name: input.google_doc_name,
+		google_doc_url: input.google_doc_url,
+		google_doc_exported_at: input.google_doc_exported_at || new Date().toISOString()
+	});
+}
+
 export async function createAuditRecord(
 	input: {
 		website: string;
