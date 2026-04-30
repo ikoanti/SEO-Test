@@ -58,6 +58,7 @@
 		return fields.filter((field) => {
 			const value = fieldValue(entry, field);
 			if (!hasValue(value)) return false;
+			if (field.key === 'issue') return false;
 			if (field.key === 'page') return false;
 			if (field.key === 'link' && stringValue(value) === link) return false;
 			if (stringValue(value) === evidence) return false;
