@@ -26,6 +26,9 @@ type ReportDocxPageData = ReportPageData & {
 	reportPreviewItems?: ReportProblemPreview[];
 };
 
+export type ReportPriority = ReportProblemPreview['priority'];
+export type ReportPriorityOverrides = Partial<Record<string, ReportPriority>>;
+
 const FONT = 'Arial';
 const PAGE_WIDTH_PX = 600;
 const BODY_SIZE = 24;
@@ -258,7 +261,11 @@ async function screenshotParagraph(auditId: string, problem: ReportProblemPrevie
 	}
 }
 
-function reportProblems(pageData: ReportDocxPageData, templates: AuditReportTemplateRecord[]) {
+function reportProblems(
+	pageData: ReportDocxPageData,
+	templates: AuditReportTemplateRecord[],
+	priorityOverrides: ReportPriorityOverrides = {}
+) {
 	const previewScreenshots = new Map(
 		(pageData.reportPreviewItems || [])
 			.filter((item) => item.screenshot)
@@ -267,6 +274,7 @@ function reportProblems(pageData: ReportDocxPageData, templates: AuditReportTemp
 
 	return buildReportProblems(pageData, templates).map((problem) => ({
 		...problem,
+		priority: priorityOverrides[problem.key] || problem.priority,
 		screenshot: previewScreenshots.get(problem.key) || problem.screenshot
 	}));
 }
@@ -281,11 +289,12 @@ function documentFilename(pageData: ReportPageData) {
 export async function generateTemplateReportDocx(
 	pageData: ReportDocxPageData,
 	templates: AuditReportTemplateRecord[],
-	token?: string
+	token?: string,
+	priorityOverrides: ReportPriorityOverrides = {}
 ) {
 	emptyLineIndex = 0;
 	const domain = domainName(pageData);
-	const problems = reportProblems(pageData, templates);
+	const problems = reportProblems(pageData, templates, priorityOverrides);
 	const header = await reportHeader();
 	const children: Paragraph[] = [
 		titleParagraph('Mini Technical SEO Audit'),

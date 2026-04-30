@@ -13,7 +13,7 @@
 	import CustomCheckmark from '$lib/components/CustomCheckmark.svelte';
 	import PageSpeedCard from '$lib/components/PageSpeedCard.svelte';
 	import SegmentedPicker from '$lib/components/SegmentedPicker.svelte';
-	import { FileText, FileUp, Image as ImageIcon } from 'lucide-svelte';
+	import { Cloud, ExternalLink, FileText, FileUp, Image as ImageIcon } from 'lucide-svelte';
 	import { onMount, tick } from 'svelte';
 	import AuditHeader from './AuditHeader.svelte';
 	import type { ActionData } from './$types';
@@ -131,7 +131,12 @@
 	const pageData = $derived(liveData ?? data);
 	let activeTab = $state<AuditTab>('findings');
 	let selectedReportKeys = $state<string[]>([]);
+	let reportPriorities = $state<Record<string, 'Urgent' | 'High' | 'Medium'>>({});
 	let reportSelectionSeed = $state('');
+	let reportFormElement = $state<HTMLFormElement | undefined>();
+	let googleExportStatus = $state<'idle' | 'running' | 'done' | 'error'>('idle');
+	let googleExportUrl = $state('');
+	let googleExportError = $state('');
 	let fallbackInterval: number | undefined;
 	let stream: EventSource | undefined;
 	let cleanupScrollSpy: (() => void) | undefined;
@@ -146,6 +151,7 @@
 	const reportSelectionIsValid = () =>
 		(pageData.reportPreviewItems?.length ?? 0) === 0 ||
 		(selectedReportKeys.length >= reportSelectionMin() && selectedReportKeys.length <= 10);
+	const googleExportIsRunning = () => googleExportStatus === 'running';
 	const needsLiveUpdates = () => isPending() || Boolean(pageData.isPendingScreenshots);
 	const tabs: { key: AuditTab; label: string }[] = [
 		{ key: 'findings', label: 'Findings' },
@@ -726,8 +732,41 @@
 					pageData.reportPreviewItems?.some((item) => item.key === key)
 				)
 			: (pageData.reportPreviewItems || []).slice(0, 10).map((item) => item.key);
+		reportPriorities = Object.fromEntries(
+			(pageData.reportPreviewItems || []).map((item) => [item.key, item.priority])
+		);
+		googleExportStatus = 'idle';
+		googleExportUrl = '';
+		googleExportError = '';
 		reportSelectionSeed = seed;
 	});
+
+	async function exportGoogleDoc() {
+		if (!reportFormElement || !reportSelectionIsValid() || googleExportIsRunning()) return;
+
+		googleExportStatus = 'running';
+		googleExportUrl = '';
+		googleExportError = '';
+
+		try {
+			const response = await fetch(resolve(`/api/audits/${pageData.auditId}/export.google-doc`), {
+				method: 'POST',
+				body: new FormData(reportFormElement)
+			});
+			const body = await response.json().catch(() => ({}));
+
+			if (!response.ok) {
+				throw new Error(body?.message || body?.error || 'Google Docs export failed.');
+			}
+
+			googleExportUrl = String(body.url || '');
+			googleExportStatus = 'done';
+			if (googleExportUrl) window.open(googleExportUrl, '_blank', 'noopener,noreferrer');
+		} catch (error) {
+			googleExportError = error instanceof Error ? error.message : 'Google Docs export failed.';
+			googleExportStatus = 'error';
+		}
+	}
 
 	$effect(() => {
 		if (auditNavItems.some((item) => item.key === activeAuditSection)) return;
@@ -1006,6 +1045,7 @@
 				<h3 class="audit-card-title">Export</h3>
 				{#if canExport()}
 					<form
+						bind:this={reportFormElement}
 						method="GET"
 						action={resolve(`/api/audits/${pageData.auditId}/export.docx`)}
 						class="report-builder"
@@ -1040,7 +1080,17 @@
 										<div class="report-preview-body">
 											<div class="report-preview-heading">
 												<span>{item.title}</span>
-												<span class="report-priority">{item.priority}</span>
+												<div class="report-priority-control">
+													<span>Priority</span>
+													<select
+														name={`reportPriority:${item.key}`}
+														bind:value={reportPriorities[item.key]}
+													>
+														<option value="Urgent">Urgent</option>
+														<option value="High">High</option>
+														<option value="Medium">Medium</option>
+													</select>
+												</div>
 											</div>
 											{#each item.paragraphs as paragraph, index (`${item.key}-paragraph-${index}`)}
 												<p>{paragraph}</p>
@@ -1068,10 +1118,34 @@
 							</p>
 						{/if}
 
-						<button type="submit" class="audit-primary-button" disabled={!reportSelectionIsValid()}>
-							<FileText size={18} />
-							<span>Export DOCX</span>
-						</button>
+						<div class="report-export-actions">
+							<button
+								type="button"
+								class="audit-primary-button"
+								disabled={!reportSelectionIsValid() || googleExportIsRunning()}
+								onclick={exportGoogleDoc}
+							>
+								<Cloud size={18} />
+								<span>{googleExportIsRunning() ? 'Exporting...' : 'Export to Google Docs'}</span>
+							</button>
+							<button
+								type="submit"
+								class="audit-secondary-button"
+								disabled={!reportSelectionIsValid()}
+							>
+								<FileText size={18} />
+								<span>Download DOCX</span>
+							</button>
+						</div>
+						{#if googleExportUrl}
+							<a class="google-doc-link" href={googleExportUrl} target="_blank" rel="noreferrer">
+								<ExternalLink size={17} />
+								<span>Open Google Doc</span>
+							</a>
+						{/if}
+						{#if googleExportError}
+							<p class="report-error">{googleExportError}</p>
+						{/if}
 					</form>
 				{:else}
 					<p class="muted report-status-note">
@@ -1260,12 +1334,55 @@
 		font-weight: 900;
 	}
 
-	.report-priority {
+	.report-priority-control {
 		flex: 0 0 auto;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
 		color: var(--goldenweb-primary);
 		font-size: 0.8rem;
 		text-transform: uppercase;
 		letter-spacing: 0.06em;
+	}
+
+	.report-priority-control select {
+		min-width: 7.5rem;
+		border: 1px solid var(--border-color);
+		border-radius: 8px;
+		padding: 0.45rem 0.6rem;
+		background: rgba(15, 23, 42, 0.95);
+		color: var(--text-primary);
+		font: inherit;
+		font-size: 0.85rem;
+		font-weight: 800;
+		text-transform: none;
+		letter-spacing: 0;
+	}
+
+	.report-export-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.75rem;
+	}
+
+	.audit-secondary-button {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.5rem;
+		border: 1px solid var(--border-color);
+		background: rgba(15, 23, 42, 0.86);
+		color: var(--text-primary);
+	}
+
+	.google-doc-link {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.45rem;
+		width: fit-content;
+		color: var(--goldenweb-primary);
+		font-weight: 800;
+		text-decoration: none;
 	}
 
 	.report-preview-body p {
