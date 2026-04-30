@@ -17,8 +17,11 @@ type BuildAuditPageDataOptions = {
 };
 
 function getWebsite(auditRecord: Record<string, unknown>) {
-	return (auditRecord.expand as { website?: { url?: string; domain?: string } } | undefined)
-		?.website;
+	return (
+		auditRecord.expand as
+			| { website?: { url?: string; domain?: string; display_name?: string } }
+			| undefined
+	)?.website;
 }
 
 function compactAuditRecord(auditRecord: Record<string, unknown>) {
@@ -30,7 +33,10 @@ function compactAuditRecord(auditRecord: Record<string, unknown>) {
 		created: typeof auditRecord.created === 'string' ? auditRecord.created : undefined,
 		updated: typeof auditRecord.updated === 'string' ? auditRecord.updated : undefined,
 		url: getWebsite(auditRecord)?.url,
-		name: getWebsite(auditRecord)?.domain || getWebsite(auditRecord)?.url
+		name:
+			getWebsite(auditRecord)?.display_name ||
+			getWebsite(auditRecord)?.domain ||
+			getWebsite(auditRecord)?.url
 	};
 }
 
@@ -205,10 +211,10 @@ export async function buildAuditPageData(
 					? findings[0].title
 					: '';
 		const status = findings.some((finding) => finding.status === 'warn')
-				? 'warn'
-				: findings.some((finding) => finding.status === 'pass')
-					? 'pass'
-					: 'info';
+			? 'warn'
+			: findings.some((finding) => finding.status === 'pass')
+				? 'pass'
+				: 'info';
 		const screenshot =
 			(run?.id ? screenshotsByRunId.get(run.id) : null) ||
 			screenshotsByFindingTypeId.get(findingType.id);
@@ -252,8 +258,7 @@ export async function buildAuditPageData(
 
 		return {
 			id: template.id,
-			key:
-				findingTypeKey === 'pageSpeed' ? findingTypeKey : template.key,
+			key: findingTypeKey === 'pageSpeed' ? findingTypeKey : template.key,
 			label: template.title,
 			status,
 			runStatus: sourceItem?.runStatus,
@@ -284,7 +289,10 @@ export async function buildAuditPageData(
 		auditId: auditRecord.id,
 		runRecord: {
 			url: getWebsite(auditRecord)?.url,
-			name: getWebsite(auditRecord)?.domain || getWebsite(auditRecord)?.url
+			name:
+				getWebsite(auditRecord)?.display_name ||
+				getWebsite(auditRecord)?.domain ||
+				getWebsite(auditRecord)?.url
 		},
 		auditRecord: compactAuditRecord(auditRecord),
 		audit,

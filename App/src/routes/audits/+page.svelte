@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import { Plus, Search, X } from 'lucide-svelte';
+	import { Check, Plus, RotateCw, Search, X } from 'lucide-svelte';
 	import { onMount, tick } from 'svelte';
 	import type { ActionData } from './$types';
 
@@ -10,11 +10,28 @@
 		name?: string;
 		url: string;
 		status?: string;
+		queued_at?: string;
+		created_at?: string;
+		updated_at?: string;
 		targetHref: string;
 	};
+	type WebsiteGroup = {
+		website: {
+			id?: string;
+			url?: string;
+			domain?: string;
+			display_name?: string;
+		};
+		audits: AuditListItem[];
+	};
 
-	let { data, form }: { data: { audits: AuditListItem[]; query: string }; form?: ActionData } =
-		$props();
+	let {
+		data,
+		form
+	}: {
+		data: { audits: AuditListItem[]; websites: WebsiteGroup[]; query: string };
+		form?: ActionData;
+	} = $props();
 	let refreshInterval: number | undefined;
 	let createSheetOpen = $state(false);
 	let auditUrls = $state<string[]>(['']);
@@ -104,6 +121,26 @@
 		return status.replaceAll('_', ' ');
 	}
 
+	function websiteDisplayName(website: WebsiteGroup['website']) {
+		return website.display_name || website.domain || website.url || 'Untitled website';
+	}
+
+	function websiteUrl(website: WebsiteGroup['website']) {
+		return website.url || website.domain || '';
+	}
+
+	function auditTimestamp(audit: AuditListItem) {
+		const raw = audit.queued_at || audit.created_at || audit.updated_at;
+		if (!raw) return '';
+		const date = new Date(raw);
+		if (Number.isNaN(date.getTime())) return '';
+		return date.toLocaleDateString(undefined, {
+			month: 'short',
+			day: 'numeric',
+			year: 'numeric'
+		});
+	}
+
 	function stopStatusRefresh() {
 		if (!refreshInterval) return;
 		window.clearInterval(refreshInterval);
@@ -167,22 +204,63 @@
 {/if}
 
 <section class="audit-list-section">
-	{#if data.audits.length === 0}
+	{#if data.websites.length === 0}
 		<p class="empty-state">{data.query ? 'No audits matched your search.' : 'No audits yet.'}</p>
 	{:else}
-		<ul class="audit-list">
-			{#each data.audits as audit (audit.id)}
-				<li>
-					<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
-					<a href={audit.targetHref}>
-						<strong>{audit.url}</strong>
-						<span class={`audit-status-chip audit-status-${auditStatus(audit)}`}>
-							{statusLabel(auditStatus(audit))}
-						</span>
-					</a>
-				</li>
+		<div class="website-list">
+			{#each data.websites as group (group.website.id || group.website.domain || group.website.url)}
+				<section class="website-row">
+					<header class="website-row-header">
+						<div class="website-title-block">
+							<h2>{websiteDisplayName(group.website)}</h2>
+							<p class="muted">{group.website.domain || websiteUrl(group.website)}</p>
+						</div>
+						<div class="website-row-actions">
+							{#if group.website.id}
+								<form method="POST" action="?/updateWebsite" class="display-name-form">
+									<input type="hidden" name="websiteId" value={group.website.id} />
+									<input
+										name="displayName"
+										type="text"
+										value={websiteDisplayName(group.website)}
+										aria-label={`Display name for ${websiteDisplayName(group.website)}`}
+									/>
+									<button
+										type="submit"
+										class="icon-button compact-action"
+										aria-label="Save display name"
+									>
+										<Check size={16} />
+									</button>
+								</form>
+							{/if}
+							<form method="POST" action="?/create">
+								<input type="hidden" name="urls" value={websiteUrl(group.website)} />
+								<button type="submit" class="icon-button website-run-button">
+									<RotateCw size={17} />
+									<span>Run audit</span>
+								</button>
+							</form>
+						</div>
+					</header>
+
+					<div class="audit-card-grid">
+						{#each group.audits as audit (audit.id)}
+							<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+							<a class="audit-card" href={audit.targetHref}>
+								<div>
+									<strong>{auditTimestamp(audit) || 'Audit'}</strong>
+									<span>{audit.url}</span>
+								</div>
+								<span class={`audit-status-chip audit-status-${auditStatus(audit)}`}>
+									{statusLabel(auditStatus(audit))}
+								</span>
+							</a>
+						{/each}
+					</div>
+				</section>
 			{/each}
-		</ul>
+		</div>
 	{/if}
 </section>
 
@@ -271,33 +349,104 @@
 		width: 100%;
 	}
 
-	.audit-list {
+	.website-list {
 		display: grid;
-		gap: 12px;
-		margin-top: 0;
-		padding: 0;
-		list-style: none;
+		gap: 18px;
 	}
 
-	.audit-list li {
-		padding: 12px 14px;
+	.website-row {
 		border: 1px solid rgba(148, 163, 184, 0.15);
-		border-radius: 12px;
+		border-radius: 18px;
 		background: rgba(0, 0, 0, 0.2);
+		padding: 18px;
 	}
 
-	.audit-list li a {
+	.website-row-header {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
+		gap: 16px;
+		margin-bottom: 14px;
+	}
+
+	.website-title-block {
+		min-width: 0;
+	}
+
+	.website-title-block h2 {
+		margin: 0 0 4px;
+		color: var(--text-primary);
+		font-size: 1.15rem;
+	}
+
+	.website-title-block p {
+		margin: 0;
+	}
+
+	.website-run-button {
+		white-space: nowrap;
+	}
+
+	.website-row-actions {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+	}
+
+	.display-name-form {
+		display: grid;
+		grid-template-columns: minmax(160px, 220px) auto;
+		gap: 8px;
+		align-items: center;
+	}
+
+	.display-name-form input {
+		height: 40px;
+		padding: 0.6rem 0.75rem;
+		font-size: 0.9rem;
+	}
+
+	.compact-action {
+		width: 40px;
+		height: 40px;
+		padding: 0;
+	}
+
+	.audit-card-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
 		gap: 12px;
 	}
 
-	.audit-list li strong {
+	.audit-card {
+		display: grid;
+		gap: 12px;
+		align-content: space-between;
+		min-height: 112px;
+		border: 1px solid rgba(148, 163, 184, 0.14);
+		border-radius: 12px;
+		padding: 14px;
+		background: rgba(255, 255, 255, 0.03);
+	}
+
+	.audit-card:hover {
+		border-color: rgba(148, 163, 184, 0.3);
+		background: rgba(255, 255, 255, 0.05);
+	}
+
+	.audit-card strong,
+	.audit-card span:not(.audit-status-chip) {
+		display: block;
 		min-width: 0;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
+	}
+
+	.audit-card span:not(.audit-status-chip) {
+		margin-top: 4px;
+		color: var(--text-muted);
+		font-size: 0.88rem;
 	}
 
 	.audit-status-chip {
@@ -471,6 +620,20 @@
 		.audit-search-form {
 			flex-direction: column;
 			align-items: stretch;
+		}
+
+		.website-row-header {
+			flex-direction: column;
+			align-items: stretch;
+		}
+
+		.website-row-actions {
+			flex-direction: column;
+			align-items: stretch;
+		}
+
+		.display-name-form {
+			grid-template-columns: 1fr auto;
 		}
 	}
 

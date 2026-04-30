@@ -59,6 +59,7 @@ migrate(
           fields: [
             { name: "url", type: "url", required: true, presentable: true },
             { name: "domain", type: "text", required: true, max: 255 },
+            { name: "display_name", type: "text", required: false, max: 255 },
           ],
           indexes: [
             "CREATE UNIQUE INDEX idx_websites_url ON websites (url)",

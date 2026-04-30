@@ -82,6 +82,22 @@ function normalizeUrl(input: string) {
 	return url.href;
 }
 
+function normalizedDomainFromUrl(input: string) {
+	const url = new URL(normalizeUrl(input));
+	return url.hostname.replace(/^www\./i, '').toLowerCase();
+}
+
+function suggestedWebsiteDisplayName(domain: string) {
+	const [name = '', ...suffixParts] = domain.split('.');
+	const suffix = suffixParts.join('.');
+	const displayName = name
+		.split(/[-_]+/)
+		.filter(Boolean)
+		.map((part) => `${part.slice(0, 1).toUpperCase()}${part.slice(1)}`)
+		.join('');
+	return suffix ? `${displayName || name}.${suffix}` : displayName || domain;
+}
+
 function normalizeOptionalUrl(input?: string) {
 	const value = String(input || '').trim();
 	if (!value) return undefined;
@@ -270,20 +286,34 @@ export async function failInterruptedAuditWork() {
 export async function getOrCreateWebsiteRecord(url: string, token?: string) {
 	const pb = createAuthedClient(token);
 	const normalizedUrl = normalizeUrl(url);
+	const domain = normalizedDomainFromUrl(normalizedUrl);
+	const displayName = suggestedWebsiteDisplayName(domain);
 
 	try {
 		return await pb
 			.collection(WEBSITES_COLLECTION)
-			.getFirstListItem(`url = "${escapeFilterValue(normalizedUrl)}"`);
+			.getFirstListItem(`domain = "${escapeFilterValue(domain)}"`);
 	} catch (error) {
 		const response = (error as { response?: { status?: number } }).response;
 		if (response?.status && response.status !== 404) throw error;
 
 		return pb.collection(WEBSITES_COLLECTION).create({
 			url: normalizedUrl,
-			domain: new URL(normalizedUrl).hostname
+			domain,
+			display_name: displayName
 		});
 	}
+}
+
+export async function updateWebsiteRecord(
+	websiteId: string,
+	input: { display_name?: string },
+	token?: string
+) {
+	const pb = createAuthedClient(token);
+	return pb.collection(WEBSITES_COLLECTION).update(websiteId, {
+		...(input.display_name !== undefined ? { display_name: input.display_name.trim() } : {})
+	});
 }
 
 export async function createAuditRecord(
@@ -336,9 +366,12 @@ export async function listAudits(searchQuery: string, token?: string) {
 	if (!query) return audits;
 
 	return audits.filter((audit) => {
-		const website = (audit.expand as { website?: { url?: string; domain?: string } } | undefined)
-			?.website;
-		return [website?.url, website?.domain, audit.status]
+		const website = (
+			audit.expand as
+				| { website?: { url?: string; domain?: string; display_name?: string } }
+				| undefined
+		)?.website;
+		return [website?.url, website?.domain, website?.display_name, audit.status]
 			.filter(Boolean)
 			.some((value) => String(value).toLowerCase().includes(query));
 	});

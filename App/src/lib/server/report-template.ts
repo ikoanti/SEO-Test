@@ -91,8 +91,9 @@ function metricNumber(value: unknown) {
 function domainName(pageData: ReportPageData) {
 	const summary = getRecord(pageData.summary);
 	return text(
-		summary.domain ||
-			pageData.auditRecord?.name ||
+		pageData.auditRecord?.name ||
+			pageData.runRecord.name ||
+			summary.domain ||
 			pageData.auditRecord?.url ||
 			pageData.runRecord.url,
 		'this website'

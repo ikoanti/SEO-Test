@@ -4,13 +4,24 @@ import {
 	createWorkflowRecord,
 	getOrCreateWebsiteRecord,
 	getWorkflowByAuditId,
-	listAudits
+	listAudits,
+	updateWebsiteRecord
 } from '$lib/server/pocketbase';
 import { queueAuditWorkflow } from '$lib/server/audit-runner';
 
 function getWebsiteUrl(audit: Record<string, unknown>) {
 	const website = (audit.expand as { website?: { url?: string } } | undefined)?.website;
 	return website?.url || '';
+}
+
+function getWebsite(audit: Record<string, unknown>) {
+	return (
+		(
+			audit.expand as
+				| { website?: { id?: string; url?: string; domain?: string; display_name?: string } }
+				| undefined
+		)?.website || null
+	);
 }
 
 function auditSortTimestamp(audit: Record<string, unknown>) {
@@ -23,11 +34,13 @@ export const load = async ({ locals, url }) => {
 
 	const hydratedAudits = await Promise.all(
 		audits.map(async (audit) => {
+			const website = getWebsite(audit);
 			try {
 				const workflow = await getWorkflowByAuditId(audit.id, locals.pbToken);
 				return {
 					...audit,
-					url: getWebsiteUrl(audit),
+					url: website?.url || getWebsiteUrl(audit),
+					website,
 					status: workflow.status || audit.status,
 					queued_at: workflow.queued_at,
 					targetHref: `/audits/${audit.id}`
@@ -35,22 +48,67 @@ export const load = async ({ locals, url }) => {
 			} catch {
 				return {
 					...audit,
-					url: getWebsiteUrl(audit),
+					url: website?.url || getWebsiteUrl(audit),
+					website,
 					targetHref: `/audits/${audit.id}`
 				};
 			}
 		})
 	);
 
+	const sortedAudits = hydratedAudits.sort((left, right) =>
+		auditSortTimestamp(right).localeCompare(auditSortTimestamp(left))
+	);
+	const websiteGroups = new Map<
+		string,
+		{ website: Record<string, unknown>; audits: typeof sortedAudits }
+	>();
+
+	for (const audit of sortedAudits) {
+		const website = (audit.website as Record<string, unknown> | null) || {
+			id: `missing-${String(audit.id)}`,
+			url: audit.url,
+			domain: audit.url,
+			display_name: audit.url
+		};
+		const key = String(website.id || website.domain || website.url || audit.id);
+		const existing = websiteGroups.get(key);
+		if (existing) {
+			existing.audits.push(audit);
+		} else {
+			websiteGroups.set(key, { website, audits: [audit] });
+		}
+	}
+
 	return {
-		audits: hydratedAudits.sort((left, right) =>
-			auditSortTimestamp(right).localeCompare(auditSortTimestamp(left))
-		),
+		audits: sortedAudits,
+		websites: [...websiteGroups.values()],
 		query
 	};
 };
 
 export const actions = {
+	updateWebsite: async ({ request, locals }) => {
+		const data = await request.formData();
+		const websiteId = String(data.get('websiteId') || '').trim();
+		const displayName = String(data.get('displayName') || '').trim();
+
+		if (!websiteId) {
+			return fail(400, { createError: 'Website is missing.' });
+		}
+		if (!displayName) {
+			return fail(400, { createError: 'Display name is required.' });
+		}
+
+		try {
+			await updateWebsiteRecord(websiteId, { display_name: displayName }, locals.pbToken);
+			return { websiteUpdated: true };
+		} catch (error) {
+			return fail(400, {
+				createError: error instanceof Error ? error.message : 'Failed to update website.'
+			});
+		}
+	},
 	create: async ({ request, locals }) => {
 		const data = await request.formData();
 		const urls = [...data.getAll('urls'), data.get('url')]
