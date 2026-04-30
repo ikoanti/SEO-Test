@@ -29,6 +29,7 @@
 {#snippet header()}
 	<div class="shopify-brand">
 		<img src={shopifyLogo} alt="Shopify" />
+		<h1>Unoptimized Shopify URL Structured</h1>
 	</div>
 {/snippet}
 
@@ -67,6 +68,14 @@
 		width: 100%;
 		height: auto;
 		object-fit: contain;
+	}
+
+	.shopify-brand h1 {
+		margin: 16px 0 0;
+		color: #202124;
+		font-size: 28px;
+		font-weight: 700;
+		line-height: 1.08;
 	}
 
 	.pattern-list {
