@@ -2,6 +2,8 @@
 	import { X } from 'lucide-svelte';
 	import { isActivePage } from '../helpers';
 	import type { AuditEntry, BasePanelData } from '../types';
+	import AuditPanel from '../AuditPanel.svelte';
+	import IssueList from '../IssueList.svelte';
 	import FormattedValue from './FormattedValue.svelte';
 
 	type MetaGroup = AuditEntry & { pages: string[] };
@@ -58,56 +60,54 @@
 	let groups = $derived(groupEntries(entries, panel?.activePageUrl));
 </script>
 
-<section class="section">
-	{#if panel?.title}
-		<h1 class="title">{panel.title}</h1>
-	{/if}
-</section>
-<section class="section">
+{#snippet highlight()}
 	<div class="summary">
 		<p class="summary-count">{panel?.count ?? entries.length}</p>
 		<p class="summary-label">Detected</p>
 	</div>
-</section>
-<section class="section">
-	<div class="list">
-		{#each groups as entry}
-			<article class="card">
-				<div class="card-head">
-					<div class="badge"><X size={14} strokeWidth={3} aria-hidden="true" /></div>
-					<p class="card-title">{entry.issue}</p>
+{/snippet}
+
+{#snippet metaItem(entry: MetaGroup)}
+	<article class="card">
+		<div class="card-head">
+			<div class="badge"><X size={14} strokeWidth={3} aria-hidden="true" /></div>
+			<p class="card-title">{entry.issue}</p>
+		</div>
+		<div class="meta">
+			{#if entry.value}
+				<div>
+					<p class="meta-label">
+						{entry.issue?.includes('description') ? 'Description' : 'Title'}
+					</p>
+					<p class="meta-value meta-value-strong meta-value-preview">
+						<FormattedValue value={entry.value} />
+					</p>
 				</div>
-				<div class="meta">
-					{#if entry.value}
-						<div>
-							<p class="meta-label">
-								{entry.issue?.includes('description') ? 'Description' : 'Title'}
-							</p>
-							<p class="meta-value meta-value-strong meta-value-preview">
-								<FormattedValue value={entry.value} />
-							</p>
-						</div>
-					{/if}
-					{#if entry.pages.length === 1}
-						<div>
-							<p class="meta-label">Page</p>
-							<p class="meta-value"><FormattedValue value={entry.pages[0]} /></p>
-						</div>
-					{:else if entry.pages.length > 1}
-						<div>
-							<p class="meta-label">Pages</p>
-							<ul class="meta-value-list">
-								{#each entry.pages as page}
-									<li><FormattedValue value={page} /></li>
-								{/each}
-							</ul>
-						</div>
-					{/if}
+			{/if}
+			{#if entry.pages.length === 1}
+				<div>
+					<p class="meta-label">Page</p>
+					<p class="meta-value"><FormattedValue value={entry.pages[0]} /></p>
 				</div>
-			</article>
-		{/each}
-	</div>
-</section>
+			{:else if entry.pages.length > 1}
+				<div>
+					<p class="meta-label">Pages</p>
+					<ul class="meta-value-list">
+						{#each entry.pages as page}
+							<li><FormattedValue value={page} /></li>
+						{/each}
+					</ul>
+				</div>
+			{/if}
+		</div>
+	</article>
+{/snippet}
+
+{#snippet content()}
+	<IssueList entries={groups} item={metaItem} />
+{/snippet}
+
+<AuditPanel title={panel?.title} {highlight} {content} />
 
 <style>
 	@import './panel-shared.css';

@@ -1,19 +1,24 @@
 <script lang="ts">
 	import type { BasePanelData } from '../types';
+	import AuditPanel from '../AuditPanel.svelte';
 
 	let { panel }: { panel?: BasePanelData } = $props();
 </script>
 
-<section class="section">
+{#snippet header()}
 	{#if panel?.title}
 		<h1 class="title">{panel.title}</h1>
 	{/if}
-</section>
+{/snippet}
+
+<AuditPanel {header} />
 
 <style>
-	@import './panel-shared.css';
-
 	.title {
+		margin: 0;
+		font-size: 28px;
+		line-height: 1.08;
+		font-weight: 700;
 		color: #202124;
 	}
 </style>

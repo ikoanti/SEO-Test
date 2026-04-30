@@ -1,6 +1,7 @@
 <script lang="ts">
 	import pageSpeedLogo from '$lib/assets/page-speed/google-pagespeed-insights.png';
 	import type { BasePanelData, PageSpeedStrategyData } from '../types';
+	import AuditPanel from '../AuditPanel.svelte';
 
 	let {
 		panel
@@ -56,12 +57,13 @@
 	let strategies = $derived(sortedStrategies(pageSpeed));
 </script>
 
-<section class="section">
+{#snippet header()}
 	<div class="pagespeed-brand">
 		<img src={pageSpeedLogo} alt="Google PageSpeed Insights" />
 	</div>
-</section>
-<section class="section">
+{/snippet}
+
+{#snippet content()}
 	<div class="metric-stack">
 		{#each strategies as { strategy, data }}
 			<article class={`speed-panel-card ${scoreClass(data.score)}`}>
@@ -88,7 +90,9 @@
 			</article>
 		{/each}
 	</div>
-</section>
+{/snippet}
+
+<AuditPanel {header} {content} />
 
 <style>
 	@import './panel-shared.css';

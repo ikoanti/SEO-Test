@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { Bot } from 'lucide-svelte';
 	import type { AuditEntry, BasePanelData } from '../types';
+	import AuditPanel from '../AuditPanel.svelte';
+	import IssueList from '../IssueList.svelte';
 	import amazonLogo from '$lib/assets/bot-logos/amazon.png';
 	import anthropicLogo from '$lib/assets/bot-logos/anthropic.png';
 	import appleLogo from '$lib/assets/bot-logos/apple.png';
@@ -97,39 +99,37 @@
 	let rows = $derived(issueRows(panel?.entries));
 </script>
 
-<section class="section">
-	{#if panel?.title}
-		<h1 class="title">{panel.title}</h1>
-	{/if}
-</section>
-<section class="section">
+{#snippet highlight()}
 	<div class="summary">
 		<p class="summary-count">{panel?.count ?? rows.length}</p>
 		<p class="summary-label">Issues</p>
 	</div>
-</section>
-<section class="section">
-	<div class="list">
-		{#each rows as entry}
-			{@const agent = agentFromIssue(entry.issue)}
-			{@const icon = badgeFor(agent ?? entry.issue ?? '')}
-			<article class="card compact" class:blocked={entry.status === 'warn'}>
-				<div class="card-head">
-					<div class="bot-logo-wrap" aria-hidden="true">
-						{#if icon.logo}
-							<img class="bot-logo" src={icon.logo} alt="" />
-						{:else}
-							<div class="bot-logo bot-logo-fallback">
-								<Bot size={20} strokeWidth={2.4} />
-							</div>
-						{/if}
+{/snippet}
+
+{#snippet botItem(entry: AuditEntry)}
+	{@const agent = agentFromIssue(entry.issue)}
+	{@const icon = badgeFor(agent ?? entry.issue ?? '')}
+	<article class="card compact" class:blocked={entry.status === 'warn'}>
+		<div class="card-head">
+			<div class="bot-logo-wrap" aria-hidden="true">
+				{#if icon.logo}
+					<img class="bot-logo" src={icon.logo} alt="" />
+				{:else}
+					<div class="bot-logo bot-logo-fallback">
+						<Bot size={20} strokeWidth={2.4} />
 					</div>
-					<p class="card-title">{entry.issue}</p>
-				</div>
-			</article>
-		{/each}
-	</div>
-</section>
+				{/if}
+			</div>
+			<p class="card-title">{entry.issue}</p>
+		</div>
+	</article>
+{/snippet}
+
+{#snippet content()}
+	<IssueList entries={rows} item={botItem} />
+{/snippet}
+
+<AuditPanel title={panel?.title} {highlight} {content} />
 
 <style>
 	@import './panel-shared.css';
