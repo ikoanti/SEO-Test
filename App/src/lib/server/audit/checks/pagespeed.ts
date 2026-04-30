@@ -12,7 +12,9 @@ export async function analyzePageSpeed(
 	logger: AuditLogger
 ): Promise<PageSpeedResult> {
 	const apiKey = process.env.PAGESPEED_API_KEY || 'AIzaSyDq_Fam7GNCloxDbbryv3sA8brDbZZum8I';
-	const timeout = Number(process.env.PAGESPEED_TIMEOUT_MS || 60000);
+	const timeout = Number(process.env.PAGESPEED_TIMEOUT_MS || 120000);
+	const retries = Number(process.env.PAGESPEED_RETRIES || 2);
+	const retryDelay = Number(process.env.PAGESPEED_RETRY_DELAY_MS || 5000);
 	const result: PageSpeedResult = {
 		mobile: { score: 'N/A', metrics: {} },
 		desktop: { score: 'N/A', metrics: {} }
@@ -20,10 +22,16 @@ export async function analyzePageSpeed(
 
 	const fetchStrategy = async (strategy: 'mobile' | 'desktop') => {
 		logger.info(`pagespeed:${strategy}: requesting`);
-		const response = await axios.get('https://www.googleapis.com/pagespeedonline/v5/runPagespeed', {
-			timeout,
-			params: { url: targetUrl, strategy, key: apiKey }
-		});
+		const response = await withPageSpeedRetry(
+			() =>
+				axios.get('https://www.googleapis.com/pagespeedonline/v5/runPagespeed', {
+					timeout,
+					params: { url: targetUrl, strategy, category: 'performance', key: apiKey }
+				}),
+			retries,
+			retryDelay,
+			(message) => logger.warn(`pagespeed:${strategy}: ${message}`)
+		);
 		const audits = response.data?.lighthouseResult?.audits || {};
 		const score = Math.round(
 			(response.data?.lighthouseResult?.categories?.performance?.score || 0) * 100
@@ -45,10 +53,18 @@ export async function analyzePageSpeed(
 		};
 	};
 
-	const [mobileResult, desktopResult] = await Promise.allSettled([
-		fetchStrategy('mobile'),
-		fetchStrategy('desktop')
-	]);
+	const mobileResult = await Promise.resolve()
+		.then(() => fetchStrategy('mobile'))
+		.then(
+			(value) => ({ status: 'fulfilled' as const, value }),
+			(reason) => ({ status: 'rejected' as const, reason })
+		);
+	const desktopResult = await Promise.resolve()
+		.then(() => fetchStrategy('desktop'))
+		.then(
+			(value) => ({ status: 'fulfilled' as const, value }),
+			(reason) => ({ status: 'rejected' as const, reason })
+		);
 
 	if (mobileResult.status === 'fulfilled') {
 		result.mobile = mobileResult.value;
@@ -71,4 +87,26 @@ export async function analyzePageSpeed(
 	}
 
 	return result;
+}
+
+async function withPageSpeedRetry<T>(
+	request: () => Promise<T>,
+	retries: number,
+	retryDelay: number,
+	logRetry: (message: string) => void
+) {
+	let lastError: unknown;
+	for (let attempt = 0; attempt <= retries; attempt += 1) {
+		try {
+			return await request();
+		} catch (error) {
+			lastError = error;
+			if (attempt >= retries) break;
+			const message = error instanceof Error ? error.message : String(error);
+			const delay = retryDelay * (attempt + 1);
+			logRetry(`attempt ${attempt + 1} failed (${message}); retrying in ${delay}ms`);
+			await new Promise((resolve) => setTimeout(resolve, delay));
+		}
+	}
+	throw lastError;
 }
