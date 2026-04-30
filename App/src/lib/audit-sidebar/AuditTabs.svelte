@@ -12,21 +12,32 @@
 		captureMode?: boolean;
 		onSelect?: (tabId: string) => void;
 	} = $props();
+
+	let scrollView: HTMLDivElement | undefined;
+
+	$effect(() => {
+		if (captureMode || !scrollView || !activeTab) return;
+
+		const activeButton = scrollView.querySelector<HTMLButtonElement>('[data-active="true"]');
+		activeButton?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+	});
 </script>
 
 <div class="tabs-wrap" data-capture={captureMode ? 'true' : undefined}>
-	<div class="tabs">
-		{#each tabs as tab}
-			<button
-				class:active={tab.id === activeTab}
-				class="tab"
-				type="button"
-				data-active={tab.id === activeTab ? 'true' : undefined}
-				onclick={() => onSelect(tab.id)}
-			>
-				{tab.label}
-			</button>
-		{/each}
+	<div class="horizontal-scrollview" bind:this={scrollView}>
+		<div class="tabs">
+			{#each tabs as tab}
+				<button
+					class:active={tab.id === activeTab}
+					class="tab"
+					type="button"
+					data-active={tab.id === activeTab ? 'true' : undefined}
+					onclick={() => onSelect(tab.id)}
+				>
+					{tab.label}
+				</button>
+			{/each}
+		</div>
 	</div>
 </div>
 
@@ -36,32 +47,41 @@
 		border-bottom: 1px solid var(--border);
 		overflow: hidden;
 		flex: 0 0 auto;
+		min-width: 0;
 	}
 
-	.tabs {
-		display: flex;
-		gap: 8px;
-		flex-wrap: nowrap;
+	.horizontal-scrollview {
+		min-width: 0;
+		max-width: 100%;
 		overflow-x: auto;
 		overflow-y: hidden;
-		scrollbar-width: none;
-		-ms-overflow-style: none;
-		padding: 0 18px 2px;
+		overscroll-behavior-x: contain;
+		scrollbar-width: thin;
 		scroll-padding-left: 18px;
 		scroll-padding-right: 18px;
 	}
 
+	.tabs {
+		display: inline-flex;
+		gap: 8px;
+		flex-wrap: nowrap;
+		padding: 0 18px 2px;
+		min-width: max-content;
+	}
+
 	.tabs-wrap[data-capture='true'],
-	.tabs-wrap[data-capture='true'] .tabs {
+	.tabs-wrap[data-capture='true'] .horizontal-scrollview {
 		overflow: visible;
 	}
 
-	.tabs-wrap[data-capture='true'] .tabs {
-		flex-wrap: wrap;
+	.tabs-wrap[data-capture='true'] .horizontal-scrollview {
+		max-width: none;
 	}
 
-	.tabs::-webkit-scrollbar {
-		display: none;
+	.tabs-wrap[data-capture='true'] .tabs {
+		display: flex;
+		min-width: 0;
+		flex-wrap: wrap;
 	}
 
 	.tab {

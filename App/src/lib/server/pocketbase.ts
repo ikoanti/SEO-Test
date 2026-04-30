@@ -315,9 +315,15 @@ export async function getOrCreateWebsiteForAudit(
 	const displayName = input.display_name?.trim() || suggestedWebsiteDisplayName(domain);
 
 	try {
-		return await pb
+		const website = await pb
 			.collection(WEBSITES_COLLECTION)
 			.getFirstListItem(`domain = "${escapeFilterValue(domain)}"`);
+		if (input.display_name?.trim() && website.display_name !== displayName) {
+			return pb.collection(WEBSITES_COLLECTION).update(website.id, {
+				display_name: displayName
+			});
+		}
+		return website;
 	} catch (error) {
 		const response = (error as { response?: { status?: number } }).response;
 		if (response?.status && response.status !== 404) throw error;
