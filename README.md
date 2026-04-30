@@ -114,6 +114,13 @@ The deploy script:
 ### Useful endpoints
 - App health: `GET /api/health`
 - PocketBase status from the app: `GET /api/pocketbase/status`
+- External audit API:
+  - `POST /api/v1/audits` with `Authorization: Bearer $EXTERNAL_AUDIT_API_KEY` and JSON `{ "domain": "example.com", "displayName": "Example Store" }`
+  - `GET /api/v1/audits/:auditId` to check queued/running/completed/failed status
+  - `GET /api/v1/audits/:auditId/result` after completion
+  - `POST /api/v1/audits/:auditId/export/google-doc` with JSON `{}` to create/update the Google Doc export and return its Google Drive view URL
+
+External API setup requires `EXTERNAL_AUDIT_API_KEY`, PocketBase superuser credentials, and the Google Workspace variables already used by the in-app Google Docs export. Access to the returned Google Doc URL follows the Drive folder/document sharing settings.
 
 ## 🤝 Known Adjustments
 Recent workflow enhancements have integrated specific vocabulary updates (e.g. converting "AI visibility" to "not whitelisted") and advanced error-catches for empty H1 elements!

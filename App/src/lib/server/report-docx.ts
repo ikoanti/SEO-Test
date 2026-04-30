@@ -29,14 +29,29 @@ type ReportDocxPageData = ReportPageData & {
 export type ReportPriority = ReportProblemPreview['priority'];
 export type ReportPriorityOverrides = Partial<Record<string, ReportPriority>>;
 
-const FONT = 'Arial';
-const PAGE_WIDTH_PX = 600;
-const BODY_SIZE = 24;
-const SMALL_SIZE = 24;
-const TITLE_SIZE = 32;
-const SUBTITLE_SIZE = 28;
-const LOGO_WIDTH_PX = 242;
-const LOGO_HEIGHT_PX = 59;
+const REPORT_DOCX_STYLE = {
+	font: 'Arial',
+	colors: {
+		hiddenText: 'FFFFFF',
+		priority: '6b7280'
+	},
+	sizes: {
+		body: 24,
+		priority: 20,
+		title: 32,
+		subtitle: 28
+	},
+	layout: {
+		contentWidthPx: 600,
+		pageMarginTwips: 1440
+	},
+	logo: {
+		widthPx: 242,
+		heightPx: 59,
+		offsetXEmu: 4171950,
+		offsetYEmu: -133349
+	}
+} as const;
 const EMPTY_LINE_MARKER_PREFIX = 'GW_EMPTY_LINE';
 let emptyLineIndex = 0;
 
@@ -72,8 +87,8 @@ function emptyLine() {
 	return new Paragraph({
 		children: [
 			textRun(`${EMPTY_LINE_MARKER_PREFIX}_${emptyLineIndex}`, {
-				size: BODY_SIZE,
-				color: 'FFFFFF'
+				size: REPORT_DOCX_STYLE.sizes.body,
+				color: REPORT_DOCX_STYLE.colors.hiddenText
 			})
 		]
 	});
@@ -82,8 +97,8 @@ function emptyLine() {
 function textRun(textValue: string, options: Partial<IRunOptions> = {}) {
 	return new TextRun({
 		text: textValue,
-		size: BODY_SIZE,
-		font: FONT,
+		size: REPORT_DOCX_STYLE.sizes.body,
+		font: REPORT_DOCX_STYLE.font,
 		...options
 	});
 }
@@ -97,20 +112,20 @@ function paragraph(textValue: string) {
 function titleParagraph(textValue: string) {
 	return new Paragraph({
 		alignment: AlignmentType.CENTER,
-		children: [textRun(textValue, { bold: true, size: TITLE_SIZE })]
+		children: [textRun(textValue, { bold: true, size: REPORT_DOCX_STYLE.sizes.title })]
 	});
 }
 
 function subtitleParagraph(textValue: string) {
 	return new Paragraph({
 		alignment: AlignmentType.CENTER,
-		children: [textRun(textValue, { italics: true, size: SUBTITLE_SIZE })]
+		children: [textRun(textValue, { italics: true, size: REPORT_DOCX_STYLE.sizes.subtitle })]
 	});
 }
 
 function sectionHeading(textValue: string) {
 	return new Paragraph({
-		children: [textRun(textValue, { bold: true, size: SUBTITLE_SIZE })]
+		children: [textRun(textValue, { bold: true, size: REPORT_DOCX_STYLE.sizes.subtitle })]
 	});
 }
 
@@ -120,29 +135,18 @@ function pageBreak() {
 	});
 }
 
-function priorityStyle(priority: ReportProblemPreview['priority']) {
-	if (priority === 'Urgent') {
-		return { color: 'b10202', fill: 'ffcfc9' };
-	}
-	if (priority === 'High') {
-		return { color: '753800', fill: 'ffc8aa' };
-	}
-	return { color: '473821', fill: 'ffe5a0' };
-}
-
 function problemHeading(index: number, problem: ReportProblemPreview) {
-	const style = priorityStyle(problem.priority);
-
 	return new Paragraph({
 		children: [
 			textRun(`Problem ${index}: ${problem.title}`, { bold: true }),
-			textRun('Priority: ', { break: 1, size: SMALL_SIZE }),
+			textRun('Priority: ', {
+				break: 1,
+				size: REPORT_DOCX_STYLE.sizes.priority,
+				color: REPORT_DOCX_STYLE.colors.priority
+			}),
 			textRun(problem.priority, {
-				size: SMALL_SIZE,
-				color: style.color,
-				shading: {
-					fill: style.fill
-				}
+				size: REPORT_DOCX_STYLE.sizes.priority,
+				color: REPORT_DOCX_STYLE.colors.priority
 			})
 		]
 	});
@@ -161,7 +165,7 @@ async function withDocxXmlFixes(body: Buffer) {
 	);
 	documentXml = documentXml.replace(
 		emptyLineMarkerPattern,
-		'<w:p$1><w:pPr><w:spacing w:before="0" w:after="0"/><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:color w:val="FFFFFF"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t xml:space="preserve"> </w:t></w:r></w:p>'
+		`<w:p$1><w:pPr><w:spacing w:before="0" w:after="0"/><w:rPr><w:rFonts w:ascii="${REPORT_DOCX_STYLE.font}" w:hAnsi="${REPORT_DOCX_STYLE.font}"/><w:sz w:val="${REPORT_DOCX_STYLE.sizes.body}"/><w:szCs w:val="${REPORT_DOCX_STYLE.sizes.body}"/></w:rPr></w:pPr><w:r><w:rPr><w:rFonts w:ascii="${REPORT_DOCX_STYLE.font}" w:hAnsi="${REPORT_DOCX_STYLE.font}"/><w:color w:val="${REPORT_DOCX_STYLE.colors.hiddenText}"/><w:sz w:val="${REPORT_DOCX_STYLE.sizes.body}"/><w:szCs w:val="${REPORT_DOCX_STYLE.sizes.body}"/></w:rPr><w:t xml:space="preserve"> </w:t></w:r></w:p>`
 	);
 
 	zip.file('word/document.xml', documentXml);
@@ -183,8 +187,8 @@ async function reportHeader() {
 							type: 'png',
 							data: logo,
 							transformation: {
-								width: LOGO_WIDTH_PX,
-								height: LOGO_HEIGHT_PX
+								width: REPORT_DOCX_STYLE.logo.widthPx,
+								height: REPORT_DOCX_STYLE.logo.heightPx
 							},
 							floating: {
 								allowOverlap: true,
@@ -192,11 +196,11 @@ async function reportHeader() {
 								layoutInCell: true,
 								horizontalPosition: {
 									relative: HorizontalPositionRelativeFrom.COLUMN,
-									offset: 4171950
+									offset: REPORT_DOCX_STYLE.logo.offsetXEmu
 								},
 								verticalPosition: {
 									relative: VerticalPositionRelativeFrom.PARAGRAPH,
-									offset: -133349
+									offset: REPORT_DOCX_STYLE.logo.offsetYEmu
 								},
 								margins: {
 									top: 0,
@@ -243,8 +247,11 @@ async function screenshotParagraph(auditId: string, problem: ReportProblemPrevie
 
 	try {
 		const file = await getAuditScreenshotFile(auditId, problem.screenshot.id, token);
-		const dimensions = pngDimensions(file.body) || { width: PAGE_WIDTH_PX, height: 360 };
-		const width = Math.min(PAGE_WIDTH_PX, dimensions.width);
+		const dimensions = pngDimensions(file.body) || {
+			width: REPORT_DOCX_STYLE.layout.contentWidthPx,
+			height: 360
+		};
+		const width = Math.min(REPORT_DOCX_STYLE.layout.contentWidthPx, dimensions.width);
 		const height = Math.round((dimensions.height / dimensions.width) * width);
 
 		return new Paragraph({
@@ -402,8 +409,8 @@ export async function generateTemplateReportDocx(
 			default: {
 				document: {
 					run: {
-						font: FONT,
-						size: BODY_SIZE
+						font: REPORT_DOCX_STYLE.font,
+						size: REPORT_DOCX_STYLE.sizes.body
 					}
 				}
 			}
@@ -413,10 +420,10 @@ export async function generateTemplateReportDocx(
 				properties: {
 					page: {
 						margin: {
-							top: 1440,
-							right: 1440,
-							bottom: 1440,
-							left: 1440
+							top: REPORT_DOCX_STYLE.layout.pageMarginTwips,
+							right: REPORT_DOCX_STYLE.layout.pageMarginTwips,
+							bottom: REPORT_DOCX_STYLE.layout.pageMarginTwips,
+							left: REPORT_DOCX_STYLE.layout.pageMarginTwips
 						}
 					}
 				},

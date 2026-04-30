@@ -1,14 +1,6 @@
 import { fail, isRedirect, redirect } from '@sveltejs/kit';
-import {
-	createAuditRecord,
-	createWorkflowRecord,
-	getOrCreateWebsiteForAudit,
-	getOrCreateWebsiteRecord,
-	getWorkflowByAuditId,
-	listAudits,
-	updateWebsiteRecord
-} from '$lib/server/pocketbase';
-import { queueAuditWorkflow } from '$lib/server/audit-runner';
+import { getWorkflowByAuditId, listAudits, updateWebsiteRecord } from '$lib/server/pocketbase';
+import { submitAudit } from '$lib/server/audit-submit';
 
 function getWebsiteUrl(audit: Record<string, unknown>) {
 	const website = (audit.expand as { website?: { url?: string } } | undefined)?.website;
@@ -149,34 +141,11 @@ export const actions = {
 			const audits = [];
 
 			for (const row of uniqueRows) {
-				const website = row.displayName
-					? await getOrCreateWebsiteForAudit(
-							{ domain: row.domain, display_name: row.displayName },
-							locals.pbToken
-						)
-					: await getOrCreateWebsiteRecord(row.domain, locals.pbToken);
-				const audit = await createAuditRecord(
-					{
-						website: website.id,
-						created_by: createdBy,
-						status: 'queued'
-					},
-					locals.pbToken
-				);
-				const workflow = await createWorkflowRecord(
-					{
-						audit: audit.id,
-						status: 'queued',
-						run_log: `[${new Date().toISOString()}] Workflow queued.`
-					},
-					locals.pbToken
-				);
-
-				queueAuditWorkflow({
-					workflowId: workflow.id,
-					auditId: audit.id,
-					url: website.url,
-					token: locals.pbToken
+				const { audit } = await submitAudit({
+					domain: row.domain,
+					displayName: row.displayName,
+					token: locals.pbToken,
+					createdBy
 				});
 				audits.push(audit);
 			}

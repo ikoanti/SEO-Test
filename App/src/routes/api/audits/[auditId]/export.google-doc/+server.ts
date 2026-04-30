@@ -1,21 +1,5 @@
 import { error, json } from '@sveltejs/kit';
-import { buildAuditPageData } from '$lib/server/audit-detail';
-import { uploadAuditDocxAsGoogleDoc } from '$lib/server/google-drive';
-import { listAuditReportTemplates, saveAuditGoogleDocExport } from '$lib/server/pocketbase';
-import { generateTemplateReportDocx } from '$lib/server/report-docx';
-import { selectedTemplateKeys, validateReportSelection } from '$lib/server/report-export-options';
-
-function domainName(pageData: Awaited<ReturnType<typeof buildAuditPageData>>) {
-	const summary = pageData.summary as { domain?: string } | null;
-	return (
-		pageData.website?.display_name ||
-		pageData.website?.name ||
-		summary?.domain ||
-		pageData.website?.domain ||
-		pageData.website?.url ||
-		'audit'
-	);
-}
+import { exportAuditToGoogleDoc } from '$lib/server/audit-google-export';
 
 export const POST = async ({ params, locals, request }) => {
 	if (!locals.user) {
@@ -23,44 +7,11 @@ export const POST = async ({ params, locals, request }) => {
 	}
 
 	const formData = await request.formData();
-	const pageData = await buildAuditPageData(params.auditId, locals.pbToken, {
-		includeReportHtml: false,
-		includeReportPreview: true
+	const googleDoc = await exportAuditToGoogleDoc({
+		auditId: params.auditId,
+		token: locals.pbToken,
+		reportTemplateKeys: formData.getAll('reportTemplateKey').map((value) => String(value))
 	});
-
-	if (String(pageData.runRecord.status || '') !== 'completed') {
-		throw error(400, 'Google Docs export is available only after the audit run completes.');
-	}
-
-	const availableKeys = new Set(pageData.reportPreviewItems.map((item) => item.key));
-	const selectedKeys = selectedTemplateKeys(
-		formData.getAll('reportTemplateKey').map((value) => String(value)),
-		availableKeys
-	);
-	validateReportSelection(selectedKeys, availableKeys);
-
-	const selectedSet = new Set(selectedKeys);
-	const templates = (await listAuditReportTemplates(locals.pbToken)).filter((template) =>
-		selectedSet.has(template.key)
-	);
-	const file = await generateTemplateReportDocx(pageData, templates, locals.pbToken);
-	const googleDoc = await uploadAuditDocxAsGoogleDoc({
-		domain: domainName(pageData),
-		filename: file.filename,
-		body: file.body,
-		existingDocumentId: pageData.auditRecord?.google_doc_id
-	});
-	await saveAuditGoogleDocExport(
-		params.auditId,
-		{
-			google_drive_folder_id: googleDoc.folderId,
-			google_drive_folder_name: googleDoc.folderName,
-			google_doc_id: googleDoc.id,
-			google_doc_name: googleDoc.name,
-			google_doc_url: googleDoc.url
-		},
-		locals.pbToken
-	);
 
 	return json(googleDoc);
 };

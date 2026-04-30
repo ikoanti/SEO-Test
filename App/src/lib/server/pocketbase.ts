@@ -59,6 +59,11 @@ async function createConfiguredSuperuserClient() {
 	return pb;
 }
 
+export async function getConfiguredSuperuserToken() {
+	const pb = await createConfiguredSuperuserClient();
+	return pb.authStore.token;
+}
+
 function escapeFilterValue(value: string) {
 	return value.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
 }
