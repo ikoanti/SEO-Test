@@ -53,7 +53,10 @@ export const SECTION_LABELS: Array<[string, string]> = [
 	['missing-faq-schema', 'Missing FAQ Schema'],
 	['missing-organization-schema', 'Missing Organization Schema'],
 	['unlinked-blog', 'Unlinked Blog'],
-	['metaTitles', 'Meta Titles'],
+	['meta-titles-too-long-unoptimized', 'Meta Titles Are Too Long & Unoptimized'],
+	['duplicated-page-titles', 'Duplicated Page Titles'],
+	['duplicated-meta-descriptions', 'Duplicated Meta Descriptions'],
+	['overly-long-meta-descriptions', 'Overly Long Meta Descriptions'],
 	['imageAltTags', 'Image Alt Tags'],
 	['canonicalUrls', 'Canonical URLs'],
 	['internalLinks', 'Internal Links'],
@@ -179,45 +182,12 @@ function buildListSection(
 	return {
 		key,
 		label,
-		status: deriveStatusFromCounts(section.items || []),
+		status: findings.length ? deriveStatusFromCounts(section.items || []) : 'pass',
 		summary: section.stats || `${findings.length} finding${findings.length === 1 ? '' : 's'}`,
 		stats_json: JSON.stringify({ stats: section.stats || '', count: findings.length }),
 		sort_order: order,
 		findings
 	};
-}
-
-function h1IssueSection(
-	key: string,
-	label: string,
-	order: number,
-	section: AuditListSection,
-	matcher: (item: AuditListItem) => boolean
-): NormalizedAuditFindingType | null {
-	const sourceItems = section.items || [];
-	const issueItems = sourceItems.filter(
-		(item) => normalizeFindingStatus(item.status) === 'warn' && matcher(item)
-	);
-
-	if (!sourceItems.length && !issueItems.length) return null;
-	if (!issueItems.length) {
-		return {
-			key,
-			label,
-			status: 'pass',
-			summary: `No ${label.toLowerCase()} found.`,
-			stats_json: JSON.stringify({ stats: '', count: 0 }),
-			sort_order: order,
-			findings: []
-		};
-	}
-
-	return buildListSection(key, label, order, {
-		items: issueItems,
-		stats: `${issueItems.length} ${label.toLowerCase()} issue${
-			issueItems.length === 1 ? '' : 's'
-		} found`
-	});
 }
 
 function buildMetricSection(
@@ -245,24 +215,6 @@ export function buildNormalizedAuditItems(audit: AuditResult): NormalizedAuditFi
 
 	for (const [key, label] of SECTION_LABELS) {
 		const value = audit[key];
-
-		if (key === 'missing-h1-tags' || key === 'multiple-h1-tags') {
-			const h1Section = audit.h1Tags;
-			if (h1Section && typeof h1Section === 'object' && Array.isArray((h1Section as AuditListSection).items)) {
-				const item = h1IssueSection(
-					key,
-					label,
-					order,
-					h1Section as AuditListSection,
-					key === 'missing-h1-tags'
-						? (entry) => String(entry.detail || '') === 'Missing H1 tag'
-						: (entry) => String(entry.detail || '').toLowerCase().includes('multiple h1')
-				);
-				if (item) items.push(item);
-				order += 1;
-			}
-			continue;
-		}
 
 		if (key === 'pageSpeed' && value && typeof value === 'object') {
 			const metrics = value as NonNullable<AuditResult['pageSpeed']>;
@@ -342,5 +294,4 @@ export function attachMetricScreenshots(
 			pageSpeed: snapshotRecord(pageSpeed)
 		});
 	}
-
 }

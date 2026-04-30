@@ -18,19 +18,19 @@ migrate(
 
     mappings.forEach(([templateKey, findingTypeKey]) => {
       let template;
+      let findingType;
       try {
         template = app.findFirstRecordByFilter(
           "audit_report_templates",
           `key = "${templateKey}"`,
         );
+        findingType = app.findFirstRecordByFilter(
+          "audit_finding_types",
+          `key = "${findingTypeKey}"`,
+        );
       } catch {
         return;
       }
-
-      const findingType = app.findFirstRecordByFilter(
-        "audit_finding_types",
-        `key = "${findingTypeKey}"`,
-      );
 
       template.set("audit_finding_type", findingType.id);
       template.set("enabled", true);
@@ -46,7 +46,10 @@ migrate(
       ["missing-product-schema", "missing-product-schema"],
       ["missing-faq-schema", "missing-faq-schema"],
       ["meta-titles-too-long-unoptimized", "meta-titles-too-long-unoptimized"],
-      ["unoptimized-shopify-url-structure", "unoptimized-shopify-url-structure"],
+      [
+        "unoptimized-shopify-url-structure",
+        "unoptimized-shopify-url-structure",
+      ],
       ["duplicated-page-titles", "duplicated-page-titles"],
       ["duplicated-meta-descriptions", "duplicated-meta-descriptions"],
       ["missing-organization-schema", "missing-organization-schema"],

@@ -87,8 +87,12 @@ export async function analyzeMetaAndHeadings(
 	summary: AuditSummary,
 	logger: AuditLogger
 ) {
-	const h1Tags = createListResult();
-	const metaTitles = createListResult();
+	const missingH1Tags = createListResult();
+	const multipleH1Tags = createListResult();
+	const metaTitleIssues = createListResult();
+	const duplicatePageTitles = createListResult();
+	const duplicateMetaDescriptions = createListResult();
+	const overlyLongMetaDescriptions = createListResult();
 	const imageAltTags = createListResult();
 	const canonicalUrls = createListResult();
 	const internalLinks = createListResult();
@@ -148,7 +152,7 @@ export async function analyzeMetaAndHeadings(
 			const headingIssue =
 				h1Count === 0
 					? 'Missing H1 tag'
-					: h1Count > 1
+					: h1Count > 1 || emptyH1 > 0
 						? emptyH1 > 0
 							? 'Empty or multiple H1 tags found'
 							: 'Multiple H1 tags found'
@@ -160,14 +164,15 @@ export async function analyzeMetaAndHeadings(
 				multipleH1Evidence.push({ page, issue: headingIssue, headings: h1Headings });
 			}
 
-			if (h1Count === 1 && emptyH1 === 0) {
-				addItem(summary, h1Tags, 'pass', 'Single H1 tag present', { title: page });
-			} else if (h1Count === 0) {
-				addItem(summary, h1Tags, 'warn', 'Missing H1 tag', { title: page });
-			} else {
+			if (h1Count === 0) {
+				addItem(summary, missingH1Tags, 'warn', 'Missing H1 tag', {
+					title: page,
+					page_url: page
+				});
+			} else if (h1Count > 1) {
 				addItem(
 					summary,
-					h1Tags,
+					multipleH1Tags,
 					'warn',
 					emptyH1 > 0 ? 'Empty or multiple H1 tags found' : 'Multiple H1 tags found',
 					{
@@ -176,6 +181,14 @@ export async function analyzeMetaAndHeadings(
 						meta: { headings: h1Headings }
 					}
 				);
+			} else if (emptyH1 > 0) {
+				addItem(summary, multipleH1Tags, 'warn', 'Empty or multiple H1 tags found', {
+					title: `${page} (${h1Count} H1 tags)`,
+					page_url: page,
+					meta: { headings: h1Headings }
+				});
+			} else {
+				// Passing pages don't need persisted findings for split H1 report problems.
 			}
 
 			const productLikePage = isProductLikePage(page, title, bodyText);
@@ -216,7 +229,10 @@ export async function analyzeMetaAndHeadings(
 				if (metaTitleEvidence.length < maxEvidenceItems) {
 					metaTitleEvidence.push({ page, issue: 'Missing meta title' });
 				}
-				addItem(summary, metaTitles, 'warn', 'Missing meta title', { title: page });
+				addItem(summary, metaTitleIssues, 'warn', 'Missing meta title', {
+					title: page,
+					page_url: page
+				});
 			} else if (title.length > 60) {
 				const value = `${title.length} chars: ${title}`;
 				if (metaTitleEvidence.length < maxEvidenceItems) {
@@ -226,12 +242,13 @@ export async function analyzeMetaAndHeadings(
 						value
 					});
 				}
-				addItem(summary, metaTitles, 'warn', 'Meta title too long', {
+				addItem(summary, metaTitleIssues, 'warn', 'Meta title too long', {
 					title: `${page} (${title.length} chars)`,
+					page_url: page,
 					value
 				});
 			} else {
-				addItem(summary, metaTitles, 'pass', 'Meta title looks good', { title });
+				// Passing pages don't need persisted findings for split meta-title report problems.
 			}
 
 			if (metaDescription.length > 160) {
@@ -243,8 +260,9 @@ export async function analyzeMetaAndHeadings(
 						value
 					});
 				}
-				addItem(summary, metaTitles, 'warn', 'Meta description too long', {
+				addItem(summary, overlyLongMetaDescriptions, 'warn', 'Meta description too long', {
 					title: `${page} (${metaDescription.length} chars)`,
+					page_url: page,
 					value
 				});
 			}
@@ -358,8 +376,9 @@ export async function analyzeMetaAndHeadings(
 						value: title
 					});
 				}
-				addItem(summary, metaTitles, 'warn', 'Duplicate meta title detected', {
+				addItem(summary, duplicatePageTitles, 'warn', 'Duplicate meta title detected', {
 					title: page,
+					page_url: page,
 					meta: {
 						duplicateValue: title,
 						duplicateCount: pagesForTitle.length
@@ -379,8 +398,9 @@ export async function analyzeMetaAndHeadings(
 						value: description
 					});
 				}
-				addItem(summary, metaTitles, 'warn', 'Duplicate meta description detected', {
+				addItem(summary, duplicateMetaDescriptions, 'warn', 'Duplicate meta description detected', {
 					title: page,
+					page_url: page,
 					meta: {
 						duplicateValue: description,
 						duplicateCount: pagesForDescription.length
@@ -396,7 +416,10 @@ export async function analyzeMetaAndHeadings(
 	) => items.filter((item) => item.status === 'warn' && matcher(item));
 
 	if (missingH1Evidence.length > 0) {
-		const matchingItems = issueItems(h1Tags.items, (item) => item.detail === 'Missing H1 tag');
+		const matchingItems = issueItems(
+			missingH1Tags.items,
+			(item) => item.detail === 'Missing H1 tag'
+		);
 		attachScreenshotRequest(matchingItems[0], {
 			kind: 'headings',
 			reportTemplateKey: 'missing-h1-tags',
@@ -408,7 +431,7 @@ export async function analyzeMetaAndHeadings(
 	}
 
 	if (multipleH1Evidence.length > 0) {
-		const matchingItems = issueItems(h1Tags.items, (item) =>
+		const matchingItems = issueItems(multipleH1Tags.items, (item) =>
 			String(item.detail || '')
 				.toLowerCase()
 				.includes('multiple h1')
@@ -424,9 +447,7 @@ export async function analyzeMetaAndHeadings(
 	}
 
 	if (imageAltEvidence.length > 0) {
-		const issueCount = imageAltTags.items.filter(
-			(item) => item.status === 'warn'
-		).length;
+		const issueCount = imageAltTags.items.filter((item) => item.status === 'warn').length;
 		attachScreenshotRequest(
 			imageAltTags.items.find((item) => item.status === 'warn'),
 			{
@@ -442,7 +463,7 @@ export async function analyzeMetaAndHeadings(
 
 	if (metaTitleEvidence.length > 0) {
 		const matchingItems = issueItems(
-			metaTitles.items,
+			metaTitleIssues.items,
 			(item) => item.detail === 'Meta title too long' || item.detail === 'Missing meta title'
 		);
 		attachScreenshotRequest(matchingItems[0], {
@@ -457,7 +478,7 @@ export async function analyzeMetaAndHeadings(
 
 	if (duplicateTitleEvidence.length > 0) {
 		const matchingItems = issueItems(
-			metaTitles.items,
+			duplicatePageTitles.items,
 			(item) => item.detail === 'Duplicate meta title detected'
 		);
 		attachScreenshotRequest(matchingItems[0], {
@@ -472,7 +493,7 @@ export async function analyzeMetaAndHeadings(
 
 	if (duplicateDescriptionEvidence.length > 0) {
 		const matchingItems = issueItems(
-			metaTitles.items,
+			duplicateMetaDescriptions.items,
 			(item) => item.detail === 'Duplicate meta description detected'
 		);
 		attachScreenshotRequest(matchingItems[0], {
@@ -487,7 +508,7 @@ export async function analyzeMetaAndHeadings(
 
 	if (longDescriptionEvidence.length > 0) {
 		const matchingItems = issueItems(
-			metaTitles.items,
+			overlyLongMetaDescriptions.items,
 			(item) => item.detail === 'Meta description too long'
 		);
 		attachScreenshotRequest(matchingItems[0], {
@@ -501,9 +522,7 @@ export async function analyzeMetaAndHeadings(
 	}
 
 	if (canonicalEvidence.length > 0) {
-		const issueCount = canonicalUrls.items.filter(
-			(item) => item.status === 'warn'
-		).length;
+		const issueCount = canonicalUrls.items.filter((item) => item.status === 'warn').length;
 		attachScreenshotRequest(
 			canonicalUrls.items.find((item) => item.status === 'warn'),
 			{ kind: 'canonicals', domain, entries: canonicalEvidence, count: issueCount }
@@ -511,9 +530,7 @@ export async function analyzeMetaAndHeadings(
 	}
 
 	if (internalLinksEvidence.length > 0) {
-		const issueCount = internalLinks.items.filter(
-			(item) => item.status === 'warn'
-		).length;
+		const issueCount = internalLinks.items.filter((item) => item.status === 'warn').length;
 		attachScreenshotRequest(
 			internalLinks.items.find((item) => item.status === 'warn'),
 			{ kind: 'internal-links', domain, entries: internalLinksEvidence, count: issueCount }
@@ -521,9 +538,7 @@ export async function analyzeMetaAndHeadings(
 	}
 
 	if (contentQualityEvidence.length > 0) {
-		const issueCount = contentQuality.items.filter(
-			(item) => item.status === 'warn'
-		).length;
+		const issueCount = contentQuality.items.filter((item) => item.status === 'warn').length;
 		attachScreenshotRequest(
 			contentQuality.items.find((item) => item.status === 'warn'),
 			{ kind: 'content-quality', domain, entries: contentQualityEvidence, count: issueCount }
@@ -531,9 +546,7 @@ export async function analyzeMetaAndHeadings(
 	}
 
 	if (shopifyUrlEvidence.length > 0) {
-		const issueCount = shopifyUrls.items.filter(
-			(item) => item.status === 'warn'
-		).length;
+		const issueCount = shopifyUrls.items.filter((item) => item.status === 'warn').length;
 		attachScreenshotRequest(
 			shopifyUrls.items.find((item) => item.status === 'warn'),
 			{
@@ -548,9 +561,7 @@ export async function analyzeMetaAndHeadings(
 	}
 
 	if (faqSchemaEvidence.length > 0) {
-		const issueCount = faqSchema.items.filter(
-			(item) => item.status === 'warn'
-		).length;
+		const issueCount = faqSchema.items.filter((item) => item.status === 'warn').length;
 		attachScreenshotRequest(
 			faqSchema.items.find((item) => item.status === 'warn'),
 			{
@@ -565,10 +576,14 @@ export async function analyzeMetaAndHeadings(
 	}
 
 	return {
-		h1Tags,
+		'missing-h1-tags': missingH1Tags,
+		'multiple-h1-tags': multipleH1Tags,
 		productSchema,
 		faqSchema,
-		metaTitles,
+		'meta-titles-too-long-unoptimized': metaTitleIssues,
+		'duplicated-page-titles': duplicatePageTitles,
+		'duplicated-meta-descriptions': duplicateMetaDescriptions,
+		'overly-long-meta-descriptions': overlyLongMetaDescriptions,
 		imageAltTags,
 		canonicalUrls,
 		internalLinks,

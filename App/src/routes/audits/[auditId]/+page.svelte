@@ -251,28 +251,6 @@
 		return '';
 	}
 
-	function auditSectionScreenshotEntries(sectionKey: string) {
-		const section = auditSection(sectionKey);
-		const items = Array.isArray(section.items) ? section.items : [];
-		return items.flatMap((item) => {
-			const meta = parseMeta(parseMeta(item).meta);
-			const request = parseMeta(meta.screenshotRequest);
-			return Array.isArray(request.entries) ? request.entries : [];
-		});
-	}
-
-	function metaEvidenceValues() {
-		const values = new Map<string, string>();
-		for (const entry of auditSectionScreenshotEntries('metaTitles')) {
-			const record = parseMeta(entry);
-			const page = typeof record.page === 'string' ? record.page.trim() : '';
-			const issue = typeof record.issue === 'string' ? record.issue.trim() : '';
-			const value = typeof record.value === 'string' ? record.value.trim() : '';
-			if (page && issue && value) values.set(`${issue}::${page}`, value);
-		}
-		return values;
-	}
-
 	function currentDomain() {
 		if (typeof pageData.summary?.domain === 'string' && pageData.summary.domain.trim()) {
 			return pageData.summary.domain;
@@ -349,8 +327,8 @@
 					const headings = stringArray(nestedMeta.headings || meta.headings);
 					return page ? { page, issue: issueText(finding, item), headings } : null;
 				})
-				.filter(
-					(entry): entry is { page: string; issue: string; headings: string[] } => Boolean(entry)
+				.filter((entry): entry is { page: string; issue: string; headings: string[] } =>
+					Boolean(entry)
 				);
 
 			return entries.length
@@ -472,35 +450,39 @@
 				: null;
 		});
 
-		addListPreview('metaTitles', 'meta-tags', (item) => {
-			const findings = issueFindings(item);
-			const evidenceValues = metaEvidenceValues();
-			const entries = findings
-				.map((finding) => {
-					const page = pageUrlFromFinding(finding);
-					if (!page) return null;
-					const issue = issueText(finding, item);
-					const value = entryValue(finding) || evidenceValues.get(`${issue}::${page}`) || '';
-					return value
-						? { page, issue, value }
-						: { page, issue };
-				})
-				.filter((entry): entry is { page: string; issue: string; value?: string } =>
-					Boolean(entry)
-				);
+		const addMetaPreview = (itemKey: string) => {
+			addListPreview(itemKey, itemKey, (item) => {
+				const findings = issueFindings(item);
+				const entries = findings
+					.map((finding) => {
+						const page = pageUrlFromFinding(finding);
+						if (!page) return null;
+						const issue = issueText(finding, item);
+						const value = entryValue(finding);
+						return value ? { page, issue, value } : { page, issue };
+					})
+					.filter((entry): entry is { page: string; issue: string; value?: string } =>
+						Boolean(entry)
+					);
 
-			return entries.length
-				? {
-						kind: 'meta-tags',
-						title: sidebarTitle(item),
-						description: sidebarDescription(item),
-						domain,
-						count: findings.length,
-						activePageUrl: entries[0]?.page || '',
-						entries
-					}
-				: null;
-		});
+				return entries.length
+					? {
+							kind: 'meta-tags',
+							title: sidebarTitle(item),
+							description: sidebarDescription(item),
+							domain,
+							count: findings.length,
+							activePageUrl: entries[0]?.page || '',
+							entries
+						}
+					: null;
+			});
+		};
+
+		addMetaPreview('meta-titles-too-long-unoptimized');
+		addMetaPreview('duplicated-page-titles');
+		addMetaPreview('duplicated-meta-descriptions');
+		addMetaPreview('overly-long-meta-descriptions');
 
 		addListPreview('canonicalUrls', 'canonicals', (item) => {
 			const findings = issueFindings(item);

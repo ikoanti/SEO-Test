@@ -719,9 +719,7 @@ function captureEntryFromFinding(
 		};
 	}
 
-	if (
-		request.kind === 'headings'
-	) {
+	if (request.kind === 'headings') {
 		const headings = Array.isArray(nestedMeta.headings)
 			? nestedMeta.headings.map((heading) => String(heading))
 			: [];
@@ -867,7 +865,7 @@ function templateCaptureRequest(
 
 	if (!findings.length) return null;
 
-	if (item.key === 'missing-h1-tags' || item.key === 'multiple-h1-tags' || item.key === 'h1Tags') {
+	if (item.key === 'missing-h1-tags' || item.key === 'multiple-h1-tags') {
 		const entries = findings
 			.map((finding) => {
 				const page = findingPage(finding);
@@ -911,7 +909,12 @@ function templateCaptureRequest(
 			: null;
 	}
 
-	if (item.key === 'metaTitles') {
+	if (
+		item.key === 'meta-titles-too-long-unoptimized' ||
+		item.key === 'duplicated-page-titles' ||
+		item.key === 'duplicated-meta-descriptions' ||
+		item.key === 'overly-long-meta-descriptions'
+	) {
 		const entries = findings
 			.map((finding) => {
 				const page = findingPage(finding);
@@ -1023,7 +1026,10 @@ const STEP_KEYS: Record<string, string[]> = {
 		'multiple-h1-tags',
 		'missing-product-schema',
 		'missing-faq-schema',
-		'metaTitles',
+		'meta-titles-too-long-unoptimized',
+		'duplicated-page-titles',
+		'duplicated-meta-descriptions',
+		'overly-long-meta-descriptions',
 		'imageAltTags',
 		'canonicalUrls',
 		'internalLinks',

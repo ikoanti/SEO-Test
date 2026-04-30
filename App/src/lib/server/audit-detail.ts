@@ -246,7 +246,6 @@ export async function buildAuditPageData(
 			.map((template) => template.expand?.audit_finding_type?.key || '')
 			.filter(Boolean)
 	);
-	const suppressedLegacyDisplayKeys = new Set(['h1Tags', 'structuredData', 'mobileUsability']);
 	const templateDisplayItems = reportTemplates.map((template) => {
 		const findingTypeKey = template.expand?.audit_finding_type?.key || '';
 		const sourceItem = normalizedItemsByKey.get(findingTypeKey);
@@ -286,7 +285,6 @@ export async function buildAuditPageData(
 	const additionalCheckDisplayItems = normalizedItems
 		.filter((item) => !templateDisplayKeys.has(item.key))
 		.filter((item) => !representedSourceKeys.has(item.key))
-		.filter((item) => !suppressedLegacyDisplayKeys.has(item.key))
 		.sort((first, second) => (first.sortOrder || 999) - (second.sortOrder || 999));
 	const findingDisplayItems = [...templateDisplayItems, ...additionalCheckDisplayItems];
 	const selectedReportTemplateKeys = parseStoredStringArray(
