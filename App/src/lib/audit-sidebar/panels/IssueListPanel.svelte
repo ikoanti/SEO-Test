@@ -31,8 +31,8 @@
 </section>
 <section class="section">
 	<div class="summary">
-		<p class="summary-label">{summaryLabel}</p>
 		<p class="summary-count">{panel?.count ?? entries.length}</p>
+		<p class="summary-label">{summaryLabel}</p>
 	</div>
 </section>
 <section class="section">
@@ -54,7 +54,7 @@
 									class:meta-value-preview={field.preview}
 									class="meta-value"
 								>
-									<FormattedValue value={value} />
+									<FormattedValue {value} />
 								</p>
 							</div>
 						{/if}
@@ -95,7 +95,7 @@
 	}
 
 	.summary-label {
-		margin: 0;
+		margin: 8px 0 0;
 		font-size: 12px;
 		font-weight: 700;
 		letter-spacing: 0.06em;
@@ -104,7 +104,7 @@
 	}
 
 	.summary-count {
-		margin: 8px 0 0;
+		margin: 0;
 		font-size: 64px;
 		line-height: 1;
 		font-weight: 700;

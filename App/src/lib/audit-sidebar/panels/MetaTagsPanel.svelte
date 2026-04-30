@@ -65,8 +65,8 @@
 </section>
 <section class="section">
 	<div class="summary">
-		<p class="summary-label">Detected</p>
 		<p class="summary-count">{panel?.count ?? entries.length}</p>
+		<p class="summary-label">Detected</p>
 	</div>
 </section>
 <section class="section">

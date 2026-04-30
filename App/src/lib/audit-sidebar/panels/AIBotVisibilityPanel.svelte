@@ -104,8 +104,8 @@
 </section>
 <section class="section">
 	<div class="summary">
-		<p class="summary-label">Issues</p>
 		<p class="summary-count">{panel?.count ?? rows.length}</p>
+		<p class="summary-label">Issues</p>
 	</div>
 </section>
 <section class="section">
