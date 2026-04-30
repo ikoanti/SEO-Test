@@ -110,7 +110,16 @@
 		return normalizedText(detail) === title ? '' : detail;
 	}
 
-	function groupedRows(prefix: string, findings: AuditFindingView[]) {
+	function openGraphFindingTitle(finding: AuditFindingView) {
+		return finding.detail || finding.title || finding.status || 'Finding';
+	}
+
+	function openGraphFindingDetail(finding: AuditFindingView) {
+		const title = String(finding.title || '').trim();
+		return normalizedText(title) === normalizedText(openGraphFindingTitle(finding)) ? '' : title;
+	}
+
+	function groupedRows(prefix: string, findings: AuditFindingView[], valueAsDetail = false) {
 		const rows: RenderRow[] = [];
 		const groups: Record<string, AuditFindingView[]> = {};
 		const order: string[] = [];
@@ -160,8 +169,10 @@
 				rows.push({
 					key: `${prefix}-${finding.id}`,
 					status: finding.status || 'info',
-					title: finding.title || finding.status || 'Finding',
-					detail: displayFindingDetail(finding),
+					title: valueAsDetail
+						? openGraphFindingTitle(finding)
+						: finding.title || finding.status || 'Finding',
+					detail: valueAsDetail ? openGraphFindingDetail(finding) : displayFindingDetail(finding),
 					href: displayHref(finding),
 					codeSnippet:
 						typeof finding.meta?.codeSnippet === 'string' ? finding.meta.codeSnippet : undefined
@@ -179,7 +190,8 @@
 	function groupedIssueSections(
 		prefix: string,
 		findings: AuditFindingView[],
-		cardTitle: string
+		cardTitle: string,
+		valueAsDetail = false
 	): RenderGroup[] {
 		const groupedFindings: Record<string, AuditFindingView[]> = {};
 		const order: string[] = [];
@@ -195,7 +207,7 @@
 
 		return order
 			.map((title) => {
-				const rows = groupedRows(`${prefix}-${title}`, groupedFindings[title] || []);
+				const rows = groupedRows(`${prefix}-${title}`, groupedFindings[title] || [], valueAsDetail);
 				const displayRows = rows.filter(
 					(row) =>
 						!(
@@ -257,7 +269,10 @@
 	const hiddenWarnCount = $derived.by(() =>
 		Math.max(findingsByStatus.warn.length - visibleWarnFindings.length, 0)
 	);
-	const warnGroups = $derived(groupedIssueSections('warn', visibleWarnFindings, item.label));
+	const shouldShowValueAsDetail = $derived(item.key === 'openGraph');
+	const warnGroups = $derived(
+		groupedIssueSections('warn', visibleWarnFindings, item.label, shouldShowValueAsDetail)
+	);
 	const visibleInfoFindings = $derived.by(() => {
 		if (selectedStatus === 'info' || showAllInfoFindings) {
 			return findingsByStatus.info;
@@ -269,7 +284,9 @@
 	const hiddenInfoCount = $derived.by(() =>
 		Math.max(findingsByStatus.info.length - visibleInfoFindings.length, 0)
 	);
-	const infoGroups = $derived(groupedIssueSections('info', visibleInfoFindings, item.label));
+	const infoGroups = $derived(
+		groupedIssueSections('info', visibleInfoFindings, item.label, shouldShowValueAsDetail)
+	);
 	const visiblePassFindings = $derived.by(() => {
 		if (selectedStatus === 'pass' || showPassedFindings) {
 			return findingsByStatus.pass;
@@ -281,7 +298,9 @@
 	const hiddenPassCount = $derived.by(() =>
 		Math.max(findingsByStatus.pass.length - visiblePassFindings.length, 0)
 	);
-	const passGroups = $derived(groupedIssueSections('pass', visiblePassFindings, item.label));
+	const passGroups = $derived(
+		groupedIssueSections('pass', visiblePassFindings, item.label, shouldShowValueAsDetail)
+	);
 	const hasVisibleFindings = $derived.by(
 		() =>
 			findingsByStatus.warn.length > 0 ||
