@@ -305,6 +305,31 @@ export async function getOrCreateWebsiteRecord(url: string, token?: string) {
 	}
 }
 
+export async function getOrCreateWebsiteForAudit(
+	input: { domain: string; display_name?: string },
+	token?: string
+) {
+	const pb = createAuthedClient(token);
+	const normalizedUrl = normalizeUrl(input.domain);
+	const domain = normalizedDomainFromUrl(normalizedUrl);
+	const displayName = input.display_name?.trim() || suggestedWebsiteDisplayName(domain);
+
+	try {
+		return await pb
+			.collection(WEBSITES_COLLECTION)
+			.getFirstListItem(`domain = "${escapeFilterValue(domain)}"`);
+	} catch (error) {
+		const response = (error as { response?: { status?: number } }).response;
+		if (response?.status && response.status !== 404) throw error;
+
+		return pb.collection(WEBSITES_COLLECTION).create({
+			url: normalizedUrl,
+			domain,
+			display_name: displayName
+		});
+	}
+}
+
 export async function updateWebsiteRecord(
 	websiteId: string,
 	input: { display_name?: string },

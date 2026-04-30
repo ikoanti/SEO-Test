@@ -2,6 +2,7 @@ import { fail, isRedirect, redirect } from '@sveltejs/kit';
 import {
 	createAuditRecord,
 	createWorkflowRecord,
+	getOrCreateWebsiteForAudit,
 	getOrCreateWebsiteRecord,
 	getWorkflowByAuditId,
 	listAudits,
@@ -26,6 +27,25 @@ function getWebsite(audit: Record<string, unknown>) {
 
 function auditSortTimestamp(audit: Record<string, unknown>) {
 	return String(audit.queued_at || audit.created_at || audit.updated_at || audit.id || '');
+}
+
+function parseCreateRows(data: FormData) {
+	const domains = data.getAll('domains').map((value) => String(value || '').trim());
+	const displayNames = data.getAll('displayNames').map((value) => String(value || '').trim());
+	const rows = domains
+		.map((domain, index) => ({ domain, displayName: displayNames[index] || '' }))
+		.filter((row) => row.domain);
+
+	if (rows.length) return rows;
+
+	return [...data.getAll('urls'), data.get('url')]
+		.flatMap((value) =>
+			String(value || '')
+				.split(',')
+				.map((url) => url.trim())
+		)
+		.filter(Boolean)
+		.map((domain) => ({ domain, displayName: '' }));
 }
 
 export const load = async ({ locals, url }) => {
@@ -111,19 +131,15 @@ export const actions = {
 	},
 	create: async ({ request, locals }) => {
 		const data = await request.formData();
-		const urls = [...data.getAll('urls'), data.get('url')]
-			.flatMap((value) =>
-				String(value || '')
-					.split(',')
-					.map((url) => url.trim())
-			)
-			.filter(Boolean);
-		const uniqueUrls = [...new Set(urls)];
+		const rows = parseCreateRows(data);
+		const uniqueRows = [
+			...new Map(rows.map((row) => [row.domain.toLowerCase(), row] as const)).values()
+		];
 
-		if (!uniqueUrls.length) {
+		if (!uniqueRows.length) {
 			return fail(400, {
-				createError: 'At least one audit URL is required.',
-				urls: uniqueUrls
+				createError: 'At least one website domain is required.',
+				rows: uniqueRows
 			});
 		}
 
@@ -131,8 +147,13 @@ export const actions = {
 			const createdBy = locals.user?.isSuperuser ? undefined : locals.user?.id;
 			const audits = [];
 
-			for (const url of uniqueUrls) {
-				const website = await getOrCreateWebsiteRecord(url, locals.pbToken);
+			for (const row of uniqueRows) {
+				const website = row.displayName
+					? await getOrCreateWebsiteForAudit(
+							{ domain: row.domain, display_name: row.displayName },
+							locals.pbToken
+						)
+					: await getOrCreateWebsiteRecord(row.domain, locals.pbToken);
 				const audit = await createAuditRecord(
 					{
 						website: website.id,
@@ -164,7 +185,7 @@ export const actions = {
 			if (isRedirect(error)) throw error;
 			return fail(400, {
 				createError: error instanceof Error ? error.message : 'Failed to create audit.',
-				urls: uniqueUrls
+				rows: uniqueRows
 			});
 		}
 	}

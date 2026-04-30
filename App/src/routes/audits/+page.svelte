@@ -24,6 +24,10 @@
 		};
 		audits: AuditListItem[];
 	};
+	type AuditCreateRow = {
+		displayName: string;
+		domain: string;
+	};
 
 	let {
 		data,
@@ -34,7 +38,7 @@
 	} = $props();
 	let refreshInterval: number | undefined;
 	let createSheetOpen = $state(false);
-	let auditUrls = $state<string[]>(['']);
+	let auditRows = $state<AuditCreateRow[]>([{ displayName: '', domain: '' }]);
 	let editingWebsiteId = $state<string | null>(null);
 	const pendingAuditStatuses = new Set(['queued', 'running']);
 
@@ -45,73 +49,90 @@
 	$effect(() => {
 		if (form?.createError) {
 			createSheetOpen = true;
-			auditUrls = Array.isArray(form.urls) && form.urls.length ? form.urls : [''];
+			auditRows =
+				Array.isArray(form.rows) && form.rows.length
+					? form.rows.map((row) => ({
+							displayName:
+								row && typeof row === 'object' && 'displayName' in row
+									? String(row.displayName || '')
+									: '',
+							domain:
+								row && typeof row === 'object' && 'domain' in row ? String(row.domain || '') : ''
+						}))
+					: [{ displayName: '', domain: '' }];
 		}
 	});
 
 	function openCreateSheet() {
 		createSheetOpen = true;
-		if (!auditUrls.length) auditUrls = [''];
+		if (!auditRows.length) auditRows = [{ displayName: '', domain: '' }];
 	}
 
 	function closeCreateSheet() {
 		createSheetOpen = false;
 	}
 
-	function splitUrls(value: string) {
+	function splitDomains(value: string) {
 		return value
 			.split(',')
-			.map((url) => url.trim())
+			.map((domain) => domain.trim())
 			.filter(Boolean);
 	}
 
-	function auditUrlCount() {
-		return auditUrls.filter((url) => url.trim()).length;
+	function auditRowCount() {
+		return auditRows.filter((row) => row.domain.trim()).length;
 	}
 
-	function focusAuditUrl(index: number) {
+	function focusAuditDomain(index: number) {
 		void tick().then(() => {
-			const input = document.querySelector<HTMLInputElement>(`[data-audit-url-index="${index}"]`);
+			const input = document.querySelector<HTMLInputElement>(
+				`[data-audit-domain-index="${index}"]`
+			);
 			input?.focus();
 		});
 	}
 
-	function updateAuditUrl(index: number, value: string) {
+	function updateAuditRow(index: number, field: keyof AuditCreateRow, value: string) {
 		if (value.includes(',')) {
-			const urls = splitUrls(value);
-			if (!urls.length) return;
+			const domains = splitDomains(value);
+			if (!domains.length) return;
 
-			const next = [...auditUrls];
-			next.splice(index, 1, ...urls, '');
-			auditUrls = next;
-			focusAuditUrl(index + urls.length);
+			const next = [...auditRows];
+			next.splice(index, 1, ...domains.map((domain) => ({ displayName: '', domain })), {
+				displayName: '',
+				domain: ''
+			});
+			auditRows = next;
+			focusAuditDomain(index + domains.length);
 			return;
 		}
 
-		auditUrls = auditUrls.map((url, itemIndex) => (itemIndex === index ? value : url));
+		auditRows = auditRows.map((row, itemIndex) =>
+			itemIndex === index ? { ...row, [field]: value } : row
+		);
 	}
 
-	function handleAuditUrlInput(index: number, event: Event) {
+	function handleAuditRowInput(index: number, field: keyof AuditCreateRow, event: Event) {
 		const input = event.currentTarget as HTMLInputElement;
-		updateAuditUrl(index, input.value);
+		updateAuditRow(index, field, input.value);
 	}
 
-	function handleAuditUrlKeydown(index: number, event: KeyboardEvent) {
+	function handleAuditDomainKeydown(index: number, event: KeyboardEvent) {
 		if (event.key !== 'Enter') return;
 
 		event.preventDefault();
 		const value = (event.currentTarget as HTMLInputElement).value.trim();
 		if (!value) return;
 
-		const next = [...auditUrls];
-		next.splice(index + 1, 0, '');
-		auditUrls = next;
-		focusAuditUrl(index + 1);
+		const next = [...auditRows];
+		next.splice(index + 1, 0, { displayName: '', domain: '' });
+		auditRows = next;
+		focusAuditDomain(index + 1);
 	}
 
-	function removeAuditUrl(index: number) {
-		auditUrls = auditUrls.filter((_, itemIndex) => itemIndex !== index);
-		if (!auditUrls.length) auditUrls = [''];
+	function removeAuditRow(index: number) {
+		auditRows = auditRows.filter((_, itemIndex) => itemIndex !== index);
+		if (!auditRows.length) auditRows = [{ displayName: '', domain: '' }];
 	}
 
 	function auditStatus(audit: AuditListItem) {
@@ -324,7 +345,7 @@
 		<div class="sheet-header">
 			<div>
 				<h2>Create audits</h2>
-				<p class="muted">Paste comma-separated URLs or press Enter to add another website.</p>
+				<p class="muted">Add one or more websites. Existing domains will get another audit.</p>
 			</div>
 			<button
 				type="button"
@@ -338,25 +359,33 @@
 
 		<form method="POST" action="?/create" class="sheet-form">
 			<div class="audit-url-fields">
-				{#each auditUrls as url, index (index)}
+				{#each auditRows as row, index (index)}
 					<div class="audit-url-field">
 						<input
-							name="urls"
+							name="displayNames"
+							type="text"
+							value={row.displayName}
+							placeholder={index === 0 ? 'MacabiSkirt.com' : 'Display name'}
+							aria-label={`Website display name ${index + 1}`}
+							oninput={(event) => handleAuditRowInput(index, 'displayName', event)}
+						/>
+						<input
+							name="domains"
 							type="text"
 							inputmode="url"
-							value={url}
-							placeholder={index === 0 ? 'example.com' : 'another-site.com'}
-							aria-label={`Audit URL ${index + 1}`}
-							data-audit-url-index={index}
-							oninput={(event) => handleAuditUrlInput(index, event)}
-							onkeydown={(event) => handleAuditUrlKeydown(index, event)}
+							value={row.domain}
+							placeholder={index === 0 ? 'macabiskirt.com' : 'domain.com'}
+							aria-label={`Website domain ${index + 1}`}
+							data-audit-domain-index={index}
+							oninput={(event) => handleAuditRowInput(index, 'domain', event)}
+							onkeydown={(event) => handleAuditDomainKeydown(index, event)}
 						/>
 						<button
 							type="button"
 							class="field-remove"
-							aria-label={`Remove URL field ${index + 1}`}
-							disabled={auditUrls.length === 1 && !url.trim()}
-							onclick={() => removeAuditUrl(index)}
+							aria-label={`Remove website row ${index + 1}`}
+							disabled={auditRows.length === 1 && !row.domain.trim() && !row.displayName.trim()}
+							onclick={() => removeAuditRow(index)}
 						>
 							<X size={16} />
 						</button>
@@ -370,9 +399,9 @@
 
 			<div class="sheet-actions">
 				<button type="button" class="ghost-button" onclick={closeCreateSheet}>Cancel</button>
-				<button type="submit" class="icon-button" disabled={auditUrlCount() === 0}>
+				<button type="submit" class="icon-button" disabled={auditRowCount() === 0}>
 					<Plus size={18} />
-					<span>Run {auditUrlCount() > 1 ? `${auditUrlCount()} audits` : 'audit'}</span>
+					<span>Run {auditRowCount() > 1 ? `${auditRowCount()} audits` : 'audit'}</span>
 				</button>
 			</div>
 		</form>
@@ -676,7 +705,7 @@
 
 	.audit-url-field {
 		display: grid;
-		grid-template-columns: 1fr auto;
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
 		gap: 10px;
 		align-items: center;
 	}
@@ -741,6 +770,14 @@
 			width: calc(100% - 24px);
 			padding: 22px;
 			border-radius: 22px;
+		}
+
+		.audit-url-field {
+			grid-template-columns: 1fr auto;
+		}
+
+		.audit-url-field input:first-child {
+			grid-column: 1 / -1;
 		}
 
 		.sheet-actions {
