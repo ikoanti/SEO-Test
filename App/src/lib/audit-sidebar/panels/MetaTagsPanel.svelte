@@ -68,12 +68,13 @@
 
 {#snippet metaItem(entry: MetaGroup)}
 	{@const evidence = entry.value || entry.issue || 'Issue detected'}
+	{@const showIssueDetail = entry.value && entry.issue && entry.issue !== 'Meta title too long'}
 	<article class="card">
 		<div class="card-head">
 			<div class="badge"><X size={14} strokeWidth={3} aria-hidden="true" /></div>
 			<p class="card-title">{evidence}</p>
 		</div>
-		{#if entry.value && entry.issue}
+		{#if showIssueDetail}
 			<div class="meta">
 				<div>
 					<p class="meta-label">Issue</p>
