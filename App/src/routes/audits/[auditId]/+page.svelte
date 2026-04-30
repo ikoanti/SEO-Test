@@ -1112,12 +1112,27 @@
 	}
 
 	.audit-section-nav a {
-		display: block;
-		padding: 0.35rem 0;
+		display: flex;
+		align-items: center;
+		width: 100%;
+		min-height: 2.75rem;
+		box-sizing: border-box;
+		padding: 0.5rem 0.75rem;
 		border-left: 2px solid transparent;
-		padding-left: 0.75rem;
+		border-radius: 0 8px 8px 0;
 		color: var(--text-muted);
 		line-height: 1.25;
+	}
+
+	.audit-section-nav a:hover,
+	.audit-section-nav a:focus-visible {
+		background: rgba(255, 255, 255, 0.05);
+		color: var(--text-primary);
+	}
+
+	.audit-section-nav a:focus-visible {
+		outline: 2px solid var(--goldenweb-primary);
+		outline-offset: 2px;
 	}
 
 	.audit-section-nav a.active {
@@ -1309,9 +1324,11 @@
 
 		.audit-section-nav a {
 			flex: 0 0 auto;
+			width: auto;
 			border-left: 0;
 			border-bottom: 2px solid transparent;
 			padding: 0.65rem 0.75rem;
+			border-radius: 8px 8px 0 0;
 			white-space: nowrap;
 		}
 
