@@ -251,6 +251,28 @@
 		return '';
 	}
 
+	function auditSectionScreenshotEntries(sectionKey: string) {
+		const section = auditSection(sectionKey);
+		const items = Array.isArray(section.items) ? section.items : [];
+		return items.flatMap((item) => {
+			const meta = parseMeta(parseMeta(item).meta);
+			const request = parseMeta(meta.screenshotRequest);
+			return Array.isArray(request.entries) ? request.entries : [];
+		});
+	}
+
+	function metaEvidenceValues() {
+		const values = new Map<string, string>();
+		for (const entry of auditSectionScreenshotEntries('metaTitles')) {
+			const record = parseMeta(entry);
+			const page = typeof record.page === 'string' ? record.page.trim() : '';
+			const issue = typeof record.issue === 'string' ? record.issue.trim() : '';
+			const value = typeof record.value === 'string' ? record.value.trim() : '';
+			if (page && issue && value) values.set(`${issue}::${page}`, value);
+		}
+		return values;
+	}
+
 	function currentDomain() {
 		if (typeof pageData.summary?.domain === 'string' && pageData.summary.domain.trim()) {
 			return pageData.summary.domain;
@@ -452,14 +474,16 @@
 
 		addListPreview('metaTitles', 'meta-tags', (item) => {
 			const findings = issueFindings(item);
+			const evidenceValues = metaEvidenceValues();
 			const entries = findings
 				.map((finding) => {
 					const page = pageUrlFromFinding(finding);
 					if (!page) return null;
-					const value = entryValue(finding);
+					const issue = issueText(finding, item);
+					const value = entryValue(finding) || evidenceValues.get(`${issue}::${page}`) || '';
 					return value
-						? { page, issue: issueText(finding, item), value }
-						: { page, issue: issueText(finding, item) };
+						? { page, issue, value }
+						: { page, issue };
 				})
 				.filter((entry): entry is { page: string; issue: string; value?: string } =>
 					Boolean(entry)

@@ -218,30 +218,34 @@ export async function analyzeMetaAndHeadings(
 				}
 				addItem(summary, metaTitles, 'warn', 'Missing meta title', { title: page });
 			} else if (title.length > 60) {
+				const value = `${title.length} chars: ${title}`;
 				if (metaTitleEvidence.length < maxEvidenceItems) {
 					metaTitleEvidence.push({
 						page,
 						issue: 'Meta title too long',
-						value: `${title.length} chars: ${title}`
+						value
 					});
 				}
 				addItem(summary, metaTitles, 'warn', 'Meta title too long', {
-					title: `${page} (${title.length} chars)`
+					title: `${page} (${title.length} chars)`,
+					value
 				});
 			} else {
 				addItem(summary, metaTitles, 'pass', 'Meta title looks good', { title });
 			}
 
 			if (metaDescription.length > 160) {
+				const value = `${metaDescription.length} chars: ${metaDescription}`;
 				if (longDescriptionEvidence.length < maxEvidenceItems) {
 					longDescriptionEvidence.push({
 						page,
 						issue: 'Meta description too long',
-						value: `${metaDescription.length} chars: ${metaDescription}`
+						value
 					});
 				}
 				addItem(summary, metaTitles, 'warn', 'Meta description too long', {
-					title: `${page} (${metaDescription.length} chars)`
+					title: `${page} (${metaDescription.length} chars)`,
+					value
 				});
 			}
 
