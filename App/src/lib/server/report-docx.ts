@@ -272,13 +272,10 @@ function reportProblems(pageData: ReportDocxPageData, templates: AuditReportTemp
 }
 
 function documentFilename(pageData: ReportPageData) {
-	const raw = pageData.runRecord.url || pageData.summary?.domain || 'audit';
-	try {
-		const hostname = new URL(raw.startsWith('http') ? raw : `https://${raw}`).hostname;
-		return `Mini-SEO-Audit-${hostname}.docx`;
-	} catch {
-		return 'Mini-SEO-Audit-audit.docx';
-	}
+	const name = domainName(pageData)
+		.replace(/[^a-z0-9._-]+/gi, '-')
+		.replace(/^-+|-+$/g, '');
+	return `Mini-SEO-Audit-${name || 'audit'}.docx`;
 }
 
 export async function generateTemplateReportDocx(
