@@ -709,7 +709,14 @@
 		height: 40px;
 		border: 1px solid var(--border-color);
 		border-radius: 999px;
-		color: var(--text-muted);
+		color: var(--text-primary);
+	}
+
+	.sheet-close :global(svg),
+	.field-remove :global(svg) {
+		display: block;
+		color: currentColor;
+		stroke-width: 2.5;
 	}
 
 	.sheet-form {
@@ -741,11 +748,12 @@
 		height: 44px;
 		border: 1px solid var(--border-color);
 		border-radius: 999px;
-		color: var(--text-muted);
+		color: var(--text-primary);
 	}
 
 	.field-remove:disabled {
 		cursor: not-allowed;
+		color: var(--text-muted);
 		opacity: 0.35;
 	}
 
