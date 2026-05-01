@@ -51,6 +51,10 @@ const REPORT_DOCX_STYLE = {
 		heightPx: 59,
 		offsetXEmu: 4171950,
 		offsetYEmu: -133349
+	},
+	resultsImage: {
+		widthPx: 600,
+		fallbackHeightPx: 207
 	}
 } as const;
 const PRIORITY_STYLE: Record<ReportPriority, Pick<IRunOptions, 'color' | 'shading'>> = {
@@ -255,6 +259,41 @@ function pngDimensions(body: ArrayBuffer) {
 	};
 }
 
+function jpgDimensions(body: ArrayBuffer) {
+	const view = new DataView(body);
+	if (body.byteLength < 4 || view.getUint8(0) !== 0xff || view.getUint8(1) !== 0xd8) return null;
+
+	let offset = 2;
+	while (offset + 9 < body.byteLength) {
+		if (view.getUint8(offset) !== 0xff) return null;
+
+		const marker = view.getUint8(offset + 1);
+		const blockLength = view.getUint16(offset + 2);
+		if (blockLength < 2) return null;
+
+		const isStartOfFrame =
+			(marker >= 0xc0 && marker <= 0xc3) ||
+			(marker >= 0xc5 && marker <= 0xc7) ||
+			(marker >= 0xc9 && marker <= 0xcb) ||
+			(marker >= 0xcd && marker <= 0xcf);
+
+		if (isStartOfFrame) {
+			return {
+				height: view.getUint16(offset + 5),
+				width: view.getUint16(offset + 7)
+			};
+		}
+
+		offset += 2 + blockLength;
+	}
+
+	return null;
+}
+
+function imageDimensions(body: ArrayBuffer) {
+	return pngDimensions(body) || jpgDimensions(body);
+}
+
 function imageType(contentType: string, filename: string): 'png' | 'jpg' | 'gif' | 'bmp' {
 	const value = `${contentType} ${filename}`.toLowerCase();
 	if (value.includes('jpeg') || value.includes('.jpg') || value.includes('.jpeg')) return 'jpg';
@@ -263,12 +302,41 @@ function imageType(contentType: string, filename: string): 'png' | 'jpg' | 'gif'
 	return 'png';
 }
 
+async function resultsImageParagraph() {
+	const image = await readFile(resolve(process.cwd(), 'src/lib/assets/goldenweb-results.jpg'));
+	const imageBody = image.buffer.slice(
+		image.byteOffset,
+		image.byteOffset + image.byteLength
+	) as ArrayBuffer;
+
+	const dimensions = imageDimensions(imageBody) || {
+		width: REPORT_DOCX_STYLE.resultsImage.widthPx,
+		height: REPORT_DOCX_STYLE.resultsImage.fallbackHeightPx
+	};
+	const width = Math.min(REPORT_DOCX_STYLE.resultsImage.widthPx, dimensions.width);
+	const height = Math.round((dimensions.height / dimensions.width) * width);
+
+	return new Paragraph({
+		alignment: AlignmentType.CENTER,
+		children: [
+			new ImageRun({
+				type: 'jpg',
+				data: image,
+				transformation: {
+					width,
+					height
+				}
+			})
+		]
+	});
+}
+
 async function screenshotParagraph(auditId: string, problem: ReportProblemPreview, token?: string) {
 	if (!problem.screenshot?.id) return null;
 
 	try {
 		const file = await getAuditScreenshotFile(auditId, problem.screenshot.id, token);
-		const dimensions = pngDimensions(file.body) || {
+		const dimensions = imageDimensions(file.body) || {
 			width: REPORT_DOCX_STYLE.layout.contentWidthPx,
 			height: 360
 		};
@@ -329,6 +397,7 @@ export async function generateTemplateReportDocx(
 	const documentTitle = `${reportDisplayDomain(pageData)} - Mini Technical SEO Audit`;
 	const problems = reportProblems(pageData, templates, priorityOverrides);
 	const header = await reportHeader();
+	const resultsImage = await resultsImageParagraph();
 	const children: Paragraph[] = [
 		titleParagraph('Mini Technical SEO Audit'),
 		subtitleParagraph(domain),
@@ -414,6 +483,7 @@ export async function generateTemplateReportDocx(
 			'An example of this would be one of the recent case studies that we just published, where weekly organic traffic jumped from 200,000 to 315,000 in 45 days, by simply changing a few settings and bits of code.'
 		),
 		emptyLine(),
+		...(resultsImage ? [resultsImage, emptyLine()] : []),
 		paragraph('(Results typically kick in 30-45 days after Google indexes the applied changes).'),
 		emptyLine(),
 		paragraph(
