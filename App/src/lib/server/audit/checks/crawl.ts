@@ -3,13 +3,14 @@ import { extractInternalLinks, fetchRobotsPolicy, fetchText, loadDocument } from
 
 export async function gatherPages(urlObj: URL, logger: AuditLogger) {
 	const robotsPolicy = await fetchRobotsPolicy(urlObj.origin, logger);
+	const maxDiscoveredPages = 200;
 	const queue = [urlObj.href];
 	const seen = new Set([urlObj.href, urlObj.href.replace(/\/$/, '')]);
 	const links = [];
 	let homepageHtml = null;
 	let fetched = 0;
 
-	while (queue.length > 0 && links.length < 50) {
+	while (queue.length > 0 && links.length < maxDiscoveredPages) {
 		const currentUrl = queue.shift();
 		if (!currentUrl) continue;
 		const isSubmittedUrl =
@@ -34,10 +35,15 @@ export async function gatherPages(urlObj: URL, logger: AuditLogger) {
 				seen.add(normalized);
 				links.push(link);
 				queue.push(link);
-				if (links.length >= 50) break;
+				if (links.length >= maxDiscoveredPages) break;
 			}
 
-			if (fetched === 1 || fetched % 5 === 0 || links.length >= 50 || queue.length === 0) {
+			if (
+				fetched === 1 ||
+				fetched % 20 === 0 ||
+				links.length >= maxDiscoveredPages ||
+				queue.length === 0
+			) {
 				logger.info(
 					`crawl: fetched ${fetched} page(s), discovered ${links.length}, queue ${queue.length}`
 				);
