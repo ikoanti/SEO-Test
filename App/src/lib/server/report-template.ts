@@ -57,7 +57,7 @@ export type ReportProblemPreview = {
 	sourceLabel: string;
 	sortOrder: number;
 	status: 'pass' | 'warn' | 'info';
-	priority: 'Urgent' | 'High' | 'Medium';
+	priority: 'Urgent' | 'High' | 'Medium' | 'Low';
 	paragraphs: string[];
 	screenshot?: AuditItem['screenshot'];
 	findings: Finding[];
@@ -223,7 +223,8 @@ function statusFromFindings(
 const PRIORITY_RANK: Record<ReportProblemPreview['priority'], number> = {
 	Urgent: 0,
 	High: 1,
-	Medium: 2
+	Medium: 2,
+	Low: 3
 };
 
 function priorityRank(priority: ReportProblemPreview['priority']) {

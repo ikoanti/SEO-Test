@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
 import type { ReportPriority, ReportPriorityOverrides } from '$lib/server/report-docx';
 
-const REPORT_PRIORITIES = new Set<ReportPriority>(['Urgent', 'High', 'Medium']);
+const REPORT_PRIORITIES = new Set<ReportPriority>(['Urgent', 'High', 'Medium', 'Low']);
 
 export function selectedTemplateKeys(values: Iterable<string>, availableKeys: Set<string>) {
 	return [

@@ -631,7 +631,7 @@ export type AuditReportTemplateRecord = {
 	key: string;
 	audit_finding_type?: string;
 	title: string;
-	priority: 'Urgent' | 'High' | 'Medium';
+	priority: 'Urgent' | 'High' | 'Medium' | 'Low';
 	match_pattern?: string;
 	template_body: string;
 	sort_order: number;
