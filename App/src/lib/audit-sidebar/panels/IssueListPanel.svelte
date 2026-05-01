@@ -1,7 +1,8 @@
 <script lang="ts">
 	import type { AuditEntry, BasePanelData } from '../types';
 	import AuditPanel from '../AuditPanel.svelte';
-	import IssueList, { type IssueListField } from '../IssueList.svelte';
+	import type { IssueListField } from '../IssueList.svelte';
+	import TextIssueListPanelBody from './TextIssueListPanelBody.svelte';
 
 	let {
 		panel,
@@ -24,7 +25,7 @@
 {/snippet}
 
 {#snippet content()}
-	<IssueList {entries} {fields} />
+	<TextIssueListPanelBody {entries} {fields} />
 {/snippet}
 
 <AuditPanel title={panel?.title} {highlight} {content} />
