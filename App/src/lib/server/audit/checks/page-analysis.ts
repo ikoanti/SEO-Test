@@ -562,6 +562,21 @@ export async function analyzeMetaAndHeadings(
 		);
 	}
 
+	if (productSchemaEvidence.length > 0) {
+		const issueCount = productSchema.items.filter((item) => item.status === 'warn').length;
+		attachScreenshotRequest(
+			productSchema.items.find((item) => item.status === 'warn'),
+			{
+				kind: 'missing-product-schema',
+				reportTemplateKey: 'missing-product-schema',
+				title: 'Missing product schema',
+				domain,
+				entries: productSchemaEvidence,
+				count: issueCount
+			}
+		);
+	}
+
 	if (faqSchemaEvidence.length > 0) {
 		const issueCount = faqSchema.items.filter((item) => item.status === 'warn').length;
 		attachScreenshotRequest(
@@ -580,7 +595,7 @@ export async function analyzeMetaAndHeadings(
 	return {
 		'missing-h1-tags': missingH1Tags,
 		'multiple-h1-tags': multipleH1Tags,
-		productSchema,
+		'missing-product-schema': productSchema,
 		faqSchema,
 		'meta-titles-too-long-unoptimized': metaTitleIssues,
 		'duplicated-page-titles': duplicatePageTitles,
