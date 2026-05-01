@@ -79,6 +79,87 @@ function homepageLinks($: CheerioAPI, selector: string, baseUrl: string, origin:
 	return [...links];
 }
 
+function textMatchesAny(value: string, patterns: RegExp[]) {
+	return patterns.some((pattern) => pattern.test(value));
+}
+
+function hasInternalPathMatch(links: string[], patterns: RegExp[]) {
+	return links.some((link) => {
+		try {
+			const url = new URL(link);
+			const path = `${url.pathname} ${url.pathname.replace(/[-_]/g, ' ')}`;
+			return textMatchesAny(path, patterns);
+		} catch {
+			return false;
+		}
+	});
+}
+
+function detectTrustSignals(bodyText: string, links: string[]) {
+	const normalizedText = bodyText.replace(/\s+/g, ' ');
+	return [
+		{
+			label: 'Contact information',
+			detected:
+				textMatchesAny(normalizedText, [
+					/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i,
+					/\b(?:\+?1[-.\s]?)?(?:\(?\d{3}\)?[-.\s]?)\d{3}[-.\s]?\d{4}\b/,
+					/\bcontact\s+us\b/i
+				]) || hasInternalPathMatch(links, [/\/contact(?:-us)?(?:\/|$)/i])
+		},
+		{
+			label: 'About page',
+			detected:
+				textMatchesAny(normalizedText, [/\babout\s+us\b/i]) ||
+				hasInternalPathMatch(links, [/\/about(?:-us)?(?:\/|$)/i])
+		},
+		{
+			label: 'Privacy policy',
+			detected:
+				textMatchesAny(normalizedText, [/\bprivacy\s+policy\b/i]) ||
+				hasInternalPathMatch(links, [/\/privacy(?:-policy)?(?:\/|$)/i])
+		},
+		{
+			label: 'Terms policy',
+			detected:
+				textMatchesAny(normalizedText, [/\bterms(?:\s+(?:of\s+service|and\s+conditions))?\b/i]) ||
+				hasInternalPathMatch(links, [/\/terms(?:-of-service|-and-conditions)?(?:\/|$)/i])
+		},
+		{
+			label: 'Return/refund policy',
+			detected:
+				textMatchesAny(normalizedText, [
+					/\breturns?\b/i,
+					/\brefunds?\b/i,
+					/\breturn\s+policy\b/i,
+					/\brefund\s+policy\b/i
+				]) || hasInternalPathMatch(links, [/\/(?:returns?|refunds?)(?:-policy)?(?:\/|$)/i])
+		},
+		{
+			label: 'Shipping policy',
+			detected:
+				textMatchesAny(normalizedText, [/\bshipping\b/i]) ||
+				hasInternalPathMatch(links, [/\/shipping(?:-policy)?(?:\/|$)/i])
+		},
+		{
+			label: 'Customer proof',
+			detected: textMatchesAny(normalizedText, [
+				/\breviews?\b/i,
+				/\btestimonials?\b/i,
+				/\bverified\s+(?:reviews?|customers?)\b/i
+			])
+		},
+		{
+			label: 'Security/guarantee',
+			detected: textMatchesAny(normalizedText, [
+				/\bsecure\s+(?:checkout|payment|payments)\b/i,
+				/\bmoney[-\s]?back\s+guarantee\b/i,
+				/\bsatisfaction\s+guarantee\b/i
+			])
+		}
+	];
+}
+
 export async function analyzeHomePage(
 	urlObj: URL,
 	$: CheerioAPI,
@@ -234,16 +315,15 @@ export async function analyzeHomePage(
 		{ title: urlObj.hostname }
 	);
 
-	const trustSignalsMatches = ['refund', 'returns', 'privacy', 'terms', 'shipping'].filter((term) =>
-		new RegExp(term, 'i').test(bodyText)
-	);
-	addItem(
-		summary,
-		trustSignals,
-		trustSignalsMatches.length >= 3 ? 'pass' : 'warn',
-		trustSignalsMatches.length >= 3 ? 'Trust signals detected' : 'Limited trust signals detected',
-		{ title: trustSignalsMatches.join(', ') || 'None' }
-	);
+	for (const signal of detectTrustSignals(bodyText, allHomepageLinks)) {
+		addItem(
+			summary,
+			trustSignals,
+			signal.detected ? 'pass' : 'warn',
+			signal.detected ? `${signal.label} detected` : `${signal.label} missing`,
+			{ title: signal.label, page_url: urlObj.href }
+		);
+	}
 
 	const images = $('img').toArray();
 	const resolveImageUrl = (element: AnyNode) => {
