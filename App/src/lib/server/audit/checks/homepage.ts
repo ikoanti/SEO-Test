@@ -148,6 +148,17 @@ function detectTrustSignals(bodyText: string, links: string[]) {
 	];
 }
 
+function declaredCharacterEncoding($: CheerioAPI) {
+	const metaCharset = $('meta[charset]').first().attr('charset')?.trim();
+	if (metaCharset) return metaCharset;
+
+	const contentType = $('meta[http-equiv]')
+		.toArray()
+		.find((element) => /^content-type$/i.test($(element).attr('http-equiv') || ''));
+	const content = contentType ? $(contentType).attr('content') || '' : '';
+	return content.match(/charset\s*=\s*([^;\s]+)/i)?.[1]?.trim() || '';
+}
+
 export async function analyzeHomePage(
 	urlObj: URL,
 	$: CheerioAPI,
@@ -254,12 +265,12 @@ export async function analyzeHomePage(
 		$('object, embed').length > 0 ? 'Legacy Flash-like embeds found' : 'No Flash embeds found'
 	);
 
-	const charset = $('meta[charset]').attr('charset');
+	const charset = declaredCharacterEncoding($);
 	addItem(
 		summary,
 		charsetResult,
 		charset ? 'pass' : 'warn',
-		charset ? 'Charset Declared' : 'Charset Missing',
+		charset ? `Character Encoding Declared (${charset})` : 'Character Encoding Missing',
 		{
 			title: charset || ''
 		}
