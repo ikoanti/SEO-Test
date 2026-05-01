@@ -174,7 +174,6 @@ export async function analyzeHomePage(
 	const flash = createListResult();
 	const charsetResult = createListResult();
 	const openGraph = createListResult();
-	const internationalDomains = createListResult();
 	const trustSignals = createListResult();
 	const lazyLoadImages = createListResult();
 	const unlinkedBlog = createListResult();
@@ -296,16 +295,6 @@ export async function analyzeHomePage(
 		);
 	}
 
-	addItem(
-		summary,
-		internationalDomains,
-		/\.[a-z]{2}$/i.test(urlObj.hostname) ? 'pass' : 'warn',
-		/\.[a-z]{2}$/i.test(urlObj.hostname)
-			? 'Country-code domain detected'
-			: 'Generic domain detected',
-		{ title: urlObj.hostname }
-	);
-
 	for (const signal of detectTrustSignals(bodyText, allHomepageLinks)) {
 		addItem(
 			summary,
@@ -422,7 +411,6 @@ export async function analyzeHomePage(
 		flash,
 		charset: charsetResult,
 		openGraph,
-		internationalDomains,
 		trustSignals,
 		lazyLoadImages,
 		unlinkedBlog

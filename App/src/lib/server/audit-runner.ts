@@ -1049,7 +1049,6 @@ const STEP_KEYS: Record<string, string[]> = {
 		'flash',
 		'charset',
 		'openGraph',
-		'internationalDomains',
 		'trustSignals',
 		'lazyLoadImages',
 		'unlinked-blog'

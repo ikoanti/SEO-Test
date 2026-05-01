@@ -74,7 +74,6 @@ export const SECTION_LABELS: Array<[string, string]> = [
 	['loremIpsum', 'Lorem Ipsum'],
 	['openGraph', 'Open Graph'],
 	['shopifyUrls', 'Shopify URLs'],
-	['internationalDomains', 'International Domains'],
 	['trailingSlash', 'Trailing Slash'],
 	['wwwResolve', 'WWW Resolve'],
 	['trustSignals', 'Trust Signals'],
