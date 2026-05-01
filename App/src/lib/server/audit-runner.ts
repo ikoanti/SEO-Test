@@ -303,6 +303,7 @@ function screenshotJobKey(
 }
 
 function screenshotActiveTab(request: AuditCaptureRequest) {
+	if (request.reportTemplateKey) return request.reportTemplateKey;
 	if (request.kind === 'robots') return 'ai-bot-visibility';
 	return request.kind;
 }
@@ -1322,6 +1323,7 @@ function collectScreenshotJobs(
 	for (const job of jobs) {
 		job.request = {
 			...job.request,
+			activeTab: screenshotActiveTab(job.request),
 			sidebarTabs
 		};
 	}

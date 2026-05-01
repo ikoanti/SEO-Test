@@ -4,6 +4,7 @@ import type { AuditSidebarData } from '$lib/audit-sidebar';
 
 type AuditCaptureRequestBase = {
 	reportTemplateKey?: string;
+	activeTab?: string;
 	title?: string;
 	description?: string;
 	capturePageUrl?: string;
@@ -120,13 +121,14 @@ export async function capturePageSpeedEvidence(
 	description = '',
 	capturePageUrl?: string,
 	fallbackPageUrls: string[] = [],
-	sidebarTabs?: AuditSidebarData['tabs']
+	sidebarTabs?: AuditSidebarData['tabs'],
+	activeTab = 'pagespeed'
 ) {
 	return captureAuditSidebarScreenshot({
 		pageUrl: capturePageUrl || pageUrl,
 		fallbackPageUrls,
 		sidebarData: buildSidebarData(
-			'pagespeed',
+			activeTab,
 			{
 				kind: 'pagespeed',
 				title,
@@ -147,14 +149,15 @@ export async function captureHeadingEvidence(
 	description = '',
 	capturePageUrl?: string,
 	fallbackPageUrls: string[] = [],
-	sidebarTabs?: AuditSidebarData['tabs']
+	sidebarTabs?: AuditSidebarData['tabs'],
+	activeTab = 'headings'
 ) {
 	if (!entries.length) return null;
 	return captureAuditSidebarScreenshot({
 		pageUrl: screenshotPageUrl(entries, capturePageUrl),
 		fallbackPageUrls,
 		sidebarData: buildSidebarData(
-			'headings',
+			activeTab,
 			{
 				kind: 'headings',
 				title,
@@ -176,14 +179,15 @@ export async function captureImageAltEvidence(
 	description = '',
 	capturePageUrl?: string,
 	fallbackPageUrls: string[] = [],
-	sidebarTabs?: AuditSidebarData['tabs']
+	sidebarTabs?: AuditSidebarData['tabs'],
+	activeTab = 'image-alts'
 ) {
 	if (!entries.length) return null;
 	return captureAuditSidebarScreenshot({
 		pageUrl: screenshotPageUrl(entries, capturePageUrl),
 		fallbackPageUrls,
 		sidebarData: buildSidebarData(
-			'image-alts',
+			activeTab,
 			{
 				kind: 'image-alts',
 				title,
@@ -205,7 +209,8 @@ export async function captureMetaEvidence(
 	description = '',
 	capturePageUrl?: string,
 	fallbackPageUrls: string[] = [],
-	sidebarTabs?: AuditSidebarData['tabs']
+	sidebarTabs?: AuditSidebarData['tabs'],
+	activeTab = 'meta-tags'
 ) {
 	if (!entries.length) return null;
 	const pageUrl = screenshotPageUrl(entries, capturePageUrl);
@@ -213,7 +218,7 @@ export async function captureMetaEvidence(
 		pageUrl,
 		fallbackPageUrls,
 		sidebarData: buildSidebarData(
-			'meta-tags',
+			activeTab,
 			{
 				kind: 'meta-tags',
 				title,
@@ -236,14 +241,15 @@ export async function captureCanonicalEvidence(
 	description = '',
 	capturePageUrl?: string,
 	fallbackPageUrls: string[] = [],
-	sidebarTabs?: AuditSidebarData['tabs']
+	sidebarTabs?: AuditSidebarData['tabs'],
+	activeTab = 'canonicals'
 ) {
 	if (!entries.length) return null;
 	return captureAuditSidebarScreenshot({
 		pageUrl: screenshotPageUrl(entries, capturePageUrl),
 		fallbackPageUrls,
 		sidebarData: buildSidebarData(
-			'canonicals',
+			activeTab,
 			{
 				kind: 'canonicals',
 				title,
@@ -265,14 +271,15 @@ export async function captureInternalLinksEvidence(
 	description = '',
 	capturePageUrl?: string,
 	fallbackPageUrls: string[] = [],
-	sidebarTabs?: AuditSidebarData['tabs']
+	sidebarTabs?: AuditSidebarData['tabs'],
+	activeTab = 'internal-links'
 ) {
 	if (!entries.length) return null;
 	return captureAuditSidebarScreenshot({
 		pageUrl: screenshotPageUrl(entries, capturePageUrl),
 		fallbackPageUrls,
 		sidebarData: buildSidebarData(
-			'internal-links',
+			activeTab,
 			{
 				kind: 'internal-links',
 				title,
@@ -294,14 +301,15 @@ export async function captureLazyLoadingEvidence(
 	description = '',
 	capturePageUrl?: string,
 	fallbackPageUrls: string[] = [],
-	sidebarTabs?: AuditSidebarData['tabs']
+	sidebarTabs?: AuditSidebarData['tabs'],
+	activeTab = 'lazy-loading'
 ) {
 	if (!entries.length) return null;
 	return captureAuditSidebarScreenshot({
 		pageUrl: screenshotPageUrl(entries, capturePageUrl),
 		fallbackPageUrls,
 		sidebarData: buildSidebarData(
-			'lazy-loading',
+			activeTab,
 			{
 				kind: 'lazy-loading',
 				title,
@@ -323,14 +331,15 @@ export async function captureOpenGraphEvidence(
 	description = '',
 	capturePageUrl?: string,
 	fallbackPageUrls: string[] = [],
-	sidebarTabs?: AuditSidebarData['tabs']
+	sidebarTabs?: AuditSidebarData['tabs'],
+	activeTab = 'open-graph'
 ) {
 	if (!entries.length) return null;
 	return captureAuditSidebarScreenshot({
 		pageUrl: screenshotPageUrl(entries, capturePageUrl),
 		fallbackPageUrls,
 		sidebarData: buildSidebarData(
-			'open-graph',
+			activeTab,
 			{
 				kind: 'open-graph',
 				title,
@@ -352,14 +361,15 @@ export async function captureContentQualityEvidence(
 	description = '',
 	capturePageUrl?: string,
 	fallbackPageUrls: string[] = [],
-	sidebarTabs?: AuditSidebarData['tabs']
+	sidebarTabs?: AuditSidebarData['tabs'],
+	activeTab = 'content-quality'
 ) {
 	if (!entries.length) return null;
 	return captureAuditSidebarScreenshot({
 		pageUrl: screenshotPageUrl(entries, capturePageUrl),
 		fallbackPageUrls,
 		sidebarData: buildSidebarData(
-			'content-quality',
+			activeTab,
 			{
 				kind: 'content-quality',
 				title,
@@ -381,14 +391,15 @@ export async function captureShopifyUrlEvidence(
 	description = '',
 	capturePageUrl?: string,
 	fallbackPageUrls: string[] = [],
-	sidebarTabs?: AuditSidebarData['tabs']
+	sidebarTabs?: AuditSidebarData['tabs'],
+	activeTab = 'shopify-urls'
 ) {
 	if (!entries.length) return null;
 	return captureAuditSidebarScreenshot({
 		pageUrl: screenshotPageUrl(entries, capturePageUrl),
 		fallbackPageUrls,
 		sidebarData: buildSidebarData(
-			'shopify-urls',
+			activeTab,
 			{
 				kind: 'shopify-urls',
 				title,
@@ -415,14 +426,15 @@ export async function captureSchemaEvidence(
 	description = '',
 	capturePageUrl?: string,
 	fallbackPageUrls: string[] = [],
-	sidebarTabs?: AuditSidebarData['tabs']
+	sidebarTabs?: AuditSidebarData['tabs'],
+	activeTab: string = kind
 ) {
 	if (!entries.length) return null;
 	return captureAuditSidebarScreenshot({
 		pageUrl: screenshotPageUrl(entries, capturePageUrl),
 		fallbackPageUrls,
 		sidebarData: buildSidebarData(
-			kind,
+			activeTab,
 			{
 				kind,
 				title,
@@ -447,7 +459,8 @@ export async function captureRobotsEvidence({
 	description = '',
 	capturePageUrl,
 	fallbackCapturePageUrls = [],
-	sidebarTabs
+	sidebarTabs,
+	activeTab = 'ai-bot-visibility'
 }: {
 	domain: string;
 	robotsUrl: string;
@@ -460,6 +473,7 @@ export async function captureRobotsEvidence({
 	capturePageUrl?: string;
 	fallbackCapturePageUrls?: string[];
 	sidebarTabs?: AuditSidebarData['tabs'];
+	activeTab?: string;
 }) {
 	return captureAuditSidebarScreenshot({
 		pageUrl: capturePageUrl || robotsUrl,
@@ -468,7 +482,7 @@ export async function captureRobotsEvidence({
 			...(!fallbackCapturePageUrls.includes(storefrontUrl) ? [storefrontUrl] : [])
 		],
 		sidebarData: buildSidebarData(
-			'ai-bot-visibility',
+			activeTab,
 			{
 				kind: 'ai-bot-visibility',
 				title,
@@ -494,7 +508,8 @@ export async function runAuditCaptureRequest(request: AuditCaptureRequest) {
 				request.description,
 				request.capturePageUrl,
 				request.fallbackCapturePageUrls,
-				request.sidebarTabs
+				request.sidebarTabs,
+				request.activeTab
 			);
 		case 'image-alts':
 			return captureImageAltEvidence(
@@ -505,7 +520,8 @@ export async function runAuditCaptureRequest(request: AuditCaptureRequest) {
 				request.description,
 				request.capturePageUrl,
 				request.fallbackCapturePageUrls,
-				request.sidebarTabs
+				request.sidebarTabs,
+				request.activeTab
 			);
 		case 'meta-tags':
 			return captureMetaEvidence(
@@ -516,7 +532,8 @@ export async function runAuditCaptureRequest(request: AuditCaptureRequest) {
 				request.description,
 				request.capturePageUrl,
 				request.fallbackCapturePageUrls,
-				request.sidebarTabs
+				request.sidebarTabs,
+				request.activeTab
 			);
 		case 'canonicals':
 			return captureCanonicalEvidence(
@@ -527,7 +544,8 @@ export async function runAuditCaptureRequest(request: AuditCaptureRequest) {
 				request.description,
 				request.capturePageUrl,
 				request.fallbackCapturePageUrls,
-				request.sidebarTabs
+				request.sidebarTabs,
+				request.activeTab
 			);
 		case 'internal-links':
 			return captureInternalLinksEvidence(
@@ -538,7 +556,8 @@ export async function runAuditCaptureRequest(request: AuditCaptureRequest) {
 				request.description,
 				request.capturePageUrl,
 				request.fallbackCapturePageUrls,
-				request.sidebarTabs
+				request.sidebarTabs,
+				request.activeTab
 			);
 		case 'lazy-loading':
 			return captureLazyLoadingEvidence(
@@ -549,7 +568,8 @@ export async function runAuditCaptureRequest(request: AuditCaptureRequest) {
 				request.description,
 				request.capturePageUrl,
 				request.fallbackCapturePageUrls,
-				request.sidebarTabs
+				request.sidebarTabs,
+				request.activeTab
 			);
 		case 'open-graph':
 			return captureOpenGraphEvidence(
@@ -560,7 +580,8 @@ export async function runAuditCaptureRequest(request: AuditCaptureRequest) {
 				request.description,
 				request.capturePageUrl,
 				request.fallbackCapturePageUrls,
-				request.sidebarTabs
+				request.sidebarTabs,
+				request.activeTab
 			);
 		case 'content-quality':
 			return captureContentQualityEvidence(
@@ -571,7 +592,8 @@ export async function runAuditCaptureRequest(request: AuditCaptureRequest) {
 				request.description,
 				request.capturePageUrl,
 				request.fallbackCapturePageUrls,
-				request.sidebarTabs
+				request.sidebarTabs,
+				request.activeTab
 			);
 		case 'shopify-urls':
 			return captureShopifyUrlEvidence(
@@ -582,7 +604,8 @@ export async function runAuditCaptureRequest(request: AuditCaptureRequest) {
 				request.description,
 				request.capturePageUrl,
 				request.fallbackCapturePageUrls,
-				request.sidebarTabs
+				request.sidebarTabs,
+				request.activeTab
 			);
 		case 'missing-product-schema':
 		case 'missing-faq-schema':
@@ -597,7 +620,8 @@ export async function runAuditCaptureRequest(request: AuditCaptureRequest) {
 				request.description,
 				request.capturePageUrl,
 				request.fallbackCapturePageUrls,
-				request.sidebarTabs
+				request.sidebarTabs,
+				request.activeTab
 			);
 		case 'pagespeed':
 			return capturePageSpeedEvidence(
@@ -608,7 +632,8 @@ export async function runAuditCaptureRequest(request: AuditCaptureRequest) {
 				request.description,
 				request.capturePageUrl,
 				request.fallbackCapturePageUrls,
-				request.sidebarTabs
+				request.sidebarTabs,
+				request.activeTab
 			);
 		case 'robots':
 			return captureRobotsEvidence(request);
