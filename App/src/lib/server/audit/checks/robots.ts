@@ -117,3 +117,42 @@ export async function analyzeRobots(origin: string, summary: AuditSummary, logge
 
 	return { result, robotsSitemap };
 }
+
+export async function analyzeLlmsTxt(origin: string, summary: AuditSummary, logger: AuditLogger) {
+	const result = createListResult();
+	const candidates = [`${origin}/.well-known/llms.txt`, `${origin}/llms.txt`];
+
+	for (const url of candidates) {
+		try {
+			logger.info(`llms.txt: fetching ${url}`);
+			const response = await fetchText(url, {
+				validateStatus: (status) => status >= 200 && status < 500
+			});
+			const text = response.data.trim();
+
+			if (response.status >= 200 && response.status < 300 && text) {
+				addItem(summary, result, 'pass', 'LLMs.txt found', {
+					title: url,
+					page_url: url,
+					meta: {
+						status: response.status,
+						bytes: response.data.length
+					}
+				});
+				result.stats = `Found at ${url}`;
+				return result;
+			}
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			logger.warn(`llms.txt: failed ${url} (${message})`);
+		}
+	}
+
+	addItem(summary, result, 'warn', 'LLMs.txt not found', {
+		title: candidates.join(', '),
+		page_url: candidates[0],
+		meta: { checkedUrls: candidates }
+	});
+	result.stats = 'LLMs.txt not found.';
+	return result;
+}

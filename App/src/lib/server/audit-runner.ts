@@ -1055,7 +1055,7 @@ const STEP_KEYS: Record<string, string[]> = {
 		'lazyLoadImages',
 		'unlinked-blog'
 	],
-	robots: ['robotsTxt'],
+	robots: ['robotsTxt', 'llmsTxt'],
 	sitemap: ['sitemap'],
 	'page-analysis': [
 		'missing-h1-tags',

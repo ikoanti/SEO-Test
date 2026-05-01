@@ -2,7 +2,7 @@ import { analyzeHomePage } from './checks/homepage';
 import { gatherPages } from './checks/crawl';
 import { analyzeMetaAndHeadings } from './checks/page-analysis';
 import { analyzePageSpeed } from './checks/pagespeed';
-import { analyzeRobots } from './checks/robots';
+import { analyzeLlmsTxt, analyzeRobots } from './checks/robots';
 import { analyzeSitemap } from './checks/sitemap';
 import {
 	cloneAuditSnapshot,
@@ -69,6 +69,10 @@ export async function runAudit(inputUrl: string, handlers: AuditHandlers = {}) {
 		analyzeRobots(urlObj.origin, summary, logger)
 	);
 	partialAudit.robotsTxt = robotsTxt;
+	const llmsTxt = await runStep(logger, 'llms.txt', () =>
+		analyzeLlmsTxt(urlObj.origin, summary, logger)
+	);
+	partialAudit.llmsTxt = llmsTxt;
 	await notifyStepComplete('robots');
 
 	await notifyStepStart('sitemap');
@@ -102,6 +106,7 @@ export async function runAudit(inputUrl: string, handlers: AuditHandlers = {}) {
 		},
 		pageSpeed,
 		robotsTxt,
+		llmsTxt,
 		sitemap,
 		...homeResults,
 		...pageResults
