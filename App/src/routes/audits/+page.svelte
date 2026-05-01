@@ -25,7 +25,7 @@
 		audits: AuditListItem[];
 	};
 	type AuditCreateRow = {
-		displayName: string;
+		displayDomain: string;
 		domain: string;
 	};
 
@@ -38,9 +38,9 @@
 	} = $props();
 	let refreshInterval: number | undefined;
 	let createSheetOpen = $state(false);
-	let auditRows = $state<AuditCreateRow[]>([{ displayName: '', domain: '' }]);
+	let auditRows = $state<AuditCreateRow[]>([{ displayDomain: '', domain: '' }]);
 	let editingWebsiteId = $state<string | null>(null);
-	let editingWebsiteDisplayName = $state('');
+	let editingWebsiteDisplayDomain = $state('');
 	const pendingAuditStatuses = new Set(['queued', 'running']);
 
 	const hasPendingAudits = $derived(
@@ -53,20 +53,20 @@
 			auditRows =
 				Array.isArray(form.rows) && form.rows.length
 					? form.rows.map((row) => ({
-							displayName:
-								row && typeof row === 'object' && 'displayName' in row
-									? String(row.displayName || '')
+							displayDomain:
+								row && typeof row === 'object' && 'displayDomain' in row
+									? String(row.displayDomain || '')
 									: '',
 							domain:
 								row && typeof row === 'object' && 'domain' in row ? String(row.domain || '') : ''
 						}))
-					: [{ displayName: '', domain: '' }];
+					: [{ displayDomain: '', domain: '' }];
 		}
 	});
 
 	function openCreateSheet() {
 		createSheetOpen = true;
-		if (!auditRows.length) auditRows = [{ displayName: '', domain: '' }];
+		if (!auditRows.length) auditRows = [{ displayDomain: '', domain: '' }];
 	}
 
 	function closeCreateSheet() {
@@ -99,8 +99,8 @@
 			if (!domains.length) return;
 
 			const next = [...auditRows];
-			next.splice(index, 1, ...domains.map((domain) => ({ displayName: '', domain })), {
-				displayName: '',
+			next.splice(index, 1, ...domains.map((domain) => ({ displayDomain: '', domain })), {
+				displayDomain: '',
 				domain: ''
 			});
 			auditRows = next;
@@ -126,14 +126,14 @@
 		if (!value) return;
 
 		const next = [...auditRows];
-		next.splice(index + 1, 0, { displayName: '', domain: '' });
+		next.splice(index + 1, 0, { displayDomain: '', domain: '' });
 		auditRows = next;
 		focusAuditDomain(index + 1);
 	}
 
 	function removeAuditRow(index: number) {
 		auditRows = auditRows.filter((_, itemIndex) => itemIndex !== index);
-		if (!auditRows.length) auditRows = [{ displayName: '', domain: '' }];
+		if (!auditRows.length) auditRows = [{ displayDomain: '', domain: '' }];
 	}
 
 	function auditStatus(audit: AuditListItem) {
@@ -144,7 +144,7 @@
 		return status.replaceAll('_', ' ');
 	}
 
-	function websiteDisplayName(website: WebsiteGroup['website']) {
+	function websiteDisplayDomain(website: WebsiteGroup['website']) {
 		return website.display_name || website.domain || website.url || 'Untitled website';
 	}
 
@@ -173,24 +173,24 @@
 		return `${dateText}, ${timeText}`;
 	}
 
-	function editWebsiteName(website: WebsiteGroup['website']) {
+	function editWebsiteDomain(website: WebsiteGroup['website']) {
 		const websiteId = website.id;
 		if (!websiteId) return;
 		editingWebsiteId = websiteId;
-		editingWebsiteDisplayName = websiteDisplayName(website);
+		editingWebsiteDisplayDomain = websiteDisplayDomain(website);
 		void tick().then(() => {
-			document.querySelector<HTMLInputElement>(`[data-website-name="${websiteId}"]`)?.focus();
+			document.querySelector<HTMLInputElement>(`[data-website-domain="${websiteId}"]`)?.focus();
 		});
 	}
 
-	function stopEditingWebsiteName() {
+	function stopEditingWebsiteDomain() {
 		editingWebsiteId = null;
-		editingWebsiteDisplayName = '';
+		editingWebsiteDisplayDomain = '';
 	}
 
-	function cancelWebsiteNameEdit(event: MouseEvent) {
+	function cancelWebsiteDomainEdit(event: MouseEvent) {
 		event.preventDefault();
-		stopEditingWebsiteName();
+		stopEditingWebsiteDomain();
 	}
 
 	function stopStatusRefresh() {
@@ -268,15 +268,15 @@
 								<form method="POST" action="?/updateWebsite" class="website-name-form">
 									<input type="hidden" name="websiteId" value={group.website.id} />
 									<input
-										name="displayName"
+										name="displayDomain"
 										type="text"
-										bind:value={editingWebsiteDisplayName}
-										aria-label={`Display name for ${websiteDisplayName(group.website)}`}
-										data-website-name={group.website.id}
+										bind:value={editingWebsiteDisplayDomain}
+										aria-label={`Display domain for ${websiteDisplayDomain(group.website)}`}
+										data-website-domain={group.website.id}
 										onkeydown={(event) => {
 											if (event.key === 'Escape') {
 												event.preventDefault();
-												stopEditingWebsiteName();
+												stopEditingWebsiteDomain();
 											}
 										}}
 									/>
@@ -284,15 +284,15 @@
 										<button
 											type="submit"
 											class="website-name-action"
-											aria-label="Save display name"
+											aria-label="Save display domain"
 										>
 											<Check size={15} />
 										</button>
 										<button
 											type="button"
 											class="website-name-action"
-											aria-label="Cancel display name edit"
-											onclick={cancelWebsiteNameEdit}
+											aria-label="Cancel display domain edit"
+											onclick={cancelWebsiteDomainEdit}
 										>
 											<X size={15} />
 										</button>
@@ -300,12 +300,12 @@
 								</form>
 							{:else}
 								<div class="website-name-display">
-									<span class="website-name-text">{websiteDisplayName(group.website)}</span>
+									<span class="website-name-text">{websiteDisplayDomain(group.website)}</span>
 									<button
 										type="button"
 										class="website-name-edit"
-										onclick={() => editWebsiteName(group.website)}
-										aria-label={`Edit display name for ${websiteDisplayName(group.website)}`}
+										onclick={() => editWebsiteDomain(group.website)}
+										aria-label={`Edit display domain for ${websiteDisplayDomain(group.website)}`}
 									>
 										<Pencil size={14} />
 									</button>
@@ -366,12 +366,12 @@
 				{#each auditRows as row, index (index)}
 					<div class="audit-url-field">
 						<input
-							name="displayNames"
+							name="displayDomains"
 							type="text"
-							value={row.displayName}
-							placeholder="Display name"
-							aria-label={`Website display name ${index + 1}`}
-							oninput={(event) => handleAuditRowInput(index, 'displayName', event)}
+							value={row.displayDomain}
+							placeholder="Display domain"
+							aria-label={`Website display domain ${index + 1}`}
+							oninput={(event) => handleAuditRowInput(index, 'displayDomain', event)}
 						/>
 						<input
 							name="domains"
@@ -388,7 +388,7 @@
 							type="button"
 							class="field-remove"
 							aria-label={`Remove website row ${index + 1}`}
-							disabled={auditRows.length === 1 && !row.domain.trim() && !row.displayName.trim()}
+							disabled={auditRows.length === 1 && !row.domain.trim() && !row.displayDomain.trim()}
 							onclick={() => removeAuditRow(index)}
 						>
 							<X size={16} />

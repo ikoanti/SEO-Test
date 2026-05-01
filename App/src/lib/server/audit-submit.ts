@@ -7,6 +7,7 @@ import { queueAuditWorkflow } from '$lib/server/audit-runner';
 
 export async function submitAudit(input: {
 	domain: string;
+	displayDomain?: string;
 	displayName?: string;
 	token?: string;
 	createdBy?: string;
@@ -17,7 +18,7 @@ export async function submitAudit(input: {
 	}
 
 	const website = await getOrCreateWebsiteForAudit(
-		{ domain, display_name: input.displayName?.trim() || undefined },
+		{ domain, display_name: (input.displayDomain || input.displayName)?.trim() || undefined },
 		input.token
 	);
 	const audit = await createAuditRecord(

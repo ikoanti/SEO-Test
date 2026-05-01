@@ -34,7 +34,7 @@ export const GET = async ({ request, params, url }) => {
 					id: website.id,
 					url: website.url,
 					domain: website.domain,
-					displayName: website.display_name
+					displayDomain: website.display_name
 				}
 			: null,
 		queuedAt: workflow.queued_at || null,

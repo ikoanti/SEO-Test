@@ -92,15 +92,15 @@ function normalizedDomainFromUrl(input: string) {
 	return url.hostname.replace(/^www\./i, '').toLowerCase();
 }
 
-function suggestedWebsiteDisplayName(domain: string) {
+function suggestedWebsiteDisplayDomain(domain: string) {
 	const [name = '', ...suffixParts] = domain.split('.');
 	const suffix = suffixParts.join('.');
-	const displayName = name
+	const displayDomain = name
 		.split(/[-_]+/)
 		.filter(Boolean)
 		.map((part) => `${part.slice(0, 1).toUpperCase()}${part.slice(1)}`)
 		.join('');
-	return suffix ? `${displayName || name}.${suffix}` : displayName || domain;
+	return suffix ? `${displayDomain || name}.${suffix}` : displayDomain || domain;
 }
 
 function normalizeOptionalUrl(input?: string) {
@@ -292,7 +292,7 @@ export async function getOrCreateWebsiteRecord(url: string, token?: string) {
 	const pb = createAuthedClient(token);
 	const normalizedUrl = normalizeUrl(url);
 	const domain = normalizedDomainFromUrl(normalizedUrl);
-	const displayName = suggestedWebsiteDisplayName(domain);
+	const displayDomain = suggestedWebsiteDisplayDomain(domain);
 
 	try {
 		return await pb
@@ -305,7 +305,7 @@ export async function getOrCreateWebsiteRecord(url: string, token?: string) {
 		return pb.collection(WEBSITES_COLLECTION).create({
 			url: normalizedUrl,
 			domain,
-			display_name: displayName
+			display_name: displayDomain
 		});
 	}
 }
@@ -317,18 +317,18 @@ export async function getOrCreateWebsiteForAudit(
 	const pb = createAuthedClient(token);
 	const normalizedUrl = normalizeUrl(input.domain);
 	const domain = normalizedDomainFromUrl(normalizedUrl);
-	const displayName = input.display_name?.trim() || suggestedWebsiteDisplayName(domain);
+	const displayDomain = input.display_name?.trim() || suggestedWebsiteDisplayDomain(domain);
 
 	try {
 		const website = await pb
 			.collection(WEBSITES_COLLECTION)
 			.getFirstListItem(`domain = "${escapeFilterValue(domain)}"`);
-		if (input.display_name?.trim() && website.display_name !== displayName) {
+		if (input.display_name?.trim() && website.display_name !== displayDomain) {
 			const updatedWebsite = await pb.collection(WEBSITES_COLLECTION).update(website.id, {
-				display_name: displayName
+				display_name: displayDomain
 			});
-			if (updatedWebsite.display_name !== displayName) {
-				throw new Error('PocketBase did not persist the submitted display name.');
+			if (updatedWebsite.display_name !== displayDomain) {
+				throw new Error('PocketBase did not persist the submitted display domain.');
 			}
 			return updatedWebsite;
 		}
@@ -340,7 +340,7 @@ export async function getOrCreateWebsiteForAudit(
 		return pb.collection(WEBSITES_COLLECTION).create({
 			url: normalizedUrl,
 			domain,
-			display_name: displayName
+			display_name: displayDomain
 		});
 	}
 }
@@ -351,13 +351,13 @@ export async function updateWebsiteRecord(
 	token?: string
 ) {
 	const pb = createAuthedClient(token);
-	const displayName = input.display_name?.trim();
+	const displayDomain = input.display_name?.trim();
 	const website = await pb.collection(WEBSITES_COLLECTION).update(websiteId, {
-		...(input.display_name !== undefined ? { display_name: displayName } : {})
+		...(input.display_name !== undefined ? { display_name: displayDomain } : {})
 	});
 
-	if (displayName !== undefined && website.display_name !== displayName) {
-		throw new Error('PocketBase did not persist the submitted display name.');
+	if (displayDomain !== undefined && website.display_name !== displayDomain) {
+		throw new Error('PocketBase did not persist the submitted display domain.');
 	}
 
 	return website;

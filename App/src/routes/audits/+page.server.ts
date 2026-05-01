@@ -23,9 +23,9 @@ function auditSortTimestamp(audit: Record<string, unknown>) {
 
 function parseCreateRows(data: FormData) {
 	const domains = data.getAll('domains').map((value) => String(value || '').trim());
-	const displayNames = data.getAll('displayNames').map((value) => String(value || '').trim());
+	const displayDomains = data.getAll('displayDomains').map((value) => String(value || '').trim());
 	const rows = domains
-		.map((domain, index) => ({ domain, displayName: displayNames[index] || '' }))
+		.map((domain, index) => ({ domain, displayDomain: displayDomains[index] || '' }))
 		.filter((row) => row.domain);
 
 	if (rows.length) return rows;
@@ -37,7 +37,7 @@ function parseCreateRows(data: FormData) {
 				.map((url) => url.trim())
 		)
 		.filter(Boolean)
-		.map((domain) => ({ domain, displayName: '' }));
+		.map((domain) => ({ domain, displayDomain: '' }));
 }
 
 export const load = async ({ locals, url }) => {
@@ -103,17 +103,17 @@ export const actions = {
 	updateWebsite: async ({ request, locals }) => {
 		const data = await request.formData();
 		const websiteId = String(data.get('websiteId') || '').trim();
-		const displayName = String(data.get('displayName') || '').trim();
+		const displayDomain = String(data.get('displayDomain') || '').trim();
 
 		if (!websiteId) {
 			return fail(400, { createError: 'Website is missing.' });
 		}
-		if (!displayName) {
-			return fail(400, { createError: 'Display name is required.' });
+		if (!displayDomain) {
+			return fail(400, { createError: 'Display domain is required.' });
 		}
 
 		try {
-			await updateWebsiteRecord(websiteId, { display_name: displayName }, locals.pbToken);
+			await updateWebsiteRecord(websiteId, { display_name: displayDomain }, locals.pbToken);
 			throw redirect(303, '/audits');
 		} catch (error) {
 			if (isRedirect(error)) throw error;
@@ -143,7 +143,7 @@ export const actions = {
 			for (const row of uniqueRows) {
 				const { audit } = await submitAudit({
 					domain: row.domain,
-					displayName: row.displayName,
+					displayDomain: row.displayDomain,
 					token: locals.pbToken,
 					createdBy
 				});

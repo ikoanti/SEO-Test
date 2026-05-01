@@ -6,7 +6,7 @@ export const POST = async ({ request, url }) => {
 	const token = await externalApiPocketBaseToken(request);
 	const body = await readJsonBody(request);
 	const domain = String(body.domain || body.url || '').trim();
-	const displayName = String(body.displayName || body.display_name || '').trim();
+	const displayDomain = String(body.displayDomain || body.displayName || body.display_name || '').trim();
 
 	if (!domain) {
 		throw error(400, 'Website domain is required.');
@@ -14,7 +14,7 @@ export const POST = async ({ request, url }) => {
 
 	const { website, audit, workflow } = await submitAudit({
 		domain,
-		displayName,
+		displayDomain,
 		token
 	});
 	const basePath = `${url.origin}/api/v1/audits/${encodeURIComponent(audit.id)}`;
@@ -29,7 +29,7 @@ export const POST = async ({ request, url }) => {
 				id: website.id,
 				url: website.url,
 				domain: website.domain,
-				displayName: website.display_name
+				displayDomain: website.display_name
 			},
 			statusUrl: basePath,
 			resultUrl: `${basePath}/result`,

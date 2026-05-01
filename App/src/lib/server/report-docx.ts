@@ -78,7 +78,7 @@ function domainName(pageData: ReportPageData) {
 	);
 }
 
-function reportDisplayName(pageData: ReportPageData) {
+function reportDisplayDomain(pageData: ReportPageData) {
 	return text(pageData.website?.display_name, domainName(pageData));
 }
 
@@ -291,7 +291,7 @@ function reportProblems(
 }
 
 function documentFilename(pageData: ReportPageData) {
-	const name = reportDisplayName(pageData)
+	const name = reportDisplayDomain(pageData)
 		.replace(/[<>:"/\\|?*\x00-\x1f]+/g, '-')
 		.trim();
 	return `${name || 'Audit'} - Mini Technical SEO Audit.docx`;
@@ -305,7 +305,7 @@ export async function generateTemplateReportDocx(
 ) {
 	emptyLineIndex = 0;
 	const domain = domainName(pageData);
-	const documentTitle = `${reportDisplayName(pageData)} - Mini Technical SEO Audit`;
+	const documentTitle = `${reportDisplayDomain(pageData)} - Mini Technical SEO Audit`;
 	const problems = reportProblems(pageData, templates, priorityOverrides);
 	const header = await reportHeader();
 	const children: Paragraph[] = [
