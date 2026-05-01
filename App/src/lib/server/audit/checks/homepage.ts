@@ -2,7 +2,7 @@ import type { CheerioAPI } from 'cheerio';
 import type { AnyNode } from 'domhandler';
 import type { AuditCaptureRequest } from '$lib/server/audit-capture';
 import type { AuditLogger, AuditSummary } from '../shared';
-import { addItem, createListResult } from '../shared';
+import { addItem, createListResult, hasValidOrganizationJsonLd } from '../shared';
 
 function attachScreenshotRequest(
 	item: Record<string, unknown> | undefined,
@@ -19,19 +19,7 @@ function issueCount(items: Array<{ status?: string }>) {
 	return items.filter((item) => item.status === 'warn').length;
 }
 
-function valueHasSchemaType(value: unknown, schemaType: string): boolean {
-	if (!value || typeof value !== 'object') return false;
-	if (Array.isArray(value)) return value.some((item) => valueHasSchemaType(item, schemaType));
-
-	const record = value as Record<string, unknown>;
-	const typeValue = record['@type'];
-	const types = Array.isArray(typeValue) ? typeValue : [typeValue];
-	if (types.some((type) => String(type).toLowerCase() === schemaType.toLowerCase())) return true;
-
-	return Object.values(record).some((item) => valueHasSchemaType(item, schemaType));
-}
-
-function hasJsonLdSchemaType($: CheerioAPI, schemaType: string) {
+function hasValidJsonLd($: CheerioAPI, validator: (value: unknown) => boolean) {
 	return $('script[type="application/ld+json"]')
 		.toArray()
 		.some((element) => {
@@ -39,7 +27,7 @@ function hasJsonLdSchemaType($: CheerioAPI, schemaType: string) {
 			if (!raw) return false;
 
 			try {
-				return valueHasSchemaType(JSON.parse(raw), schemaType);
+				return validator(JSON.parse(raw));
 			} catch {
 				return false;
 			}
@@ -215,7 +203,7 @@ export async function analyzeHomePage(
 		);
 	}
 
-	const hasOrganizationSchema = hasJsonLdSchemaType($, 'Organization');
+	const hasOrganizationSchema = hasValidJsonLd($, hasValidOrganizationJsonLd);
 	addItem(
 		summary,
 		organizationSchema,

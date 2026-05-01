@@ -58,6 +58,112 @@ export function addItem(
 	list.items.push({ status, detail, ...extra });
 }
 
+type JsonLdRecord = Record<string, unknown>;
+
+function isRecord(value: unknown): value is JsonLdRecord {
+	return Boolean(value && typeof value === 'object' && !Array.isArray(value));
+}
+
+function nonEmptyString(value: unknown) {
+	return typeof value === 'string' && value.trim().length > 0;
+}
+
+function arrayValue(value: unknown) {
+	return Array.isArray(value) ? value : value ? [value] : [];
+}
+
+function jsonLdTypes(value: JsonLdRecord) {
+	return arrayValue(value['@type']).map((type) => String(type).toLowerCase());
+}
+
+function jsonLdHasType(value: JsonLdRecord, schemaType: string) {
+	return jsonLdTypes(value).includes(schemaType.toLowerCase());
+}
+
+function collectJsonLdNodes(value: unknown): JsonLdRecord[] {
+	if (Array.isArray(value)) return value.flatMap((item) => collectJsonLdNodes(item));
+	if (!isRecord(value)) return [];
+
+	const nested = [
+		...collectJsonLdNodes(value['@graph']),
+		...collectJsonLdNodes(value.mainEntity),
+		...collectJsonLdNodes(value.acceptedAnswer),
+		...collectJsonLdNodes(value.offers),
+		...collectJsonLdNodes(value.brand),
+		...collectJsonLdNodes(value.aggregateRating),
+		...collectJsonLdNodes(value.review)
+	];
+
+	return [value, ...nested];
+}
+
+function nodesById(nodes: JsonLdRecord[]) {
+	return new Map(
+		nodes
+			.map((node) => [typeof node['@id'] === 'string' ? node['@id'] : '', node] as const)
+			.filter(([id]) => id)
+	);
+}
+
+function resolveJsonLdNode(value: unknown, byId: Map<string, JsonLdRecord>) {
+	if (isRecord(value) && typeof value['@id'] === 'string' && Object.keys(value).length === 1) {
+		return byId.get(value['@id']) || value;
+	}
+
+	return isRecord(value) ? value : null;
+}
+
+function hasTextProperty(value: JsonLdRecord, keys: string[]) {
+	return keys.some((key) => nonEmptyString(value[key]));
+}
+
+function validAnswer(value: unknown, byId: Map<string, JsonLdRecord>) {
+	const answer = resolveJsonLdNode(value, byId);
+	if (!answer) return false;
+	return jsonLdHasType(answer, 'Answer') && hasTextProperty(answer, ['text']);
+}
+
+function validQuestion(value: unknown, byId: Map<string, JsonLdRecord>) {
+	const question = resolveJsonLdNode(value, byId);
+	if (!question || !jsonLdHasType(question, 'Question') || !hasTextProperty(question, ['name'])) {
+		return false;
+	}
+
+	return arrayValue(question.acceptedAnswer).some((answer) => validAnswer(answer, byId));
+}
+
+export function hasValidOrganizationJsonLd(value: unknown) {
+	return collectJsonLdNodes(value).some(
+		(node) => jsonLdHasType(node, 'Organization') && hasTextProperty(node, ['name', 'url', 'logo'])
+	);
+}
+
+export function hasValidProductJsonLd(value: unknown) {
+	return collectJsonLdNodes(value).some((node) => {
+		if (!jsonLdHasType(node, 'Product') || !hasTextProperty(node, ['name'])) return false;
+
+		return (
+			nonEmptyString(node.sku) ||
+			nonEmptyString(node.description) ||
+			Boolean(node.image) ||
+			Boolean(node.brand) ||
+			Boolean(node.offers) ||
+			Boolean(node.aggregateRating) ||
+			Boolean(node.review)
+		);
+	});
+}
+
+export function hasValidFaqJsonLd(value: unknown) {
+	const nodes = collectJsonLdNodes(value);
+	const byId = nodesById(nodes);
+
+	return nodes.some((node) => {
+		if (!jsonLdHasType(node, 'FAQPage')) return false;
+		return arrayValue(node.mainEntity).some((question) => validQuestion(question, byId));
+	});
+}
+
 export function createLogger(context: string): AuditLogger {
 	return {
 		info(message) {

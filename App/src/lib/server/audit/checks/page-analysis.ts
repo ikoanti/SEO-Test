@@ -4,6 +4,8 @@ import {
 	createListResult,
 	extractInternalLinks,
 	fetchText,
+	hasValidFaqJsonLd,
+	hasValidProductJsonLd,
 	loadDocument
 } from '../shared';
 import type { AuditLogger, AuditSummary } from '../shared';
@@ -46,20 +48,10 @@ function isFaqLikePage(page: string, title: string, bodyText: string) {
 	return questionMarks >= 4;
 }
 
-function valueHasSchemaType(value: unknown, schemaType: string): boolean {
-	if (!value || typeof value !== 'object') return false;
-
-	if (Array.isArray(value)) return value.some((item) => valueHasSchemaType(item, schemaType));
-
-	const record = value as Record<string, unknown>;
-	const typeValue = record['@type'];
-	const types = Array.isArray(typeValue) ? typeValue : [typeValue];
-	if (types.some((type) => String(type).toLowerCase() === schemaType.toLowerCase())) return true;
-
-	return Object.values(record).some((item) => valueHasSchemaType(item, schemaType));
-}
-
-function hasJsonLdSchemaType($: ReturnType<typeof loadDocument>, schemaType: string) {
+function hasValidJsonLd(
+	$: ReturnType<typeof loadDocument>,
+	validator: (value: unknown) => boolean
+) {
 	return $('script[type="application/ld+json"]')
 		.toArray()
 		.some((element) => {
@@ -67,7 +59,7 @@ function hasJsonLdSchemaType($: ReturnType<typeof loadDocument>, schemaType: str
 			if (!raw) return false;
 
 			try {
-				return valueHasSchemaType(JSON.parse(raw), schemaType);
+				return validator(JSON.parse(raw));
 			} catch {
 				return false;
 			}
@@ -75,11 +67,11 @@ function hasJsonLdSchemaType($: ReturnType<typeof loadDocument>, schemaType: str
 }
 
 function hasProductJsonLd($: ReturnType<typeof loadDocument>) {
-	return hasJsonLdSchemaType($, 'Product');
+	return hasValidJsonLd($, hasValidProductJsonLd);
 }
 
 function hasFaqJsonLd($: ReturnType<typeof loadDocument>) {
-	return hasJsonLdSchemaType($, 'FAQPage');
+	return hasValidJsonLd($, hasValidFaqJsonLd);
 }
 
 export async function analyzeMetaAndHeadings(
