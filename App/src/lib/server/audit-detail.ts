@@ -16,23 +16,6 @@ type BuildAuditPageDataOptions = {
 	includeReportPreview?: boolean;
 };
 
-const HIDDEN_AUDIT_DISPLAY_KEYS = new Set([
-	'canonicalUrls',
-	'internalLinks',
-	'sitemap',
-	'contentQuality',
-	'webIcons',
-	'ssl',
-	'viewportMetaTag',
-	'flash',
-	'charset',
-	'loremIpsum',
-	'openGraph',
-	'internationalDomains',
-	'trustSignals',
-	'lazyLoadImages'
-]);
-
 function getWebsite(auditRecord: Record<string, unknown>) {
 	return (
 		auditRecord.expand as
@@ -283,23 +266,13 @@ export async function buildAuditPageData(
 			findings
 		};
 	});
-	const visibleNormalizedItems = normalizedItems.filter(
-		(item) => !HIDDEN_AUDIT_DISPLAY_KEYS.has(item.key)
-	);
-	const visibleReportTemplates = reportTemplates.filter((template) => {
-		const findingTypeKey = template.expand?.audit_finding_type?.key || '';
-		return (
-			!HIDDEN_AUDIT_DISPLAY_KEYS.has(findingTypeKey) &&
-			!HIDDEN_AUDIT_DISPLAY_KEYS.has(template.key)
-		);
-	});
-	const normalizedItemsByKey = new Map(visibleNormalizedItems.map((item) => [item.key, item]));
+	const normalizedItemsByKey = new Map(normalizedItems.map((item) => [item.key, item]));
 	const representedSourceKeys = new Set(
-		visibleReportTemplates
+		reportTemplates
 			.map((template) => template.expand?.audit_finding_type?.key || '')
 			.filter(Boolean)
 	);
-	const templateDisplayItems = visibleReportTemplates.map((template) => {
+	const templateDisplayItems = reportTemplates.map((template) => {
 		const findingTypeKey = template.expand?.audit_finding_type?.key || '';
 		const sourceItem = normalizedItemsByKey.get(findingTypeKey);
 		const matcher = issueMatcher(template.match_pattern);
@@ -335,7 +308,7 @@ export async function buildAuditPageData(
 		};
 	});
 	const templateDisplayKeys = new Set(templateDisplayItems.map((item) => item.key));
-	const additionalCheckDisplayItems = visibleNormalizedItems
+	const additionalCheckDisplayItems = normalizedItems
 		.filter((item) => !templateDisplayKeys.has(item.key))
 		.filter((item) => !representedSourceKeys.has(item.key))
 		.sort((first, second) => (first.sortOrder || 999) - (second.sortOrder || 999));
@@ -360,11 +333,11 @@ export async function buildAuditPageData(
 			!isPendingRun
 		),
 		aiVisibility,
-		normalizedItems: visibleNormalizedItems,
+		normalizedItems,
 		findingDisplayItems
 	};
 	const reportPreviewItems = includeReportPreview
-		? buildReportProblems(reportPageData, visibleReportTemplates).map((problem) => ({
+		? buildReportProblems(reportPageData, reportTemplates).map((problem) => ({
 				...problem,
 				screenshot:
 					screenshotView(auditRecord.id, screenshotsByReportTemplateKey.get(problem.key)) ||
@@ -373,8 +346,8 @@ export async function buildAuditPageData(
 		: [];
 	const selectedReportTemplateSet = new Set(selectedReportTemplateKeys);
 	const selectedReportTemplates = selectedReportTemplateSet.size
-		? visibleReportTemplates.filter((template) => selectedReportTemplateSet.has(template.key))
-		: visibleReportTemplates;
+		? reportTemplates.filter((template) => selectedReportTemplateSet.has(template.key))
+		: reportTemplates;
 	const reportHtml =
 		includeReportHtml && String(workflowRecord.status || '') === 'completed'
 			? generateTemplateReportHtml(
@@ -407,7 +380,7 @@ export async function buildAuditPageData(
 		),
 		reportHtml,
 		reportPreviewItems,
-		reportTemplates: visibleReportTemplates.map((template) => ({
+		reportTemplates: reportTemplates.map((template) => ({
 			key: template.key,
 			title: template.title,
 			priority: template.priority,
@@ -419,7 +392,7 @@ export async function buildAuditPageData(
 		})),
 		selectedReportTemplateKeys,
 		aiVisibility,
-		normalizedItems: visibleNormalizedItems,
+		normalizedItems,
 		findingDisplayItems,
 		isPendingRun,
 		isPendingReport: ['queued', 'running'].includes(String(auditRecord.report_status || '')),
