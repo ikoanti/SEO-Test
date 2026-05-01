@@ -133,6 +133,13 @@ function paragraph(textValue: string) {
 	});
 }
 
+function centeredSmallParagraph(textValue: string) {
+	return new Paragraph({
+		alignment: AlignmentType.CENTER,
+		children: [textRun(textValue, { size: REPORT_DOCX_STYLE.sizes.priority })]
+	});
+}
+
 function titleParagraph(textValue: string) {
 	return new Paragraph({
 		alignment: AlignmentType.CENTER,
@@ -485,7 +492,9 @@ export async function generateTemplateReportDocx(
 		),
 		emptyLine(),
 		...(resultsImage ? [resultsImage, emptyLine()] : []),
-		paragraph('(Results typically kick in 30-45 days after Google indexes the applied changes).'),
+		centeredSmallParagraph(
+			'(Results typically kick in 30-45 days after Google indexes the applied changes).'
+		),
 		emptyLine(),
 		paragraph(
 			`We highly believe that we can find the same problems/opportunities if not even more if we were to audit ${domain}.`
