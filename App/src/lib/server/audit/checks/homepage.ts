@@ -173,7 +173,6 @@ export async function analyzeHomePage(
 	const viewportMetaTag = createListResult();
 	const flash = createListResult();
 	const charsetResult = createListResult();
-	const loremIpsum = createListResult();
 	const openGraph = createListResult();
 	const internationalDomains = createListResult();
 	const trustSignals = createListResult();
@@ -277,13 +276,6 @@ export async function analyzeHomePage(
 	);
 
 	const bodyText = $('body').text();
-	addItem(
-		summary,
-		loremIpsum,
-		/lorem ipsum/i.test(bodyText) ? 'warn' : 'pass',
-		/lorem ipsum/i.test(bodyText) ? 'Lorem Ipsum Detected' : 'No Lorem Ipsum Detected'
-	);
-
 	for (const property of ['og:title', 'og:description', 'og:image', 'og:url']) {
 		const content = $(`meta[property="${property}"]`).attr('content');
 		if (!content && openGraphEvidence.length < maxEvidenceItems) {
@@ -429,7 +421,6 @@ export async function analyzeHomePage(
 		viewportMetaTag,
 		flash,
 		charset: charsetResult,
-		loremIpsum,
 		openGraph,
 		internationalDomains,
 		trustSignals,

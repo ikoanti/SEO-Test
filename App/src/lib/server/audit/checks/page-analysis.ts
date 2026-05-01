@@ -86,6 +86,7 @@ export async function analyzeMetaAndHeadings(
 	const duplicateMetaDescriptions = createListResult();
 	const overlyLongMetaDescriptions = createListResult();
 	const imageAltTags = createListResult();
+	const loremIpsum = createListResult();
 	const canonicalUrls = createListResult();
 	const internalLinks = createListResult();
 	const contentQuality = createListResult();
@@ -132,6 +133,7 @@ export async function analyzeMetaAndHeadings(
 			const metaDescription = $('meta[name="description"]').attr('content')?.trim() || '';
 			const canonical = $('link[rel="canonical"]').attr('href') || '';
 			const bodyText = $('body').text();
+			const hasLoremIpsum = /lorem ipsum/i.test(bodyText);
 			const missingAlt = $('img').filter(
 				(_: number, element: AnyNode) => !$(element).attr('alt')?.trim()
 			).length;
@@ -281,6 +283,14 @@ export async function analyzeMetaAndHeadings(
 			} else {
 				addItem(summary, imageAltTags, 'pass', 'All images include alt text', { title: page });
 			}
+
+			addItem(
+				summary,
+				loremIpsum,
+				hasLoremIpsum ? 'warn' : 'pass',
+				hasLoremIpsum ? 'Lorem Ipsum Detected' : 'No Lorem Ipsum Detected',
+				{ title: page, page_url: page }
+			);
 
 			addItem(
 				summary,
@@ -577,6 +587,7 @@ export async function analyzeMetaAndHeadings(
 		'duplicated-meta-descriptions': duplicateMetaDescriptions,
 		'overly-long-meta-descriptions': overlyLongMetaDescriptions,
 		imageAltTags,
+		loremIpsum,
 		canonicalUrls,
 		internalLinks,
 		contentQuality,
