@@ -34,6 +34,7 @@ const REPORT_DOCX_STYLE = {
 	font: 'Arial',
 	colors: {
 		hiddenText: 'FFFFFF',
+		body: '000000',
 		priority: '6b7280'
 	},
 	sizes: {
@@ -167,7 +168,7 @@ function problemHeading(index: number, problem: ReportProblemPreview) {
 			textRun('Priority: ', {
 				break: 1,
 				size: REPORT_DOCX_STYLE.sizes.priority,
-				color: REPORT_DOCX_STYLE.colors.priority
+				color: REPORT_DOCX_STYLE.colors.body
 			}),
 			textRun(problem.priority, {
 				size: REPORT_DOCX_STYLE.sizes.priority,
