@@ -332,7 +332,10 @@ function imageType(contentType: string, filename: string): 'png' | 'jpg' | 'gif'
 }
 
 async function resultsImageParagraph() {
-	const image = await readFile(resolve(process.cwd(), 'src/lib/assets/goldenweb-results.jpg'));
+	const imagePath =
+		process.env.REPORT_RESULTS_IMAGE_PATH ||
+		resolve(process.cwd(), 'src/lib/assets/goldenweb-results.jpg');
+	const image = await readFile(imagePath);
 	const imageBody = image.buffer.slice(
 		image.byteOffset,
 		image.byteOffset + image.byteLength

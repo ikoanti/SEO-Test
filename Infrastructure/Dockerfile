@@ -44,10 +44,12 @@ RUN npm ci --omit=dev
 
 COPY --from=build /app/build ./build
 COPY App/src/lib/assets/report-logo.png ./report-assets/logo.png
+COPY App/src/lib/assets/goldenweb-results.jpg ./report-assets/goldenweb-results.jpg
 
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV REPORT_LOGO_PATH=/app/report-assets/logo.png
+ENV REPORT_RESULTS_IMAGE_PATH=/app/report-assets/goldenweb-results.jpg
 
 EXPOSE 3000
 
