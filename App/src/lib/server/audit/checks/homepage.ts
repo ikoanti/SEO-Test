@@ -356,6 +356,7 @@ export async function analyzeHomePage(
 			lazyLoadImages.items.find((item) => item.status === 'warn'),
 			{
 				kind: 'lazy-loading',
+				title: 'Lazy Load Images',
 				domain,
 				entries: lazyLoadingEvidence,
 				count: issueCount(lazyLoadImages.items)

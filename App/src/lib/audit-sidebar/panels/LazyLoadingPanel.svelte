@@ -5,6 +5,7 @@
 	let { panel }: { panel?: BasePanelData } = $props();
 
 	let entries = $derived(Array.isArray(panel?.entries) ? panel.entries : []);
+	let title = $derived(panel?.title || 'Lazy Load Images');
 
 	function displayPage(value?: string) {
 		if (!value) return '';
@@ -59,7 +60,7 @@
 	</div>
 {/snippet}
 
-<AuditPanel title={panel?.title} {highlight} {content} />
+<AuditPanel {title} {highlight} {content} />
 
 <style>
 	.summary {
