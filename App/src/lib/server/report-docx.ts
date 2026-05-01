@@ -4,6 +4,7 @@ import JSZip from 'jszip';
 import {
 	AlignmentType,
 	Document,
+	ExternalHyperlink,
 	Header,
 	HorizontalPositionRelativeFrom,
 	ImageRun,
@@ -137,6 +138,26 @@ function centeredSmallParagraph(textValue: string) {
 	return new Paragraph({
 		alignment: AlignmentType.CENTER,
 		children: [textRun(textValue, { size: REPORT_DOCX_STYLE.sizes.priority })]
+	});
+}
+
+function caseStudyParagraph() {
+	return new Paragraph({
+		children: [
+			textRun('An example of this would be '),
+			new ExternalHyperlink({
+				link: 'https://goldenweb.net/#results',
+				children: [
+					textRun('one of the recent case studies', {
+						color: '1155cc',
+						underline: {}
+					})
+				]
+			}),
+			textRun(
+				' that we just published, where weekly organic traffic jumped from 200,000 to 315,000 in 45 days, by simply changing a few settings and bits of code.'
+			)
+		]
 	});
 }
 
@@ -487,9 +508,7 @@ export async function generateTemplateReportDocx(
 			'When doing the full technical audit, it’s very easy to find quick wins and optimizations that need to be done in order to dramatically increase existing organic traffic.'
 		),
 		emptyLine(),
-		paragraph(
-			'An example of this would be one of the recent case studies that we just published, where weekly organic traffic jumped from 200,000 to 315,000 in 45 days, by simply changing a few settings and bits of code.'
-		),
+		caseStudyParagraph(),
 		emptyLine(),
 		...(resultsImage ? [resultsImage, emptyLine()] : []),
 		centeredSmallParagraph(
