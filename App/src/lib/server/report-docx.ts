@@ -10,6 +10,7 @@ import {
 	PageBreak,
 	Packer,
 	Paragraph,
+	ShadingType,
 	TextRun,
 	TextWrappingType,
 	VerticalPositionRelativeFrom
@@ -52,6 +53,24 @@ const REPORT_DOCX_STYLE = {
 		offsetYEmu: -133349
 	}
 } as const;
+const PRIORITY_STYLE: Record<ReportPriority, Pick<IRunOptions, 'color' | 'shading'>> = {
+	Urgent: {
+		color: 'b10202',
+		shading: { type: ShadingType.CLEAR, fill: 'ffcfc9' }
+	},
+	High: {
+		color: '753800',
+		shading: { type: ShadingType.CLEAR, fill: 'ffc8aa' }
+	},
+	Medium: {
+		color: '473821',
+		shading: { type: ShadingType.CLEAR, fill: 'ffe5a0' }
+	},
+	Low: {
+		color: '0a5c2f',
+		shading: { type: ShadingType.CLEAR, fill: 'b7e1cd' }
+	}
+};
 const EMPTY_LINE_MARKER_PREFIX = 'GW_EMPTY_LINE';
 let emptyLineIndex = 0;
 
@@ -136,6 +155,8 @@ function pageBreak() {
 }
 
 function problemHeading(index: number, problem: ReportProblemPreview) {
+	const priorityStyle = PRIORITY_STYLE[problem.priority] || PRIORITY_STYLE.Medium;
+
 	return new Paragraph({
 		children: [
 			textRun(`Problem ${index}: ${problem.title}`, { bold: true }),
@@ -146,7 +167,7 @@ function problemHeading(index: number, problem: ReportProblemPreview) {
 			}),
 			textRun(problem.priority, {
 				size: REPORT_DOCX_STYLE.sizes.priority,
-				color: REPORT_DOCX_STYLE.colors.priority
+				...priorityStyle
 			})
 		]
 	});
