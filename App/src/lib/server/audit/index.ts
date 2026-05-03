@@ -19,8 +19,65 @@ type AuditHandlers = {
 	onStepComplete?: (label: string, partialAudit: Record<string, unknown>) => Promise<void> | void;
 };
 
+function alternateWwwUrl(url: URL) {
+	if (!url.hostname.includes('.') || /^\d+\.\d+\.\d+\.\d+$/.test(url.hostname)) return null;
+
+	const alternate = new URL(url.href);
+	alternate.hostname = /^www\./i.test(url.hostname)
+		? url.hostname.replace(/^www\./i, '')
+		: `www.${url.hostname}`;
+	return alternate;
+}
+
+function canRetryWithAlternateHost(error: unknown) {
+	if (!(error instanceof Error)) return false;
+	const code = String((error as Error & { code?: unknown }).code || '');
+	return (
+		code === 'ENOTFOUND' ||
+		code === 'ECONNREFUSED' ||
+		code === 'ETIMEDOUT' ||
+		code === 'ECONNABORTED' ||
+		/ENOTFOUND|ECONNREFUSED|timed? out/i.test(error.message)
+	);
+}
+
+async function resolveAuditUrl(inputUrl: string) {
+	const primary = normalizeUrl(inputUrl);
+	const alternate = alternateWwwUrl(primary);
+	const logger = createLogger(primary.hostname);
+
+	try {
+		await fetchText(primary.href, {
+			timeout: 8000,
+			validateStatus: (status) => status >= 200 && status < 500
+		});
+		return primary;
+	} catch (error) {
+		if (!alternate || !canRetryWithAlternateHost(error)) throw error;
+
+		logger.warn(
+			`target: ${primary.hostname} was not reachable, trying ${alternate.hostname}`
+		);
+		try {
+			await fetchText(alternate.href, {
+				timeout: 8000,
+				validateStatus: (status) => status >= 200 && status < 500
+			});
+			logger.info(`target: using ${alternate.hostname}`);
+			return alternate;
+		} catch (alternateError) {
+			if (canRetryWithAlternateHost(alternateError)) {
+				throw new Error(
+					`Neither ${primary.hostname} nor ${alternate.hostname} could be reached. Check that the domain is spelled correctly and that DNS is configured for at least one version.`
+				);
+			}
+			throw alternateError;
+		}
+	}
+}
+
 export async function runAudit(inputUrl: string, handlers: AuditHandlers = {}) {
-	const urlObj = normalizeUrl(inputUrl);
+	const urlObj = await resolveAuditUrl(inputUrl);
 	const logger = createLogger(urlObj.hostname);
 	const summary = createSummary();
 	const auditedAt = new Date().toISOString();
