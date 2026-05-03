@@ -113,6 +113,24 @@
 		return Array.isArray(value) ? value.map((item) => String(item)) : [];
 	}
 
+	function runFailureMessage() {
+		const message = pageData.runRecord.error_message || 'The audit run failed.';
+		const dnsTarget = message.match(/ENOTFOUND\s+([^\s]+)/)?.[1];
+		if (dnsTarget) {
+			return `We could not find DNS records for ${dnsTarget}. Check that the domain is spelled correctly and that the website is reachable, then restart the audit.`;
+		}
+
+		if (/ECONNREFUSED/.test(message)) {
+			return 'The website refused the connection. Check that the site is online and accepts normal web requests, then restart the audit.';
+		}
+
+		if (/ETIMEDOUT|ECONNABORTED|timed? out/i.test(message)) {
+			return 'The website took too long to respond. Try restarting the audit when the site is reachable.';
+		}
+
+		return message;
+	}
+
 	function issueFindings(item: AuditItemView) {
 		return item.findings.filter((finding) => finding.status === 'warn');
 	}
@@ -801,9 +819,12 @@
 <AuditHeader title={pageTitle()} status={runStatus()} isPending={isPending()} />
 
 {#if isFailed()}
-	<section class="card audit-card">
-		<h2>Run failed</h2>
-		<p class="error">{pageData.runRecord.error_message || 'The audit run failed.'}</p>
+	<section class="run-failed-panel" aria-live="polite">
+		<div class="run-failed-icon" aria-hidden="true">!</div>
+		<div>
+			<h2>Run failed</h2>
+			<p>{runFailureMessage()}</p>
+		</div>
 	</section>
 {/if}
 
@@ -865,5 +886,51 @@
 		width: min(100%, 1240px);
 		margin: 0 auto;
 		gap: 0;
+	}
+
+	.run-failed-panel {
+		display: grid;
+		grid-template-columns: auto minmax(0, 1fr);
+		gap: 0.9rem;
+		align-items: flex-start;
+		width: min(100%, 800px);
+		margin: 0 auto 1.5rem;
+		padding: 1rem;
+		border: 1px solid color-mix(in srgb, var(--status-fail) 42%, var(--border));
+		border-radius: 1rem;
+		background: color-mix(in srgb, var(--status-fail) 12%, var(--card-bg));
+		box-shadow: 0 18px 50px rgba(0, 0, 0, 0.16);
+	}
+
+	.run-failed-icon {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 2rem;
+		height: 2rem;
+		border-radius: 999px;
+		background: color-mix(in srgb, var(--status-fail) 18%, transparent);
+		color: #fecaca;
+		font-weight: 800;
+		line-height: 1;
+	}
+
+	.run-failed-panel h2 {
+		margin: 0 0 0.25rem;
+		color: var(--text-main);
+		font-size: 1.05rem;
+	}
+
+	.run-failed-panel p {
+		margin: 0;
+		color: #fecaca;
+		line-height: 1.5;
+		overflow-wrap: anywhere;
+	}
+
+	@media (max-width: 560px) {
+		.run-failed-panel {
+			grid-template-columns: 1fr;
+		}
 	}
 </style>

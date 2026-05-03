@@ -151,6 +151,21 @@ function formatAuditError(error: unknown) {
 		return 'Unknown audit failure.';
 	}
 
+	const code = String((error as Error & { code?: unknown }).code || '');
+	const hostname = String((error as Error & { hostname?: unknown }).hostname || '');
+	if (code === 'ENOTFOUND' || error.message.includes('ENOTFOUND')) {
+		const target = hostname || error.message.match(/ENOTFOUND\s+([^\s]+)/)?.[1] || 'the website';
+		return `We could not find DNS records for ${target}. Check that the domain is spelled correctly and that the website is reachable, then restart the audit.`;
+	}
+
+	if (code === 'ECONNREFUSED' || error.message.includes('ECONNREFUSED')) {
+		return 'The website refused the connection. Check that the site is online and accepts normal web requests, then restart the audit.';
+	}
+
+	if (code === 'ETIMEDOUT' || code === 'ECONNABORTED' || /timed? out/i.test(error.message)) {
+		return 'The website took too long to respond. Try restarting the audit when the site is reachable.';
+	}
+
 	const response = (error as Error & { response?: unknown }).response;
 	if (response && typeof response === 'object') {
 		return `${error.message}: ${JSON.stringify(response)}`;
