@@ -438,6 +438,66 @@
 {/if}
 
 <style>
+	.page-head {
+		display: grid;
+		grid-template-columns: 1fr auto;
+		gap: 16px;
+		align-items: center;
+		margin-bottom: 24px;
+	}
+
+	.page-head h1 {
+		margin: 0;
+		color: #fff;
+		font-size: clamp(2rem, 4vw, 3rem);
+		font-weight: 800;
+	}
+
+	.muted {
+		color: var(--text-muted);
+	}
+
+	input:not([type='hidden']),
+	button {
+		border-radius: 9999px;
+		font: inherit;
+	}
+
+	input:not([type='hidden']) {
+		padding: 16px 18px;
+		border: 1px solid var(--border);
+		background: rgba(24, 33, 43, 0.95);
+		color: var(--text-main);
+		outline: none;
+		transition: border-color 0.3s ease;
+	}
+
+	input:not([type='hidden']):focus {
+		border-color: var(--goldenweb-primary);
+	}
+
+	button {
+		padding: 16px 22px;
+		border: 0;
+		background: linear-gradient(135deg, #3b82f6, #6366f1);
+		color: white;
+		font-weight: 600;
+		cursor: pointer;
+		transition: opacity 0.2s ease;
+	}
+
+	.icon-button,
+	.icon-link {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 8px;
+	}
+
+	.error {
+		color: #fca5a5;
+	}
+
 	.audits-toolbar {
 		display: block;
 		margin-bottom: 20px;
@@ -847,6 +907,12 @@
 		font: inherit;
 		font-weight: 900;
 		cursor: pointer;
+	}
+
+	@media (max-width: 900px) {
+		.page-head {
+			grid-template-columns: 1fr;
+		}
 	}
 
 	@media (max-width: 900px) {

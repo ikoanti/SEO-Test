@@ -37,6 +37,41 @@
 </section>
 
 <style>
+	.page-head {
+		display: grid;
+		grid-template-columns: 1fr auto;
+		gap: 16px;
+		align-items: center;
+		margin-bottom: 24px;
+	}
+
+	.page-head h1 {
+		margin: 0;
+		color: #fff;
+		font-size: clamp(2rem, 4vw, 3rem);
+		font-weight: 800;
+	}
+
+	button {
+		border-radius: 9999px;
+		font: inherit;
+		padding: 16px 22px;
+		border: 0;
+		background: linear-gradient(135deg, #3b82f6, #6366f1);
+		color: white;
+		font-weight: 600;
+		cursor: pointer;
+		transition: opacity 0.2s ease;
+	}
+
+	.icon-button,
+	.icon-link {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 8px;
+	}
+
 	.audit-page-head h1 {
 		font-size: clamp(1.55rem, 2.6vw, 2.15rem);
 	}
@@ -123,6 +158,10 @@
 	}
 
 	@media (max-width: 760px) {
+		.page-head {
+			grid-template-columns: 1fr;
+		}
+
 		.audit-page-head h1 {
 			font-size: clamp(1.25rem, 5.2vw, 1.65rem);
 		}

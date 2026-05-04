@@ -59,4 +59,54 @@
 		font-size: 1rem;
 		font-weight: 500;
 	}
+
+	.stack {
+		display: grid;
+		gap: 14px;
+	}
+
+	label {
+		display: grid;
+		gap: 8px;
+	}
+
+	input,
+	button {
+		border-radius: 9999px;
+		font: inherit;
+	}
+
+	input {
+		padding: 16px 18px;
+		border: 1px solid var(--border);
+		background: rgba(24, 33, 43, 0.95);
+		color: var(--text-main);
+		outline: none;
+		transition: border-color 0.3s ease;
+	}
+
+	input:focus {
+		border-color: var(--goldenweb-primary);
+	}
+
+	button {
+		padding: 16px 22px;
+		border: 0;
+		background: linear-gradient(135deg, #3b82f6, #6366f1);
+		color: white;
+		font-weight: 600;
+		cursor: pointer;
+		transition: opacity 0.2s ease;
+	}
+
+	.icon-button {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 8px;
+	}
+
+	.error {
+		color: #fca5a5;
+	}
 </style>

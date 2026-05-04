@@ -143,6 +143,60 @@
 </div>
 
 <style>
+	.card {
+		background: var(--card-bg);
+		border: 1px solid var(--border);
+		border-radius: 18px;
+		padding: 20px;
+		transition: border-color 0.3s ease;
+	}
+
+	.audit-card {
+		width: 100%;
+		max-width: 800px;
+		border-radius: 1rem;
+		padding: 1.5rem;
+	}
+
+	.audit-card-title {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		margin: 0 0 1rem;
+		padding-bottom: 0.5rem;
+		border-bottom: 1px solid var(--border);
+		font-size: 1.25rem;
+		font-weight: 600;
+	}
+
+	.muted {
+		color: var(--text-muted);
+	}
+
+	button {
+		border-radius: 9999px;
+		font: inherit;
+		padding: 16px 22px;
+		border: 0;
+		background: linear-gradient(135deg, #3b82f6, #6366f1);
+		color: white;
+		font-weight: 600;
+		cursor: pointer;
+		transition: opacity 0.2s ease;
+	}
+
+	button:disabled {
+		cursor: not-allowed;
+		opacity: 0.65;
+	}
+
+	.audit-primary-button {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.5rem;
+	}
+
 	#card-report {
 		--report-border: rgba(58, 71, 88, 0.9);
 		background: var(--card-bg);

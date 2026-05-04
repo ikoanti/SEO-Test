@@ -151,9 +151,10 @@
 		border: 1px solid rgba(255, 255, 255, 0.08);
 		border-radius: 9999px;
 		background: var(--surface-soft);
+		color: var(--text-main);
+		font: inherit;
 		cursor: pointer;
 		list-style: none;
-		color: var(--text-main);
 	}
 
 	.profile-trigger-desktop {
@@ -215,7 +216,13 @@
 		gap: 8px;
 		width: 100%;
 		padding: 12px 14px;
+		border: 0;
 		border-radius: 12px;
+		background: linear-gradient(135deg, #3b82f6, #6366f1);
+		color: white;
+		font: inherit;
+		font-weight: 600;
+		cursor: pointer;
 	}
 
 	@media (max-width: 900px) {
