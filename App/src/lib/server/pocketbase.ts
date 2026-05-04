@@ -603,6 +603,11 @@ export async function deleteAuditDerivedRecords(
 	await deleteRecordsByFilter(WORKFLOWS_COLLECTION, `id = "${escapedWorkflowId}"`, token);
 }
 
+export async function deleteAuditRecord(auditId: string, token?: string) {
+	const pb = createAuthedClient(token);
+	await pb.collection(AUDITS_COLLECTION).delete(auditId);
+}
+
 export async function getOrCreateAuditFindingTypeRecord(
 	input: {
 		key: string;

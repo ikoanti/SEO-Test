@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import { Check, Pencil, Plus, RotateCw, Search, X } from 'lucide-svelte';
+	import { Check, Pencil, Plus, RotateCw, Search, Trash2, X } from 'lucide-svelte';
 	import { onMount, tick } from 'svelte';
 	import type { ActionData } from './$types';
 
@@ -193,6 +193,16 @@
 		stopEditingWebsiteDomain();
 	}
 
+	function confirmAuditDelete(event: SubmitEvent) {
+		if (
+			window.confirm('Delete this audit? This removes its findings, screenshots, and report data.')
+		) {
+			return;
+		}
+
+		event.preventDefault();
+	}
+
 	function stopStatusRefresh() {
 		if (!refreshInterval) return;
 		window.clearInterval(refreshInterval);
@@ -253,6 +263,9 @@
 
 {#if form?.createError}
 	<p class="error toolbar-error">{form.createError}</p>
+{/if}
+{#if form?.deleteError}
+	<p class="error toolbar-error">{form.deleteError}</p>
 {/if}
 
 <section class="audit-list-section">
@@ -326,15 +339,27 @@
 
 					<div class="audit-card-grid">
 						{#each group.audits as audit (audit.id)}
-							<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
-							<a class="audit-card" href={audit.targetHref}>
-								<div>
-									<strong>{auditTimestamp(audit) || 'Audit'}</strong>
-								</div>
-								<span class={`audit-status-chip audit-status-${auditStatus(audit)}`}>
-									{statusLabel(auditStatus(audit))}
-								</span>
-							</a>
+							<article class="audit-card">
+								<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+								<a class="audit-card-link" href={audit.targetHref}>
+									<div>
+										<strong>{auditTimestamp(audit) || 'Audit'}</strong>
+									</div>
+									<span class={`audit-status-chip audit-status-${auditStatus(audit)}`}>
+										{statusLabel(auditStatus(audit))}
+									</span>
+								</a>
+								<form method="POST" action="?/delete" onsubmit={confirmAuditDelete}>
+									<input type="hidden" name="auditId" value={audit.id} />
+									<button
+										type="submit"
+										class="audit-delete-button"
+										aria-label={`Delete audit ${auditTimestamp(audit) || audit.id}`}
+									>
+										<Trash2 size={15} />
+									</button>
+								</form>
+							</article>
 						{/each}
 					</div>
 				</section>
@@ -571,20 +596,29 @@
 	}
 
 	.audit-card {
-		display: grid;
-		grid-template-rows: auto auto;
-		gap: 10px;
+		position: relative;
 		min-height: 96px;
 		min-width: 0;
 		border: 1px solid rgba(148, 163, 184, 0.14);
 		border-radius: 12px;
-		padding: 14px;
 		background: rgba(255, 255, 255, 0.03);
+		transition:
+			border-color 0.2s ease,
+			background-color 0.2s ease;
 	}
 
 	.audit-card:hover {
 		border-color: rgba(148, 163, 184, 0.3);
 		background: rgba(255, 255, 255, 0.05);
+	}
+
+	.audit-card-link {
+		display: grid;
+		grid-template-rows: auto auto;
+		gap: 10px;
+		min-height: 96px;
+		min-width: 0;
+		padding: 14px 52px 14px 14px;
 	}
 
 	.audit-card strong {
@@ -613,6 +647,42 @@
 		line-height: 1.1;
 		text-align: center;
 		text-transform: capitalize;
+	}
+
+	.audit-card form {
+		position: absolute;
+		top: 10px;
+		right: 10px;
+	}
+
+	.audit-delete-button {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 32px;
+		height: 32px;
+		padding: 0;
+		border: 1px solid rgba(239, 68, 68, 0.28);
+		border-radius: 999px;
+		background: rgba(15, 23, 42, 0.88);
+		color: #fca5a5;
+		cursor: pointer;
+		transition:
+			border-color 0.2s ease,
+			background-color 0.2s ease,
+			color 0.2s ease;
+	}
+
+	.audit-delete-button:hover,
+	.audit-delete-button:focus-visible {
+		border-color: rgba(239, 68, 68, 0.64);
+		background: rgba(239, 68, 68, 0.14);
+		color: #fecaca;
+	}
+
+	.audit-delete-button :global(svg) {
+		display: block;
+		flex-shrink: 0;
 	}
 
 	.audit-status-queued {

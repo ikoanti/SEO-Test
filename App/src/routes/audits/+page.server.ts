@@ -1,6 +1,13 @@
 import { fail, isRedirect, redirect } from '@sveltejs/kit';
-import { getWorkflowByAuditId, listAudits, updateWebsiteRecord } from '$lib/server/pocketbase';
+import { clearScreenshotQueueStateForAudit } from '$lib/server/audit-runner';
 import { submitAudit } from '$lib/server/audit-submit';
+import {
+	deleteAuditDerivedRecords,
+	deleteAuditRecord,
+	getWorkflowByAuditId,
+	listAudits,
+	updateWebsiteRecord
+} from '$lib/server/pocketbase';
 
 function getWebsiteUrl(audit: Record<string, unknown>) {
 	const website = (audit.expand as { website?: { url?: string } } | undefined)?.website;
@@ -156,6 +163,34 @@ export const actions = {
 			return fail(400, {
 				createError: error instanceof Error ? error.message : 'Failed to create audit.',
 				rows: uniqueRows
+			});
+		}
+	},
+	delete: async ({ request, locals }) => {
+		const data = await request.formData();
+		const auditId = String(data.get('auditId') || '').trim();
+
+		if (!auditId) {
+			return fail(400, { deleteError: 'Audit is missing.' });
+		}
+
+		try {
+			let workflowId: string | undefined;
+			try {
+				const workflow = await getWorkflowByAuditId(auditId, locals.pbToken);
+				workflowId = workflow.id;
+			} catch {
+				workflowId = undefined;
+			}
+
+			clearScreenshotQueueStateForAudit(auditId);
+			await deleteAuditDerivedRecords(auditId, workflowId, locals.pbToken);
+			await deleteAuditRecord(auditId, locals.pbToken);
+			throw redirect(303, '/audits');
+		} catch (error) {
+			if (isRedirect(error)) throw error;
+			return fail(400, {
+				deleteError: error instanceof Error ? error.message : 'Failed to delete audit.'
 			});
 		}
 	}
