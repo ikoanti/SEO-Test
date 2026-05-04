@@ -124,11 +124,6 @@ button {
 	transition: opacity 0.2s ease;
 }
 
-button[type='button'] {
-	border: 1px solid var(--border);
-	background: rgba(15, 23, 42, 0.9);
-}
-
 .icon-button,
 .icon-link {
 	display: inline-flex;
