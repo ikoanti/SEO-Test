@@ -2,7 +2,6 @@ import type { AnyNode } from 'domhandler';
 import {
 	addItem,
 	createListResult,
-	extractInternalLinks,
 	fetchText,
 	hasValidFaqJsonLd,
 	hasValidProductJsonLd,
@@ -86,10 +85,6 @@ export async function analyzeMetaAndHeadings(
 	const duplicateMetaDescriptions = createListResult();
 	const overlyLongMetaDescriptions = createListResult();
 	const imageAltTags = createListResult();
-	const loremIpsum = createListResult();
-	const canonicalUrls = createListResult();
-	const internalLinks = createListResult();
-	const contentQuality = createListResult();
 	const shopifyUrls = createListResult();
 	const productSchema = createListResult();
 	const faqSchema = createListResult();
@@ -103,9 +98,6 @@ export async function analyzeMetaAndHeadings(
 	const longDescriptionEvidence: Array<{ page: string; issue: string; value?: string }> = [];
 	const duplicateTitleEvidence: Array<{ page: string; issue: string; value?: string }> = [];
 	const duplicateDescriptionEvidence: Array<{ page: string; issue: string; value?: string }> = [];
-	const canonicalEvidence: Array<{ page: string; issue: string; value?: string }> = [];
-	const internalLinksEvidence: Array<{ page: string; issue: string; count?: number }> = [];
-	const contentQualityEvidence: Array<{ page: string; issue: string; wordCount?: number }> = [];
 	const shopifyUrlEvidence: Array<{ page: string; issue: string; pattern?: string }> = [];
 	const productSchemaEvidence: Array<{ page: string; issue: string }> = [];
 	const faqSchemaEvidence: Array<{ page: string; issue: string }> = [];
@@ -131,18 +123,10 @@ export async function analyzeMetaAndHeadings(
 			).length;
 			const title = $('title').text().trim();
 			const metaDescription = $('meta[name="description"]').attr('content')?.trim() || '';
-			const canonical = $('link[rel="canonical"]').attr('href') || '';
 			const bodyText = $('body').text();
-			const hasLoremIpsum = /lorem ipsum/i.test(bodyText);
 			const missingAlt = $('img').filter(
 				(_: number, element: AnyNode) => !$(element).attr('alt')?.trim()
 			).length;
-			const wordCount = $('body')
-				.text()
-				.replace(/\s+/g, ' ')
-				.trim()
-				.split(' ')
-				.filter(Boolean).length;
 			const headingIssue =
 				h1Count === 0
 					? 'Missing H1 tag'
@@ -282,56 +266,6 @@ export async function analyzeMetaAndHeadings(
 				});
 			} else {
 				addItem(summary, imageAltTags, 'pass', 'All images include alt text', { title: page });
-			}
-
-			addItem(
-				summary,
-				loremIpsum,
-				hasLoremIpsum ? 'warn' : 'pass',
-				hasLoremIpsum ? 'Lorem Ipsum Detected' : 'No Lorem Ipsum Detected',
-				{ title: page, page_url: page }
-			);
-
-			addItem(
-				summary,
-				canonicalUrls,
-				canonical ? 'pass' : 'warn',
-				canonical ? 'Canonical URL present' : 'Canonical URL missing',
-				{ title: canonical || page }
-			);
-			if (!canonical && canonicalEvidence.length < maxEvidenceItems) {
-				canonicalEvidence.push({ page, issue: 'Canonical URL missing' });
-			}
-
-			const sameOriginLinks = extractInternalLinks($, page, new URL(page).origin);
-			if (sameOriginLinks.length === 0 && internalLinksEvidence.length < maxEvidenceItems) {
-				internalLinksEvidence.push({
-					page,
-					issue: 'No crawlable internal links found',
-					count: sameOriginLinks.length
-				});
-			}
-			addItem(
-				summary,
-				internalLinks,
-				sameOriginLinks.length > 0 ? 'pass' : 'warn',
-				sameOriginLinks.length > 0 ? 'Internal links found' : 'No crawlable internal links found',
-				{ title: `${page} (${sameOriginLinks.length} links)` }
-			);
-
-			addItem(
-				summary,
-				contentQuality,
-				wordCount >= 250 ? 'pass' : 'warn',
-				wordCount >= 250 ? 'Content length looks reasonable' : 'Thin content detected',
-				{ title: `${page} (${wordCount} words)` }
-			);
-			if (wordCount < 250 && contentQualityEvidence.length < maxEvidenceItems) {
-				contentQualityEvidence.push({
-					page,
-					issue: 'Thin content detected',
-					wordCount
-				});
 			}
 
 			const pagePath = new URL(page).pathname;
@@ -523,30 +457,6 @@ export async function analyzeMetaAndHeadings(
 		});
 	}
 
-	if (canonicalEvidence.length > 0) {
-		const issueCount = canonicalUrls.items.filter((item) => item.status === 'warn').length;
-		attachScreenshotRequest(
-			canonicalUrls.items.find((item) => item.status === 'warn'),
-			{ kind: 'canonicals', domain, entries: canonicalEvidence, count: issueCount }
-		);
-	}
-
-	if (internalLinksEvidence.length > 0) {
-		const issueCount = internalLinks.items.filter((item) => item.status === 'warn').length;
-		attachScreenshotRequest(
-			internalLinks.items.find((item) => item.status === 'warn'),
-			{ kind: 'internal-links', domain, entries: internalLinksEvidence, count: issueCount }
-		);
-	}
-
-	if (contentQualityEvidence.length > 0) {
-		const issueCount = contentQuality.items.filter((item) => item.status === 'warn').length;
-		attachScreenshotRequest(
-			contentQuality.items.find((item) => item.status === 'warn'),
-			{ kind: 'content-quality', domain, entries: contentQualityEvidence, count: issueCount }
-		);
-	}
-
 	if (shopifyUrlEvidence.length > 0) {
 		const issueCount = shopifyUrls.items.filter((item) => item.status === 'warn').length;
 		attachScreenshotRequest(
@@ -602,10 +512,6 @@ export async function analyzeMetaAndHeadings(
 		'duplicated-meta-descriptions': duplicateMetaDescriptions,
 		'overly-long-meta-descriptions': overlyLongMetaDescriptions,
 		imageAltTags,
-		loremIpsum,
-		canonicalUrls,
-		internalLinks,
-		contentQuality,
 		shopifyUrls
 	};
 }

@@ -25,7 +25,6 @@ type FetchTextOptions = {
 
 export const USER_AGENT =
 	'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
-export const COMMON_SITEMAPS = ['/sitemap.xml', '/sitemap_index.xml', '/sitemap.xml.gz'];
 export const AI_BOTS = [
 	'GPTBot',
 	'Google-Extended',

@@ -3,7 +3,6 @@ import { gatherPages } from './checks/crawl';
 import { analyzeMetaAndHeadings } from './checks/page-analysis';
 import { analyzePageSpeed } from './checks/pagespeed';
 import { analyzeLlmsTxt, analyzeRobots } from './checks/robots';
-import { analyzeSitemap } from './checks/sitemap';
 import {
 	cloneAuditSnapshot,
 	createLogger,
@@ -55,9 +54,7 @@ async function resolveAuditUrl(inputUrl: string) {
 	} catch (error) {
 		if (!alternate || !canRetryWithAlternateHost(error)) throw error;
 
-		logger.warn(
-			`target: ${primary.hostname} was not reachable, trying ${alternate.hostname}`
-		);
+		logger.warn(`target: ${primary.hostname} was not reachable, trying ${alternate.hostname}`);
 		try {
 			await fetchText(alternate.href, {
 				timeout: 8000,
@@ -68,7 +65,8 @@ async function resolveAuditUrl(inputUrl: string) {
 		} catch (alternateError) {
 			if (canRetryWithAlternateHost(alternateError)) {
 				throw new Error(
-					`Neither ${primary.hostname} nor ${alternate.hostname} could be reached. Check that the domain is spelled correctly and that DNS is configured for at least one version.`
+					`Neither ${primary.hostname} nor ${alternate.hostname} could be reached. Check that the domain is spelled correctly and that DNS is configured for at least one version.`,
+					{ cause: alternateError }
 				);
 			}
 			throw alternateError;
@@ -122,7 +120,7 @@ export async function runAudit(inputUrl: string, handlers: AuditHandlers = {}) {
 	await notifyStepComplete('homepage');
 
 	await notifyStepStart('robots');
-	const { result: robotsTxt, robotsSitemap } = await runStep(logger, 'robots', () =>
+	const { result: robotsTxt } = await runStep(logger, 'robots', () =>
 		analyzeRobots(urlObj.origin, summary, logger)
 	);
 	partialAudit.robotsTxt = robotsTxt;
@@ -131,13 +129,6 @@ export async function runAudit(inputUrl: string, handlers: AuditHandlers = {}) {
 	);
 	partialAudit.llmsTxt = llmsTxt;
 	await notifyStepComplete('robots');
-
-	await notifyStepStart('sitemap');
-	const sitemap = await runStep(logger, 'sitemap', () =>
-		analyzeSitemap(urlObj.origin, robotsSitemap, summary, logger)
-	);
-	partialAudit.sitemap = sitemap;
-	await notifyStepComplete('sitemap');
 
 	await notifyStepStart('page-analysis');
 	const pageResults = await runStep(logger, 'page-analysis', () =>
@@ -164,7 +155,6 @@ export async function runAudit(inputUrl: string, handlers: AuditHandlers = {}) {
 		pageSpeed,
 		robotsTxt,
 		llmsTxt,
-		sitemap,
 		...homeResults,
 		...pageResults
 	};

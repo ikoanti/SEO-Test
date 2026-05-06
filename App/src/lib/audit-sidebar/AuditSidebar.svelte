@@ -1,14 +1,9 @@
 <script lang="ts">
 	import AIBotVisibilityPanel from './panels/AIBotVisibilityPanel.svelte';
 	import BrokenLinksPanel from './panels/BrokenLinksPanel.svelte';
-	import CanonicalsPanel from './panels/CanonicalsPanel.svelte';
-	import ContentQualityPanel from './panels/ContentQualityPanel.svelte';
 	import HeadingsPanel from './panels/HeadingsPanel.svelte';
 	import ImageAltsPanel from './panels/ImageAltsPanel.svelte';
-	import InternalLinksPanel from './panels/InternalLinksPanel.svelte';
-	import LazyLoadingPanel from './panels/LazyLoadingPanel.svelte';
 	import MetaTagsPanel from './panels/MetaTagsPanel.svelte';
-	import OpenGraphPanel from './panels/OpenGraphPanel.svelte';
 	import PageSpeedPanel from './panels/PageSpeedPanel.svelte';
 	import PlaceholderPanel from './panels/PlaceholderPanel.svelte';
 	import ProductSchemaPanel from './panels/ProductSchemaPanel.svelte';
@@ -64,16 +59,6 @@
 		<SchemaIssuePanel {panel} />
 	{:else if panel.kind === 'meta-tags'}
 		<MetaTagsPanel {panel} />
-	{:else if panel.kind === 'canonicals'}
-		<CanonicalsPanel {panel} />
-	{:else if panel.kind === 'internal-links'}
-		<InternalLinksPanel {panel} />
-	{:else if panel.kind === 'lazy-loading'}
-		<LazyLoadingPanel {panel} />
-	{:else if panel.kind === 'open-graph'}
-		<OpenGraphPanel {panel} />
-	{:else if panel.kind === 'content-quality'}
-		<ContentQualityPanel {panel} />
 	{:else if panel.kind === 'shopify-urls'}
 		<ShopifyUrlsPanel {panel} />
 	{:else}

@@ -505,11 +505,6 @@ function requestEntryPages(request: AuditCaptureRequest) {
 		request.kind === 'headings' ||
 		request.kind === 'image-alts' ||
 		request.kind === 'meta-tags' ||
-		request.kind === 'canonicals' ||
-		request.kind === 'internal-links' ||
-		request.kind === 'lazy-loading' ||
-		request.kind === 'open-graph' ||
-		request.kind === 'content-quality' ||
 		request.kind === 'shopify-urls'
 	) {
 		return uniquePageUrls(request.entries.map((entry) => entry.page));
@@ -566,31 +561,8 @@ function isCaptureEntry(entry: unknown): entry is CaptureEntry {
 	);
 }
 
-function absoluteAuditUrl(origin: string, value: unknown) {
-	if (typeof value !== 'string' || !value.trim()) return '';
-
-	try {
-		const url = new URL(value, origin);
-		return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : '';
-	} catch {
-		return '';
-	}
-}
-
 function shopifyUrlCaptureCandidates(audit: AuditSummaryResult, origin: string) {
-	const sitemap = audit.sitemap;
-	const items =
-		sitemap && typeof sitemap === 'object' && Array.isArray((sitemap as { items?: unknown }).items)
-			? ((sitemap as { items: Array<Record<string, unknown>> }).items || [])
-			: [];
-	const detectedSitemaps = items
-		.filter((item) => item.status === 'pass')
-		.map((item) => {
-			const detail = String(item.detail || '');
-			return absoluteAuditUrl(origin, detail.match(/^Found at\s+(.+)$/i)?.[1] || '');
-		});
-
-	return uniquePageUrls([...detectedSitemaps, `${origin.replace(/\/+$/, '')}/sitemap.xml`, origin]);
+	return uniquePageUrls([`${origin.replace(/\/+$/, '')}/sitemap.xml`, origin]);
 }
 
 function reorderEntriesBySelectedPage<TRequest extends AuditCaptureRequest>(
@@ -743,21 +715,6 @@ function captureEntryFromFinding(
 		return value ? { page, issue, value } : { page, issue };
 	}
 
-	if (request.kind === 'canonicals') {
-		const value = typeof source.title === 'string' ? source.title : '';
-		return value && value !== page ? { page, issue, value } : { page, issue };
-	}
-
-	if (request.kind === 'internal-links') {
-		const countMatch = String(source.title || finding.title || '').match(/\((\d+)\s+links?\)/i);
-		return { page, issue, count: countMatch ? Number(countMatch[1]) : undefined };
-	}
-
-	if (request.kind === 'content-quality') {
-		const countMatch = String(source.title || finding.title || '').match(/\((\d+)\s+words?\)/i);
-		return { page, issue, wordCount: countMatch ? Number(countMatch[1]) : undefined };
-	}
-
 	if (request.kind === 'shopify-urls') {
 		return {
 			page,
@@ -777,9 +734,7 @@ function captureEntryFromFinding(
 		request.kind === 'missing-product-schema' ||
 		request.kind === 'missing-faq-schema' ||
 		request.kind === 'missing-organization-schema' ||
-		request.kind === 'unlinked-blog' ||
-		request.kind === 'lazy-loading' ||
-		request.kind === 'open-graph'
+		request.kind === 'unlinked-blog'
 	) {
 		return { page, issue };
 	}
@@ -1056,20 +1011,8 @@ function templateCaptureRequest(
 
 const STEP_KEYS: Record<string, string[]> = {
 	crawl: [],
-	homepage: [
-		'missing-organization-schema',
-		'webIcons',
-		'ssl',
-		'viewportMetaTag',
-		'flash',
-		'charset',
-		'openGraph',
-		'trustSignals',
-		'lazyLoadImages',
-		'unlinked-blog'
-	],
+	homepage: ['missing-organization-schema', 'unlinked-blog'],
 	robots: ['robotsTxt', 'llmsTxt'],
-	sitemap: ['sitemap'],
 	'page-analysis': [
 		'missing-h1-tags',
 		'multiple-h1-tags',
@@ -1080,10 +1023,6 @@ const STEP_KEYS: Record<string, string[]> = {
 		'duplicated-meta-descriptions',
 		'overly-long-meta-descriptions',
 		'imageAltTags',
-		'loremIpsum',
-		'canonicalUrls',
-		'internalLinks',
-		'contentQuality',
 		'shopifyUrls'
 	],
 	pagespeed: ['pageSpeed']
