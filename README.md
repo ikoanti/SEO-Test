@@ -116,8 +116,8 @@ The deploy script:
 - PocketBase status from the app: `GET /api/pocketbase/status`
 - External audit API:
   - `POST /api/v1/audits` with `Authorization: Bearer $EXTERNAL_AUDIT_API_KEY` and JSON `{ "domain": "example.com", "displayDomain": "example.com" }`
-  - `GET /api/v1/audits/:auditId` to check queued/running/completed/failed status
-  - `GET /api/v1/audits/:auditId/result` after completion
+  - `GET /api/v1/audits/:auditId` to poll queued/running/failed status and fetch the completed `result`
+    payload. This is the only read endpoint needed after creation.
   - `POST /api/v1/audits/:auditId/export/google-doc` with JSON `{}` to create/update the Google Doc export and return its Google Drive view URL
 
 External API setup requires `EXTERNAL_AUDIT_API_KEY`, PocketBase superuser credentials, and the Google Workspace variables already used by the in-app Google Docs export. Access to the returned Google Doc URL follows the Drive folder/document sharing settings.

@@ -1,4 +1,5 @@
 import { error, json } from '@sveltejs/kit';
+import { buildAuditPageData, buildExternalAuditResult } from '$lib/server/audit-detail';
 import { ensureAuditWorkflowProcessing } from '$lib/server/audit-runner';
 import { externalApiPocketBaseToken } from '$lib/server/external-api';
 import { getAudit, getWorkflowByAuditId } from '$lib/server/pocketbase';
@@ -23,33 +24,34 @@ export const GET = async ({ request, params, url }) => {
 	ensureAuditWorkflowProcessing(workflow, token);
 	const website = websiteRecord(audit);
 	const status = String(workflow.status || audit.status || 'unknown');
-	const basePath = `${url.origin}/api/v1/audits/${encodeURIComponent(params.auditId)}`;
+	const completed = status === 'completed';
+	const result = completed
+		? buildExternalAuditResult(
+				await buildAuditPageData(params.auditId, token, {
+					includeReportHtml: false,
+					includeReportPreview: true
+				})
+			)
+		: null;
 
 	return json({
-		auditId: audit.id,
-		workflowId: workflow.id,
+		id: audit.id,
 		status,
+		url: `${url.origin}/api/v1/audits/${encodeURIComponent(params.auditId)}`,
 		website: website
 			? {
 					id: website.id,
 					url: website.url,
 					domain: website.domain,
-					displayDomain: website.display_name
+					displayName: website.display_name
 				}
 			: null,
+		createdAt: audit.created || null,
+		updatedAt: audit.updated || null,
 		queuedAt: workflow.queued_at || null,
 		startedAt: workflow.started_at || null,
 		completedAt: workflow.completed_at || audit.completed_at || null,
-		error: workflow.error_message || null,
-		googleDoc: audit.google_doc_url
-			? {
-					id: audit.google_doc_id,
-					name: audit.google_doc_name,
-					url: audit.google_doc_url,
-					exportedAt: audit.google_doc_exported_at
-				}
-			: null,
-		resultUrl: `${basePath}/result`,
-		googleDocExportUrl: `${basePath}/export/google-doc`
+		error: workflow.error_message ? { message: workflow.error_message } : null,
+		result
 	});
 };

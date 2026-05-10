@@ -6,7 +6,9 @@ export const POST = async ({ request, url }) => {
 	const token = await externalApiPocketBaseToken(request);
 	const body = await readJsonBody(request);
 	const domain = String(body.domain || body.url || '').trim();
-	const displayDomain = String(body.displayDomain || body.displayName || body.display_name || '').trim();
+	const displayDomain = String(
+		body.displayDomain || body.displayName || body.display_name || ''
+	).trim();
 
 	if (!domain) {
 		throw error(400, 'Website domain is required.');
@@ -17,23 +19,18 @@ export const POST = async ({ request, url }) => {
 		displayDomain,
 		token
 	});
-	const basePath = `${url.origin}/api/v1/audits/${encodeURIComponent(audit.id)}`;
 
 	return json(
 		{
-			auditId: audit.id,
-			workflowId: workflow.id,
-			websiteId: website.id,
+			id: audit.id,
 			status: workflow.status || audit.status || 'queued',
+			url: `${url.origin}/api/v1/audits/${encodeURIComponent(audit.id)}`,
 			website: {
 				id: website.id,
 				url: website.url,
 				domain: website.domain,
-				displayDomain: website.display_name
-			},
-			statusUrl: basePath,
-			resultUrl: `${basePath}/result`,
-			googleDocExportUrl: `${basePath}/export/google-doc`
+				displayName: website.display_name
+			}
 		},
 		{ status: 202 }
 	);

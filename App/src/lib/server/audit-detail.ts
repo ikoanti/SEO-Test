@@ -399,3 +399,22 @@ export async function buildAuditPageData(
 		isPendingScreenshots: hasPendingScreenshotJobs(auditRecord.id)
 	};
 }
+
+export type AuditPageData = Awaited<ReturnType<typeof buildAuditPageData>>;
+
+export function buildExternalAuditResult(pageData: AuditPageData) {
+	return {
+		summary: pageData.summary,
+		aiVisibility: pageData.aiVisibility,
+		findings: pageData.findingDisplayItems,
+		reportPreviewItems: pageData.reportPreviewItems,
+		googleDoc: pageData.auditRecord?.google_doc_url
+			? {
+					id: pageData.auditRecord.google_doc_id,
+					name: pageData.auditRecord.google_doc_name,
+					url: pageData.auditRecord.google_doc_url,
+					exportedAt: pageData.auditRecord.google_doc_exported_at
+				}
+			: null
+	};
+}
