@@ -9,6 +9,13 @@ import {
 	deleteSidebarRenderData,
 	putSidebarRenderData
 } from '$lib/server/audit-capture/sidebar-store';
+import {
+	fetchText,
+	hasValidFaqJsonLd,
+	hasValidOrganizationJsonLd,
+	hasValidProductJsonLd,
+	loadDocument
+} from '$lib/server/audit/shared';
 
 const SIDEBAR_WIDTH = 420;
 const SIDEBAR_MARGIN = 16;
@@ -320,6 +327,191 @@ async function screenshotSidebar(browser: Browser, sidebarData: Record<string, u
 	}
 }
 
+type JsonLdRecord = Record<string, unknown>;
+type RichResultItemStatus = 'valid' | 'invalid' | 'missing';
+
+function isRecord(value: unknown): value is JsonLdRecord {
+	return Boolean(value && typeof value === 'object' && !Array.isArray(value));
+}
+
+function arrayValue(value: unknown) {
+	return Array.isArray(value) ? value : value ? [value] : [];
+}
+
+function collectJsonLdNodes(value: unknown): JsonLdRecord[] {
+	if (Array.isArray(value)) return value.flatMap((item) => collectJsonLdNodes(item));
+	if (!isRecord(value)) return [];
+
+	return [
+		value,
+		...collectJsonLdNodes(value['@graph']),
+		...collectJsonLdNodes(value.mainEntity),
+		...collectJsonLdNodes(value.acceptedAnswer),
+		...collectJsonLdNodes(value.offers),
+		...collectJsonLdNodes(value.brand),
+		...collectJsonLdNodes(value.aggregateRating),
+		...collectJsonLdNodes(value.review)
+	];
+}
+
+function jsonLdTypes(value: JsonLdRecord) {
+	return arrayValue(value['@type'])
+		.map((type) => String(type).trim())
+		.filter(Boolean);
+}
+
+function jsonLdHasType(value: JsonLdRecord, schemaType: string) {
+	return jsonLdTypes(value).some((type) => type.toLowerCase() === schemaType.toLowerCase());
+}
+
+function hasSchemaType(values: unknown[], schemaType: string) {
+	return values.some((value) =>
+		collectJsonLdNodes(value).some((node) => jsonLdHasType(node, schemaType))
+	);
+}
+
+function richResultItem(
+	type: string,
+	label: string,
+	isValid: boolean,
+	isPresent: boolean,
+	missingMessage: string,
+	invalidMessage: string
+) {
+	const status: RichResultItemStatus = isValid ? 'valid' : isPresent ? 'invalid' : 'missing';
+	return {
+		type,
+		label,
+		status,
+		issues: status === 'valid' ? [] : [status === 'missing' ? missingMessage : invalidMessage]
+	};
+}
+
+async function buildLocalRichResultsData({
+	pageUrl,
+	reportTemplateKey,
+	title = ''
+}: {
+	pageUrl: string;
+	reportTemplateKey?: string;
+	title?: string;
+}) {
+	const checkedAt = new Date().toISOString();
+	let html = '';
+	let fetchError = '';
+	let pageTitle = '';
+
+	try {
+		const response = await fetchText(pageUrl, {
+			timeout: 15000,
+			validateStatus: (status) => status >= 200 && status < 500
+		});
+		html = response.data;
+	} catch (error) {
+		fetchError = error instanceof Error ? error.message : String(error);
+	}
+
+	const jsonLdValues: unknown[] = [];
+	const jsonLdParseErrors: Array<{ index: number; message: string }> = [];
+	if (html) {
+		const $ = loadDocument(html);
+		pageTitle = $('title').text().replace(/\s+/g, ' ').trim();
+		$('script[type="application/ld+json"]').each((index, element) => {
+			const raw = $(element).contents().text().trim();
+			if (!raw) return;
+			try {
+				jsonLdValues.push(JSON.parse(raw));
+			} catch (error) {
+				jsonLdParseErrors.push({
+					index: index + 1,
+					message: error instanceof Error ? error.message : String(error)
+				});
+			}
+		});
+	}
+
+	const allTypes = Array.from(
+		new Set(
+			jsonLdValues.flatMap((value) =>
+				collectJsonLdNodes(value).flatMap((node) => jsonLdTypes(node))
+			)
+		)
+	).sort((first, second) => first.localeCompare(second));
+
+	const items = [
+		richResultItem(
+			'Product',
+			'Product snippets',
+			jsonLdValues.some(hasValidProductJsonLd),
+			hasSchemaType(jsonLdValues, 'Product'),
+			'Product structured data was not found on this page.',
+			'Product structured data is present but is missing fields used by this audit.'
+		),
+		richResultItem(
+			'FAQPage',
+			'FAQ',
+			jsonLdValues.some(hasValidFaqJsonLd),
+			hasSchemaType(jsonLdValues, 'FAQPage'),
+			'FAQPage structured data was not found on this page.',
+			'FAQPage structured data is present but does not include valid questions and accepted answers.'
+		),
+		richResultItem(
+			'Organization',
+			'Organization info',
+			jsonLdValues.some(hasValidOrganizationJsonLd),
+			hasSchemaType(jsonLdValues, 'Organization'),
+			'Organization structured data was not found on this page.',
+			'Organization structured data is present but is missing name, URL, or logo fields.'
+		)
+	];
+
+	const validCount = items.filter((item) => item.status === 'valid').length;
+	const targetTypeByTemplate: Record<string, string> = {
+		'missing-product-schema': 'Product',
+		'missing-faq-schema': 'FAQPage',
+		'missing-organization-schema': 'Organization'
+	};
+
+	return {
+		pageUrl,
+		title,
+		pageTitle,
+		checkedAt,
+		validCount,
+		jsonLdScriptCount: jsonLdValues.length,
+		allTypes,
+		items,
+		fetchError,
+		jsonLdParseErrors,
+		targetType: reportTemplateKey ? targetTypeByTemplate[reportTemplateKey] : undefined,
+		sourceLabel: 'GoldenWeb structured data validation'
+	};
+}
+
+async function screenshotLocalRichResultsPage(
+	browser: Browser,
+	input: { pageUrl: string; reportTemplateKey?: string; title?: string }
+) {
+	const data = await buildLocalRichResultsData(input);
+	const id = putSidebarRenderData(data);
+	const page = await browser.newPage({
+		viewport: { width: WINDOW_WIDTH, height: CAPTURE_HEIGHT },
+		deviceScaleFactor: 1
+	});
+
+	try {
+		const url = `${resolveAppOrigin()}/__rich-results-capture?id=${encodeURIComponent(id)}`;
+		await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 });
+		const stage = page.locator('[data-rich-results-stage]');
+		await stage.waitFor({ state: 'visible', timeout: 10000 });
+		await page.waitForTimeout(250);
+		return await stage.screenshot({ type: 'png' });
+	} finally {
+		deleteSidebarRenderData(id);
+		await page.close().catch(() => undefined);
+	}
+}
+
 async function compositeSidebar(
 	pageImage: Buffer,
 	sidebarImage: Buffer,
@@ -328,15 +520,14 @@ async function compositeSidebar(
 	const pageMetadata = await sharp(pageImage).metadata();
 	const pageWidth = pageMetadata.width ?? WINDOW_WIDTH;
 	const viewportRight = viewportOffset.left + WINDOW_WIDTH;
-	const left =
-		Math.max(
-			0,
-			Math.min(pageWidth, viewportRight) -
-				SIDEBAR_WIDTH -
-				SIDEBAR_MARGIN -
-				SIDEBAR_RIGHT_INSET -
-				SIDEBAR_RENDER_PADDING_X
-		);
+	const left = Math.max(
+		0,
+		Math.min(pageWidth, viewportRight) -
+			SIDEBAR_WIDTH -
+			SIDEBAR_MARGIN -
+			SIDEBAR_RIGHT_INSET -
+			SIDEBAR_RENDER_PADDING_X
+	);
 	const top = Math.max(0, viewportOffset.top + SIDEBAR_MARGIN - SIDEBAR_RENDER_PADDING_TOP);
 
 	return sharp(pageImage)
@@ -412,6 +603,58 @@ export async function captureAuditSidebarScreenshot({
 		} finally {
 			scheduleCaptureSessionCleanup();
 			console.info(`[audit-capture] ${panel} capture finished in ${Date.now() - startedAt}ms`);
+		}
+	});
+}
+
+export async function captureLocalRichResultsScreenshot({
+	pageUrl,
+	reportTemplateKey,
+	title
+}: {
+	pageUrl: string;
+	reportTemplateKey?: string;
+	title?: string;
+}) {
+	const startedAt = Date.now();
+	console.info(`[audit-capture] local rich-results capture started for ${pageUrl}`);
+
+	return withCaptureQueue(async () => {
+		if (shouldUseHeadfulCapture()) {
+			try {
+				const session = await getHeadfulSession();
+				const image = await screenshotLocalRichResultsPage(session.browser, {
+					pageUrl,
+					reportTemplateKey,
+					title
+				});
+				sessionCaptureCount += 1;
+				return {
+					contentType: 'image/png',
+					imageBase64: image.toString('base64')
+				};
+			} finally {
+				scheduleCaptureSessionCleanup();
+				console.info(
+					`[audit-capture] rich-results capture finished in ${Date.now() - startedAt}ms`
+				);
+			}
+		}
+
+		try {
+			const image = await screenshotLocalRichResultsPage(await getHeadlessBrowser(), {
+				pageUrl,
+				reportTemplateKey,
+				title
+			});
+			sessionCaptureCount += 1;
+			return {
+				contentType: 'image/png',
+				imageBase64: image.toString('base64')
+			};
+		} finally {
+			scheduleCaptureSessionCleanup();
+			console.info(`[audit-capture] rich-results capture finished in ${Date.now() - startedAt}ms`);
 		}
 	});
 }

@@ -121,12 +121,11 @@ export async function analyzeHomePage(
 		attachScreenshotRequest(
 			organizationSchema.items.find((item) => item.status === 'warn'),
 			{
-				kind: 'missing-organization-schema',
+				kind: 'rich-results',
 				reportTemplateKey: 'missing-organization-schema',
 				title: 'Missing Organization Schema',
 				domain,
-				entries: [{ page: urlObj.href, issue: 'Missing Organization Schema' }],
-				count: issueCount(organizationSchema.items)
+				pageUrl: urlObj.href
 			}
 		);
 	}

@@ -5,6 +5,15 @@ import { google } from 'googleapis';
 const FOLDER_MIME_TYPE = 'application/vnd.google-apps.folder';
 const GOOGLE_DOC_MIME_TYPE = 'application/vnd.google-apps.document';
 const DOCX_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+const ANYONE_WITH_LINK_PERMISSION = {
+	type: 'anyone',
+	role: 'reader',
+	allowFileDiscovery: false
+} as const;
+const ANYONE_WITH_LINK_PERMISSION_UPDATE = {
+	role: ANYONE_WITH_LINK_PERMISSION.role,
+	allowFileDiscovery: ANYONE_WITH_LINK_PERMISSION.allowFileDiscovery
+} as const;
 
 type UploadedGoogleDoc = {
 	id: string;
@@ -165,6 +174,36 @@ async function setPageless(documentId: string) {
 	});
 }
 
+async function setAnyoneWithLinkSharing(fileId: string) {
+	const drive = driveClient();
+	const permissions = await drive.permissions.list({
+		fileId,
+		fields: 'permissions(id,type,role,allowFileDiscovery)',
+		supportsAllDrives: true
+	});
+	const existing = permissions.data.permissions?.find((permission) => permission.type === 'anyone');
+
+	if (existing?.id) {
+		if (existing.role === 'reader' && existing.allowFileDiscovery === false) return;
+
+		await drive.permissions.update({
+			fileId,
+			permissionId: existing.id,
+			requestBody: ANYONE_WITH_LINK_PERMISSION_UPDATE,
+			fields: 'id',
+			supportsAllDrives: true
+		});
+		return;
+	}
+
+	await drive.permissions.create({
+		fileId,
+		requestBody: ANYONE_WITH_LINK_PERMISSION,
+		fields: 'id',
+		supportsAllDrives: true
+	});
+}
+
 export async function uploadAuditDocxAsGoogleDoc(input: {
 	domain: string;
 	filename: string;
@@ -182,6 +221,7 @@ export async function uploadAuditDocxAsGoogleDoc(input: {
 
 	if (!uploaded.data.id) throw new Error('Google Drive did not return a document id.');
 	await setPageless(uploaded.data.id);
+	await setAnyoneWithLinkSharing(uploaded.data.id);
 
 	return {
 		id: uploaded.data.id,

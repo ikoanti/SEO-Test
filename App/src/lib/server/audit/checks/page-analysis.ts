@@ -473,31 +473,27 @@ export async function analyzeMetaAndHeadings(
 	}
 
 	if (productSchemaEvidence.length > 0) {
-		const issueCount = productSchema.items.filter((item) => item.status === 'warn').length;
 		attachScreenshotRequest(
 			productSchema.items.find((item) => item.status === 'warn'),
 			{
-				kind: 'missing-product-schema',
+				kind: 'rich-results',
 				reportTemplateKey: 'missing-product-schema',
 				title: 'Missing product schema',
 				domain,
-				entries: productSchemaEvidence,
-				count: issueCount
+				pageUrl: productSchemaEvidence[0]?.page || ''
 			}
 		);
 	}
 
 	if (faqSchemaEvidence.length > 0) {
-		const issueCount = faqSchema.items.filter((item) => item.status === 'warn').length;
 		attachScreenshotRequest(
 			faqSchema.items.find((item) => item.status === 'warn'),
 			{
-				kind: 'missing-faq-schema',
+				kind: 'rich-results',
 				reportTemplateKey: 'missing-faq-schema',
 				title: 'Missing FAQ Schema',
 				domain,
-				entries: faqSchemaEvidence,
-				count: issueCount
+				pageUrl: faqSchemaEvidence[0]?.page || ''
 			}
 		);
 	}

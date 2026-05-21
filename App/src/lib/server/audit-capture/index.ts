@@ -1,4 +1,4 @@
-import { captureAuditSidebarScreenshot } from './renderer';
+import { captureAuditSidebarScreenshot, captureLocalRichResultsScreenshot } from './renderer';
 import { buildSidebarData } from '$lib/audit-sidebar';
 import type { AuditSidebarData } from '$lib/audit-sidebar';
 
@@ -49,6 +49,11 @@ export type AuditCaptureRequest = AuditCaptureRequestBase &
 				domain: string;
 				entries: Array<{ page: string; issue: string }>;
 				count: number;
+		  }
+		| {
+				kind: 'rich-results';
+				domain: string;
+				pageUrl: string;
 		  }
 		| {
 				kind: 'pagespeed';
@@ -268,6 +273,18 @@ export async function captureSchemaEvidence(
 	});
 }
 
+export async function captureRichResultsEvidence({
+	pageUrl,
+	reportTemplateKey,
+	title
+}: {
+	pageUrl: string;
+	reportTemplateKey?: string;
+	title?: string;
+}) {
+	return captureLocalRichResultsScreenshot({ pageUrl, reportTemplateKey, title });
+}
+
 export async function captureRobotsEvidence({
 	domain,
 	robotsUrl,
@@ -383,6 +400,8 @@ export async function runAuditCaptureRequest(request: AuditCaptureRequest) {
 				request.sidebarTabs,
 				request.activeTab
 			);
+		case 'rich-results':
+			return captureRichResultsEvidence(request);
 		case 'pagespeed':
 			return capturePageSpeedEvidence(
 				request.domain,

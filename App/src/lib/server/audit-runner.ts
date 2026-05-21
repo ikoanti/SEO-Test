@@ -532,6 +532,10 @@ function requestPageCandidates(request: AuditCaptureRequest) {
 		return homeLast(uniquePageUrls([request.robotsUrl, request.storefrontUrl]));
 	}
 
+	if (request.kind === 'rich-results') {
+		return uniquePageUrls([request.pageUrl]);
+	}
+
 	return [];
 }
 
@@ -549,6 +553,7 @@ function chooseScreenshotPage(candidates: string[], usedPageKeys: Set<string>) {
 function screenshotAllocationPriority(request: AuditCaptureRequest) {
 	if (requestEntryPages(request).length) return 0;
 	if (request.kind === 'pagespeed') return 1;
+	if (request.kind === 'rich-results') return 1;
 	return 2;
 }
 
@@ -976,9 +981,21 @@ function templateCaptureRequest(
 	if (
 		item.key === 'missing-product-schema' ||
 		item.key === 'missing-faq-schema' ||
-		item.key === 'missing-organization-schema' ||
-		item.key === 'unlinked-blog'
+		item.key === 'missing-organization-schema'
 	) {
+		const page =
+			findings.map((finding) => findingPage(finding)).find((value) => isValidPageUrl(value)) || url;
+
+		return {
+			kind: 'rich-results',
+			reportTemplateKey,
+			title,
+			domain,
+			pageUrl: page
+		};
+	}
+
+	if (item.key === 'unlinked-blog') {
 		const entries = findings
 			.map((finding) => {
 				const page = findingPage(finding);
