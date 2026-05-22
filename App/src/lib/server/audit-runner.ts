@@ -146,6 +146,27 @@ function auditJson(audit: AuditSummaryResult) {
 	return JSON.stringify(stripScreenshots(audit));
 }
 
+function getErrorResponseDetails(response: unknown) {
+	if (!response || typeof response !== 'object') return '';
+	const record = response as {
+		status?: unknown;
+		statusText?: unknown;
+		data?: unknown;
+		headers?: unknown;
+	};
+	const details = {
+		status: record.status,
+		statusText: record.statusText,
+		data: record.data,
+		headers: record.headers
+	};
+	try {
+		return JSON.stringify(details);
+	} catch {
+		return '';
+	}
+}
+
 function formatAuditError(error: unknown) {
 	if (!(error instanceof Error)) {
 		return 'Unknown audit failure.';
@@ -167,8 +188,9 @@ function formatAuditError(error: unknown) {
 	}
 
 	const response = (error as Error & { response?: unknown }).response;
-	if (response && typeof response === 'object') {
-		return `${error.message}: ${JSON.stringify(response)}`;
+	const responseDetails = getErrorResponseDetails(response);
+	if (responseDetails) {
+		return `${error.message}: ${responseDetails}`;
 	}
 
 	return error.message;
@@ -177,7 +199,8 @@ function formatAuditError(error: unknown) {
 function formatPocketBaseError(error: unknown) {
 	if (!(error instanceof Error)) return String(error);
 	const response = (error as Error & { response?: unknown }).response;
-	return response ? `${error.message}: ${JSON.stringify(response)}` : error.message;
+	const responseDetails = getErrorResponseDetails(response);
+	return responseDetails ? `${error.message}: ${responseDetails}` : error.message;
 }
 
 function isUniqueConstraintError(error: unknown) {
