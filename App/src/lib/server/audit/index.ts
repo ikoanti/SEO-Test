@@ -1,5 +1,11 @@
 import { analyzeHomePage } from './checks/homepage';
 import { gatherPages } from './checks/crawl';
+import {
+	analyzeDataForSEOHomePage,
+	analyzeDataForSEOPages,
+	isDataForSEOConfigured,
+	runDataForSEOCrawl
+} from './checks/dataforseo-onpage';
 import { analyzeMetaAndHeadings } from './checks/page-analysis';
 import { analyzePageSpeed } from './checks/pagespeed';
 import { analyzeLlmsTxt, analyzeRobots } from './checks/robots';
@@ -102,20 +108,30 @@ export async function runAudit(inputUrl: string, handlers: AuditHandlers = {}) {
 	};
 
 	await notifyStepStart('crawl');
-	const { homepageHtml, links } = await runStep(logger, 'crawl', () => gatherPages(urlObj, logger));
+	const dataForSEOCrawl = isDataForSEOConfigured()
+		? await runStep(logger, 'crawl', () => runDataForSEOCrawl(urlObj, logger))
+		: null;
+	const { homepageHtml, links } = dataForSEOCrawl
+		? { homepageHtml: null, links: dataForSEOCrawl.links }
+		: await runStep(logger, 'crawl', () => gatherPages(urlObj, logger));
 	partialAudit.crawl = {
 		homepage: urlObj.href,
 		discoveredLinks: links
 	};
 	await notifyStepComplete('crawl');
 
-	const homepageResponse = homepageHtml ?? (await fetchText(urlObj.href)).data;
-	const $ = loadDocument(homepageResponse);
-
 	await notifyStepStart('homepage');
-	const homeResults = await runStep(logger, 'homepage', async () =>
-		analyzeHomePage(urlObj, $, summary, logger, links)
-	);
+	const homeResults = dataForSEOCrawl
+		? await runStep(logger, 'homepage', async () =>
+				analyzeDataForSEOHomePage(urlObj, dataForSEOCrawl, summary)
+			)
+		: await (async () => {
+				const homepageResponse = homepageHtml ?? (await fetchText(urlObj.href)).data;
+				const $ = loadDocument(homepageResponse);
+				return runStep(logger, 'homepage', async () =>
+					analyzeHomePage(urlObj, $, summary, logger, links)
+				);
+			})();
 	Object.assign(partialAudit, homeResults);
 	await notifyStepComplete('homepage');
 
@@ -131,9 +147,11 @@ export async function runAudit(inputUrl: string, handlers: AuditHandlers = {}) {
 	await notifyStepComplete('robots');
 
 	await notifyStepStart('page-analysis');
-	const pageResults = await runStep(logger, 'page-analysis', () =>
-		analyzeMetaAndHeadings([urlObj.href, ...links], summary, logger)
-	);
+	const pageResults = dataForSEOCrawl
+		? await runStep(logger, 'page-analysis', () => analyzeDataForSEOPages(dataForSEOCrawl, summary))
+		: await runStep(logger, 'page-analysis', () =>
+				analyzeMetaAndHeadings([urlObj.href, ...links], summary, logger)
+			);
 	Object.assign(partialAudit, pageResults);
 	await notifyStepComplete('page-analysis');
 
