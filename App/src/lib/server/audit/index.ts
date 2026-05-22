@@ -108,12 +108,23 @@ export async function runAudit(inputUrl: string, handlers: AuditHandlers = {}) {
 	};
 
 	await notifyStepStart('crawl');
-	const dataForSEOCrawl = isDataForSEOConfigured()
-		? await runStep(logger, 'crawl', () => runDataForSEOCrawl(urlObj, logger))
-		: null;
-	const { homepageHtml, links } = dataForSEOCrawl
-		? { homepageHtml: null, links: dataForSEOCrawl.links }
-		: await runStep(logger, 'crawl', () => gatherPages(urlObj, logger));
+	let dataForSEOCrawl: Awaited<ReturnType<typeof runDataForSEOCrawl>> | null = null;
+	let homepageHtml: string | null = null;
+	let links: string[] = [];
+	try {
+		const crawlResult = await runStep(logger, 'crawl', () => gatherPages(urlObj, logger));
+		homepageHtml = crawlResult.homepageHtml;
+		links = crawlResult.links;
+	} catch (error) {
+		if (!isDataForSEOConfigured()) throw error;
+
+		const message = error instanceof Error ? error.message : String(error);
+		logger.warn(`crawl: manual crawler failed, falling back to DataForSEO (${message})`);
+		dataForSEOCrawl = await runStep(logger, 'crawl:dataforseo', () =>
+			runDataForSEOCrawl(urlObj, logger)
+		);
+		links = dataForSEOCrawl.links;
+	}
 	partialAudit.crawl = {
 		homepage: urlObj.href,
 		discoveredLinks: links

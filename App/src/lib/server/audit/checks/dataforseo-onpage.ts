@@ -64,8 +64,8 @@ export function isDataForSEOConfigured() {
 }
 
 function maxCrawlPages() {
-	const value = Number(process.env.DATAFORSEO_MAX_CRAWL_PAGES || 80);
-	return Number.isFinite(value) ? Math.max(1, Math.min(200, Math.trunc(value))) : 80;
+	const value = Number(process.env.DATAFORSEO_MAX_CRAWL_PAGES || 100);
+	return Number.isFinite(value) ? Math.max(1, Math.min(200, Math.trunc(value))) : 100;
 }
 
 function pollAttempts() {
