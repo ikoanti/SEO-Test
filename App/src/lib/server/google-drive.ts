@@ -77,7 +77,7 @@ function websiteFolderName(domain: string) {
 }
 
 function googleDocName(filename: string) {
-	return filename.replace(/\.docx$/i, '').trim() || 'Mini Technical SEO Audit';
+	return filename.replace(/\.docx$/i, '').trim() || 'Mini Technical SEO & AI Audit';
 }
 
 function bodyBuffer(body: Buffer | Uint8Array | ArrayBuffer) {
