@@ -301,12 +301,12 @@ export function generateTemplateReportHtml(
 	const factors = 10;
 
 	return `<div style="background:#ffffff; color:#111827; font-family:Arial, sans-serif; max-width:760px; margin:0 auto; padding:0;">
-  <h1 style="font-family:Arial, sans-serif; font-size:26pt; line-height:1.15; color:#111827; margin:0 0 10px 0; font-weight:700;">Mini Technical SEO Audit</h1>
+  <h1 style="font-family:Arial, sans-serif; font-size:26pt; line-height:1.15; color:#111827; margin:0 0 10px 0; font-weight:700;">Mini Technical SEO & AI Audit</h1>
   <h2 style="font-family:Arial, sans-serif; font-size:18pt; line-height:1.2; color:#111827; margin:0 0 28px 0; font-weight:700;">${escapeHtml(domain)}</h2>
 
   <h2 style="font-family:Arial, sans-serif; font-size:16pt; line-height:1.2; color:#111827; margin:0 0 12px 0; font-weight:700;">Overview</h2>
   <p style="font-family:Arial, sans-serif; font-size:10.5pt; line-height:1.55; color:#111827; margin:0 0 10px 0;">${escapeHtml(domain)} wants to rank higher for target keywords and generate more organic traffic.</p>
-  <p style="font-family:Arial, sans-serif; font-size:10.5pt; line-height:1.55; color:#111827; margin:0 0 10px 0;">We analyzed ${factors} different factors in this mini technical SEO Audit, out of the 285 total factors that are included in the FULL version of the technical SEO Audit.</p>
+  <p style="font-family:Arial, sans-serif; font-size:10.5pt; line-height:1.55; color:#111827; margin:0 0 10px 0;">We analyzed ${factors} different factors in this mini technical SEO & AI Audit, out of the 285 total factors that are included in the FULL version of the technical SEO & AI Audit.</p>
   <p style="font-family:Arial, sans-serif; font-size:10.5pt; line-height:1.55; color:#111827; margin:0 0 28px 0;">The goal of this brief document is to provide an evaluation of challenges, which if resolved can be quick-win opportunities that can yield better rankings and higher organic traffic.</p>
 
   <h2 style="font-family:Arial, sans-serif; font-size:16pt; line-height:1.2; color:#111827; margin:0 0 12px 0; font-weight:700;">Challenges</h2>
@@ -321,7 +321,7 @@ export function generateTemplateReportHtml(
   <h2 style="font-family:Arial, sans-serif; font-size:16pt; line-height:1.2; color:#111827; margin:0 0 12px 0; font-weight:700;">Summary</h2>
   <p style="font-family:Arial, sans-serif; font-size:10.5pt; line-height:1.55; color:#111827; margin:0 0 10px 0;">${escapeHtml(domain)} is an established website with valuable assets, links and content and many uncaptured opportunities, but also problems…</p>
   <p style="font-family:Arial, sans-serif; font-size:10.5pt; line-height:1.55; color:#111827; margin:0 0 10px 0;">In order to rank for more keywords, as well as rank higher for existing ones and outrank your competitors, we’d highly suggest taking care of the issues mentioned above.</p>
-  <p style="font-family:Arial, sans-serif; font-size:10.5pt; line-height:1.55; color:#111827; margin:0 0 10px 0;">We’d also highly suggest considering our full technical SEO audit, where we take an in-depth look at 285 different technical factors, instead of just ${factors} covered in this mini technical SEO audit.</p>
+  <p style="font-family:Arial, sans-serif; font-size:10.5pt; line-height:1.55; color:#111827; margin:0 0 10px 0;">We’d also highly suggest considering our full technical SEO & AI audit, where we take an in-depth look at 285 different technical factors, instead of just ${factors} covered in this mini technical SEO & AI audit.</p>
   <p style="font-family:Arial, sans-serif; font-size:10.5pt; line-height:1.55; color:#111827; margin:0 0 10px 0;">When doing the full technical audit, it’s very easy to find quick wins and optimizations that need to be done in order to dramatically increase existing organic traffic.</p>
   <p style="font-family:Arial, sans-serif; font-size:10.5pt; line-height:1.55; color:#111827; margin:0 0 10px 0;">An example of this would be one of the recent case studies that we just published, where weekly organic traffic jumped from 200,000 to 315,000 in 45 days, by simply changing a few settings and bits of code.</p>
   <p style="font-family:Arial, sans-serif; font-size:10.5pt; line-height:1.55; color:#111827; margin:0 0 10px 0;">(Results typically kick in 30-45 days after Google indexes the applied changes).</p>
