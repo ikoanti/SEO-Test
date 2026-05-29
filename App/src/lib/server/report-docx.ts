@@ -415,7 +415,7 @@ function documentFilename(pageData: ReportPageData) {
 	const name = reportDisplayDomain(pageData)
 		.replace(/[<>:"/\\|?*\x00-\x1f]+/g, '-')
 		.trim();
-	return `${name || 'Audit'} - Mini Technical SEO Audit.docx`;
+	return `${name || 'Audit'} - Mini Technical SEO & AI Audit.docx`;
 }
 
 export async function generateTemplateReportDocx(
@@ -426,12 +426,12 @@ export async function generateTemplateReportDocx(
 ) {
 	emptyLineIndex = 0;
 	const domain = domainName(pageData);
-	const documentTitle = `${reportDisplayDomain(pageData)} - Mini Technical SEO Audit`;
+	const documentTitle = `${reportDisplayDomain(pageData)} - Mini Technical SEO & AI Audit`;
 	const problems = reportProblems(pageData, templates, priorityOverrides);
 	const header = await reportHeader();
 	const resultsImage = await resultsImageParagraph();
 	const children: Paragraph[] = [
-		titleParagraph('Mini Technical SEO Audit'),
+		titleParagraph('Mini Technical SEO & AI Audit'),
 		subtitleParagraph(domain),
 		emptyLine(),
 		emptyLine(),
@@ -442,7 +442,7 @@ export async function generateTemplateReportDocx(
 		),
 		emptyLine(),
 		paragraph(
-			'We analyzed 10 different factors in this mini technical SEO Audit, out of the 285 total factors that are included in the FULL version of the technical SEO Audit.'
+			'We analyzed 10 different factors in this mini technical SEO & AI Audit, out of the 285 total factors that are included in the FULL version of the technical SEO & AI Audit.'
 		),
 		emptyLine(),
 		paragraph(
@@ -504,7 +504,7 @@ export async function generateTemplateReportDocx(
 		),
 		emptyLine(),
 		paragraph(
-			'We’d also highly suggest considering our full technical SEO audit, where we take an in-depth look at 285 different technical factors, instead of just 10 covered in this mini technical SEO audit.'
+			'We’d also highly suggest considering our full technical SEO & AI audit, where we take an in-depth look at 285 different technical factors, instead of just 10 covered in this mini technical SEO & AI audit.'
 		),
 		emptyLine(),
 		paragraph(
