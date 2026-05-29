@@ -36,7 +36,20 @@ export function getPocketBaseStatus() {
 
 export async function fetchProxyText(url: string) {
 	const response = await axios.get(url, {
-		headers: { 'User-Agent': USER_AGENT },
+		headers: {
+			'User-Agent': USER_AGENT,
+			'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+			'Accept-Language': 'en-US,en;q=0.9',
+			'Accept-Encoding': 'gzip, deflate, br',
+			'Upgrade-Insecure-Requests': '1',
+			'Sec-Ch-Ua': '"Chromium";v="122", "Not(A:Brand";v="24", "Google Chrome";v="122"',
+			'Sec-Ch-Ua-Mobile': '?0',
+			'Sec-Ch-Ua-Platform': '"Windows"',
+			'Sec-Fetch-Dest': 'document',
+			'Sec-Fetch-Mode': 'navigate',
+			'Sec-Fetch-Site': 'none',
+			'Sec-Fetch-User': '?1'
+		},
 		timeout: 10000
 	});
 
@@ -45,7 +58,20 @@ export async function fetchProxyText(url: string) {
 
 export async function checkRedirect(url: string) {
 	const response = await axios.get(url, {
-		headers: { 'User-Agent': USER_AGENT },
+		headers: {
+			'User-Agent': USER_AGENT,
+			'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+			'Accept-Language': 'en-US,en;q=0.9',
+			'Accept-Encoding': 'gzip, deflate, br',
+			'Upgrade-Insecure-Requests': '1',
+			'Sec-Ch-Ua': '"Chromium";v="122", "Not(A:Brand";v="24", "Google Chrome";v="122"',
+			'Sec-Ch-Ua-Mobile': '?0',
+			'Sec-Ch-Ua-Platform': '"Windows"',
+			'Sec-Fetch-Dest': 'document',
+			'Sec-Fetch-Mode': 'navigate',
+			'Sec-Fetch-Site': 'none',
+			'Sec-Fetch-User': '?1'
+		},
 		timeout: 8000,
 		maxRedirects: 0,
 		validateStatus: (status) => status >= 200 && status < 400
