@@ -76,8 +76,8 @@ function maxCrawlPages() {
 }
 
 function pollAttempts() {
-	const value = Number(process.env.DATAFORSEO_POLL_ATTEMPTS || 40);
-	return Number.isFinite(value) ? Math.max(1, Math.trunc(value)) : 40;
+	const value = Number(process.env.DATAFORSEO_POLL_ATTEMPTS || 90);
+	return Number.isFinite(value) ? Math.max(1, Math.trunc(value)) : 90;
 }
 
 function pollIntervalMs() {
