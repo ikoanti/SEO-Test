@@ -20,6 +20,11 @@ type CrawlSummary = {
 		pages_in_queue?: number;
 		max_crawl_pages?: number;
 	};
+	checks?: {
+		sitemap?: boolean;
+		robots_txt?: boolean;
+		start_page_deny_flag?: boolean;
+	};
 };
 
 export type DataForSEOPage = {
@@ -42,8 +47,10 @@ export type DataForSEOPage = {
 export type DataForSEOCrawl = {
 	id: string;
 	homepage: string;
+	faqUrl: string;
 	links: string[];
 	pages: DataForSEOPage[];
+	summary: CrawlSummary | null;
 };
 
 const API_BASE = 'https://api.dataforseo.com/v3';
@@ -144,12 +151,33 @@ async function getPages(id: string) {
 	return task?.result?.[0]?.items ?? [];
 }
 
+async function getInstantPage(url: string) {
+	const data = await postDataForSEO<{ items?: DataForSEOPage[] }>('/on_page/instant_pages', [
+		{
+			url,
+			enable_javascript: true
+		}
+	]);
+	const task = data.tasks?.[0];
+	const error = taskError(task, 'DataForSEO instant page request failed.');
+	if (error) throw new Error(error);
+	return task?.result?.[0]?.items?.[0] ?? null;
+}
+
+function samePageUrl(left: string, right: string) {
+	return left.replace(/\/$/, '') === right.replace(/\/$/, '');
+}
+
 function sleep(ms: number) {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export async function runDataForSEOCrawl(urlObj: URL, logger: AuditLogger): Promise<DataForSEOCrawl> {
+export async function runDataForSEOCrawl(
+	urlObj: URL,
+	logger: AuditLogger
+): Promise<DataForSEOCrawl> {
 	const id = await createTask(urlObj);
+	const faqUrl = new URL('/faq', urlObj.origin).href;
 	logger.info(`crawl: DataForSEO task created ${id}`);
 
 	for (let attempt = 1; attempt <= pollAttempts(); attempt += 1) {
@@ -162,6 +190,22 @@ export async function runDataForSEOCrawl(urlObj: URL, logger: AuditLogger): Prom
 
 		if (progress === 'finished') {
 			const pages = await getPages(id);
+			if (!pages.some((page) => page.url && samePageUrl(page.url, faqUrl))) {
+				try {
+					logger.info(`crawl: DataForSEO checking FAQ page ${faqUrl}`);
+					const faqPage = await getInstantPage(faqUrl);
+					if (faqPage?.url) pages.push(faqPage);
+				} catch (error) {
+					const message = error instanceof Error ? error.message : String(error);
+					logger.warn(`crawl: DataForSEO FAQ page check failed (${message})`);
+					pages.push({
+						resource_type: 'html',
+						status_code: 0,
+						url: faqUrl,
+						checks: {}
+					});
+				}
+			}
 			const links = pages
 				.map((page) => page.url)
 				.filter((url): url is string => Boolean(url))
@@ -169,8 +213,10 @@ export async function runDataForSEOCrawl(urlObj: URL, logger: AuditLogger): Prom
 			return {
 				id,
 				homepage: pages.find((page) => page.url === urlObj.href)?.url || urlObj.href,
+				faqUrl,
 				links,
-				pages
+				pages,
+				summary
 			};
 		}
 
@@ -200,6 +246,10 @@ function isFaqLikePage(page: DataForSEOPage) {
 	return /\/faqs?(\/|$)|frequently-asked-questions/i.test(
 		new URL(page.url || 'https://example.com').pathname
 	);
+}
+
+function isExpectedFaqPage(page: DataForSEOPage, crawl: DataForSEOCrawl) {
+	return Boolean(page.url && samePageUrl(page.url, crawl.faqUrl));
 }
 
 export function analyzeDataForSEOHomePage(
@@ -237,6 +287,50 @@ export function analyzeDataForSEOHomePage(
 	return { organizationSchema, unlinkedBlog };
 }
 
+export function analyzeDataForSEORobots(crawl: DataForSEOCrawl, summary: AuditSummary) {
+	const result = createListResult();
+	const checks = crawl.summary?.checks || {};
+
+	addItem(
+		summary,
+		result,
+		checks.sitemap ? 'pass' : 'warn',
+		checks.sitemap ? 'Sitemap detected by DataForSEO' : 'Sitemap not detected by DataForSEO'
+	);
+	addItem(
+		summary,
+		result,
+		checks.robots_txt ? 'pass' : 'warn',
+		checks.robots_txt
+			? 'robots.txt detected by DataForSEO'
+			: 'robots.txt not detected by DataForSEO'
+	);
+
+	if (checks.start_page_deny_flag) {
+		addItem(
+			summary,
+			result,
+			'warn',
+			'Start page is blocked by server access rules according to DataForSEO'
+		);
+	}
+
+	result.stats = checks.robots_txt
+		? 'DataForSEO detected robots.txt metadata.'
+		: 'DataForSEO did not detect robots.txt.';
+
+	return result;
+}
+
+export function analyzeDataForSEOLlmsTxt(summary: AuditSummary) {
+	const result = createListResult();
+
+	addItem(summary, result, 'info', 'LLMs.txt content check removed from direct crawler path.');
+	result.stats = 'LLMs.txt is not fetched directly; audit uses DataForSEO crawl data only.';
+
+	return result;
+}
+
 export function analyzeDataForSEOPages(crawl: DataForSEOCrawl, summary: AuditSummary) {
 	const missingH1Tags = createListResult();
 	const multipleH1Tags = createListResult();
@@ -251,9 +345,26 @@ export function analyzeDataForSEOPages(crawl: DataForSEOCrawl, summary: AuditSum
 
 	const titleMap = new Map<string, string[]>();
 	const descriptionMap = new Map<string, string[]>();
+	let checkedExpectedFaqPage = false;
 
 	for (const page of crawl.pages) {
-		if (!page.url || page.status_code && page.status_code >= 400) continue;
+		if (!page.url) continue;
+		if (isExpectedFaqPage(page, crawl)) {
+			checkedExpectedFaqPage = true;
+			const unavailable = !page.status_code || page.status_code >= 400;
+			addItem(
+				summary,
+				faqSchema,
+				!unavailable && page.checks?.has_micromarkup ? 'pass' : 'warn',
+				unavailable
+					? 'FAQ page not available at /faq'
+					: page.checks?.has_micromarkup
+						? 'FAQ Schema found'
+						: 'Missing FAQ Schema',
+				{ title: crawl.faqUrl, page_url: crawl.faqUrl }
+			);
+		}
+		if (page.status_code && page.status_code >= 400) continue;
 		const title = pageTitle(page).trim();
 		const metaDescription = pageDescription(page).trim();
 		const h1s = h1Headings(page).map((heading) => heading.trim());
@@ -322,7 +433,7 @@ export function analyzeDataForSEOPages(crawl: DataForSEOCrawl, summary: AuditSum
 			);
 		}
 
-		if (isFaqLikePage(page)) {
+		if (isFaqLikePage(page) && !isExpectedFaqPage(page, crawl)) {
 			addItem(
 				summary,
 				faqSchema,
@@ -334,8 +445,18 @@ export function analyzeDataForSEOPages(crawl: DataForSEOCrawl, summary: AuditSum
 
 		if (title) titleMap.set(title, [...(titleMap.get(title) || []), page.url]);
 		if (metaDescription) {
-			descriptionMap.set(metaDescription, [...(descriptionMap.get(metaDescription) || []), page.url]);
+			descriptionMap.set(metaDescription, [
+				...(descriptionMap.get(metaDescription) || []),
+				page.url
+			]);
 		}
+	}
+
+	if (!checkedExpectedFaqPage) {
+		addItem(summary, faqSchema, 'warn', 'FAQ page not checked at /faq', {
+			title: crawl.faqUrl,
+			page_url: crawl.faqUrl
+		});
 	}
 
 	for (const [title, pages] of titleMap.entries()) {

@@ -92,6 +92,7 @@ const screenshotQueueState = ((
 });
 
 const STALE_RUNNING_WORKFLOW_MS = Number(process.env.AUDIT_STALE_RUNNING_WORKFLOW_MS || 60 * 1000);
+const AUDIT_ENGINE_TIMEOUT_MS = Number(process.env.AUDIT_ENGINE_TIMEOUT_MS || 20 * 60 * 1000);
 const SCREENSHOT_JOB_TIMEOUT_MS = Number(process.env.AUDIT_SCREENSHOT_JOB_TIMEOUT_MS || 90 * 1000);
 const SCREENSHOT_PHASE_TIMEOUT_MS = Number(
 	process.env.AUDIT_SCREENSHOT_PHASE_TIMEOUT_MS || 3 * 60 * 1000
@@ -1361,6 +1362,7 @@ async function finalizeUnsyncedRuns(
 
 async function processAuditWorkflow({ workflowId, auditId, url, token }: QueuePayload) {
 	let runLog = '';
+	let workflowTimedOut = false;
 	try {
 		const workflowRecord = await getWorkflow(workflowId, token);
 		runLog = appendLog(workflowRecord.run_log, 'Workflow started.');
@@ -1378,25 +1380,31 @@ async function processAuditWorkflow({ workflowId, auditId, url, token }: QueuePa
 		);
 		await updateAuditRecord(auditId, { status: 'running' }, token);
 
-		const audit = await runAudit(url, {
-			onStepStart: async (stepLabel: string) => {
-				runLog = appendLog(runLog, `${stepLabel} started.`);
-				await updateWorkflowRecord(workflowId, { run_log: runLog }, token);
-				await markStepRunning(runRegistry, stepLabel, token);
-			},
-			onStepComplete: async (stepLabel: string, partialAudit: AuditSummaryResult) => {
-				runLog = appendLog(runLog, `${stepLabel} completed.`);
-				await updateWorkflowRecord(workflowId, { run_log: runLog }, token);
-				await syncProgressSnapshot(
-					auditId,
-					url,
-					partialAudit,
-					runRegistry,
-					STEP_KEYS[stepLabel] || [],
-					token
-				);
-			}
-		});
+		const audit = await withTimeout(
+			runAudit(url, {
+				onStepStart: async (stepLabel: string) => {
+					if (workflowTimedOut) return;
+					runLog = appendLog(runLog, `${stepLabel} started.`);
+					await updateWorkflowRecord(workflowId, { run_log: runLog }, token);
+					await markStepRunning(runRegistry, stepLabel, token);
+				},
+				onStepComplete: async (stepLabel: string, partialAudit: AuditSummaryResult) => {
+					if (workflowTimedOut) return;
+					runLog = appendLog(runLog, `${stepLabel} completed.`);
+					await updateWorkflowRecord(workflowId, { run_log: runLog }, token);
+					await syncProgressSnapshot(
+						auditId,
+						url,
+						partialAudit,
+						runRegistry,
+						STEP_KEYS[stepLabel] || [],
+						token
+					);
+				}
+			}),
+			AUDIT_ENGINE_TIMEOUT_MS,
+			'Audit engine'
+		);
 		runLog = appendLog(runLog, 'Audit engine completed successfully.');
 		const completedAt = timestamp();
 		await syncProgressSnapshot(auditId, url, audit, runRegistry, undefined, token);
@@ -1436,6 +1444,7 @@ async function processAuditWorkflow({ workflowId, auditId, url, token }: QueuePa
 			token
 		);
 	} catch (error) {
+		workflowTimedOut = true;
 		const message = formatAuditError(error);
 		runLog = appendLog(runLog, `Workflow failed: ${message}`);
 
