@@ -93,6 +93,10 @@ function taskError(task: DataForSEOTask<unknown> | undefined, fallback: string) 
 	return '';
 }
 
+function isQueuedTask(task: DataForSEOTask<unknown> | undefined) {
+	return task?.status_code === 40602 || /task in queue/i.test(task?.status_message || '');
+}
+
 function normalizeTarget(urlObj: URL) {
 	return urlObj.hostname.replace(/^www\./i, '');
 }
@@ -132,6 +136,7 @@ async function createTask(urlObj: URL) {
 async function getSummary(id: string) {
 	const data = await postDataForSEO<CrawlSummary>('/on_page/summary', [{ id }]);
 	const task = data.tasks?.[0];
+	if (isQueuedTask(task)) return null;
 	const error = taskError(task, 'DataForSEO summary request failed.');
 	if (error) throw new Error(error);
 	return task?.result?.[0] ?? null;
