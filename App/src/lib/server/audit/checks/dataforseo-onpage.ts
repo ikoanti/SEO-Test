@@ -78,8 +78,8 @@ export function isDataForSEOConfigured() {
 }
 
 function maxCrawlPages() {
-	const value = Number(process.env.DATAFORSEO_MAX_CRAWL_PAGES || 30);
-	return Number.isFinite(value) ? Math.max(1, Math.min(200, Math.trunc(value))) : 30;
+	const value = Number(process.env.DATAFORSEO_MAX_CRAWL_PAGES || 50);
+	return Number.isFinite(value) ? Math.max(1, Math.min(200, Math.trunc(value))) : 50;
 }
 
 function taskError(task: DataForSEOTask<unknown> | undefined, fallback: string) {
@@ -129,8 +129,8 @@ export async function createDataForSEOCrawlTask(urlObj: URL) {
 			target: normalizeTarget(urlObj),
 			start_url: urlObj.href,
 			max_crawl_pages: maxCrawlPages(),
-			load_resources: true,
-			enable_javascript: true,
+			load_resources: false,
+			enable_javascript: false,
 			force_sitewide_checks: true,
 			priority_urls: [urlObj.href, faqUrl]
 		}
@@ -178,7 +178,7 @@ async function getInstantPage(url: string) {
 	const data = await postDataForSEO<{ items?: DataForSEOPage[] }>('/on_page/instant_pages', [
 		{
 			url,
-			enable_javascript: true
+			enable_javascript: false
 		}
 	]);
 	const task = data.tasks?.[0];
