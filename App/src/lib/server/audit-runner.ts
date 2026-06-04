@@ -1,4 +1,9 @@
-import { runAudit } from '$lib/server/audit';
+import {
+	collectSubmittedDataForSEOCrawl,
+	isSubmittedDataForSEOCrawlReady,
+	runAuditAfterDataForSEOCrawl,
+	submitDataForSEOCrawlTask
+} from '$lib/server/audit';
 import type { AuditTab } from '$lib/audit-sidebar';
 import {
 	attachMetricScreenshots,
@@ -30,6 +35,7 @@ type QueuePayload = {
 
 type AuditRunnerState = {
 	activeWorkflows: Set<string>;
+	queuedDataForSEOChecks: Set<string>;
 };
 
 type AuditSummaryResult = AuditResult;
@@ -64,6 +70,8 @@ type WorkflowRecordLike = {
 	status?: string;
 	started_at?: string;
 	audit?: string;
+	dataforseo_task_id?: string;
+	dataforseo_task_ready_at?: string;
 	expand?: {
 		audit?: {
 			id?: string;
@@ -79,7 +87,8 @@ type WorkflowRecordLike = {
 const state = ((
 	globalThis as typeof globalThis & { __auditRunnerState?: AuditRunnerState }
 ).__auditRunnerState ??= {
-	activeWorkflows: new Set<string>()
+	activeWorkflows: new Set<string>(),
+	queuedDataForSEOChecks: new Set<string>()
 });
 
 const screenshotQueueState = ((
@@ -93,6 +102,9 @@ const screenshotQueueState = ((
 
 const STALE_RUNNING_WORKFLOW_MS = Number(process.env.AUDIT_STALE_RUNNING_WORKFLOW_MS || 60 * 1000);
 const AUDIT_ENGINE_TIMEOUT_MS = Number(process.env.AUDIT_ENGINE_TIMEOUT_MS || 20 * 60 * 1000);
+const DATAFORSEO_READY_CHECK_INTERVAL_MS = Number(
+	process.env.DATAFORSEO_READY_CHECK_INTERVAL_MS || 60 * 1000
+);
 const SCREENSHOT_JOB_TIMEOUT_MS = Number(process.env.AUDIT_SCREENSHOT_JOB_TIMEOUT_MS || 90 * 1000);
 const SCREENSHOT_PHASE_TIMEOUT_MS = Number(
 	process.env.AUDIT_SCREENSHOT_PHASE_TIMEOUT_MS || 3 * 60 * 1000
@@ -1360,6 +1372,16 @@ async function finalizeUnsyncedRuns(
 	}
 }
 
+function scheduleDataForSEOReadyCheck(payload: QueuePayload) {
+	if (state.queuedDataForSEOChecks.has(payload.workflowId)) return;
+	state.queuedDataForSEOChecks.add(payload.workflowId);
+	const timer = setTimeout(() => {
+		state.queuedDataForSEOChecks.delete(payload.workflowId);
+		queueAuditWorkflow(payload);
+	}, DATAFORSEO_READY_CHECK_INTERVAL_MS);
+	timer.unref?.();
+}
+
 async function processAuditWorkflow({ workflowId, auditId, url, token }: QueuePayload) {
 	let runLog = '';
 	let workflowTimedOut = false;
@@ -1367,6 +1389,7 @@ async function processAuditWorkflow({ workflowId, auditId, url, token }: QueuePa
 		const workflowRecord = await getWorkflow(workflowId, token);
 		runLog = appendLog(workflowRecord.run_log, 'Workflow started.');
 		const runRegistry = await bootstrapRuns(workflowId, token);
+		let dataForSEOTaskId = String(workflowRecord.dataforseo_task_id || '').trim();
 
 		await updateWorkflowRecord(
 			workflowId,
@@ -1380,8 +1403,67 @@ async function processAuditWorkflow({ workflowId, auditId, url, token }: QueuePa
 		);
 		await updateAuditRecord(auditId, { status: 'running' }, token);
 
+		if (!dataForSEOTaskId) {
+			runLog = appendLog(runLog, 'DataForSEO task submission started.');
+			const submittedAt = timestamp();
+			dataForSEOTaskId = await submitDataForSEOCrawlTask(url);
+			runLog = appendLog(runLog, `DataForSEO task submitted: ${dataForSEOTaskId}.`);
+			runLog = appendLog(runLog, 'Workflow queued until DataForSEO reports the task ready.');
+			await updateWorkflowRecord(
+				workflowId,
+				{
+					status: 'queued',
+					dataforseo_task_id: dataForSEOTaskId,
+					dataforseo_task_queued_at: submittedAt,
+					dataforseo_last_checked_at: submittedAt,
+					run_log: runLog,
+					error_message: ''
+				},
+				token
+			);
+			scheduleDataForSEOReadyCheck({ workflowId, auditId, url, token });
+			return;
+		}
+
+		if (!workflowRecord.dataforseo_task_ready_at) {
+			const checkedAt = timestamp();
+			const taskReady = await isSubmittedDataForSEOCrawlReady(dataForSEOTaskId);
+			if (!taskReady) {
+				await updateWorkflowRecord(
+					workflowId,
+					{
+						status: 'queued',
+						dataforseo_last_checked_at: checkedAt,
+						error_message: ''
+					},
+					token
+				);
+				scheduleDataForSEOReadyCheck({ workflowId, auditId, url, token });
+				return;
+			}
+
+			runLog = appendLog(runLog, `DataForSEO task ready: ${dataForSEOTaskId}.`);
+			await updateWorkflowRecord(
+				workflowId,
+				{
+					status: 'running',
+					dataforseo_task_ready_at: checkedAt,
+					dataforseo_last_checked_at: checkedAt,
+					run_log: runLog,
+					error_message: ''
+				},
+				token
+			);
+		}
+
+		runLog = appendLog(runLog, 'DataForSEO result collection started.');
+		await updateWorkflowRecord(workflowId, { run_log: runLog }, token);
+		const dataForSEOCrawl = await collectSubmittedDataForSEOCrawl(url, dataForSEOTaskId);
+		runLog = appendLog(runLog, 'DataForSEO result collection completed.');
+		await updateWorkflowRecord(workflowId, { run_log: runLog }, token);
+
 		const audit = await withTimeout(
-			runAudit(url, {
+			runAuditAfterDataForSEOCrawl(url, dataForSEOCrawl, {
 				onStepStart: async (stepLabel: string) => {
 					if (workflowTimedOut) return;
 					runLog = appendLog(runLog, `${stepLabel} started.`);

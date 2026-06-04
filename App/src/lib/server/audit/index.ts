@@ -3,8 +3,11 @@ import {
 	analyzeDataForSEOLlmsTxt,
 	analyzeDataForSEOPages,
 	analyzeDataForSEORobots,
+	collectDataForSEOCrawl,
+	createDataForSEOCrawlTask,
+	type DataForSEOCrawl,
 	isDataForSEOConfigured,
-	runDataForSEOCrawl
+	isDataForSEOCrawlTaskReady
 } from './checks/dataforseo-onpage';
 import { analyzePageSpeed } from './checks/pagespeed';
 import { cloneAuditSnapshot, createLogger, createSummary, normalizeUrl, runStep } from './shared';
@@ -14,10 +17,31 @@ type AuditHandlers = {
 	onStepComplete?: (label: string, partialAudit: Record<string, unknown>) => Promise<void> | void;
 };
 
-export async function runAudit(inputUrl: string, handlers: AuditHandlers = {}) {
+export async function submitDataForSEOCrawlTask(inputUrl: string) {
+	const urlObj = normalizeUrl(inputUrl);
+	if (!isDataForSEOConfigured()) throw new Error('DATAFORSEO_API_KEY is not configured.');
+	return createDataForSEOCrawlTask(urlObj);
+}
+
+export async function isSubmittedDataForSEOCrawlReady(taskId: string) {
+	if (!isDataForSEOConfigured()) throw new Error('DATAFORSEO_API_KEY is not configured.');
+	return isDataForSEOCrawlTaskReady(taskId);
+}
+
+export async function collectSubmittedDataForSEOCrawl(inputUrl: string, taskId: string) {
 	const urlObj = normalizeUrl(inputUrl);
 	const logger = createLogger(urlObj.hostname);
 	if (!isDataForSEOConfigured()) throw new Error('DATAFORSEO_API_KEY is not configured.');
+	return collectDataForSEOCrawl(urlObj, taskId, logger);
+}
+
+export async function runAuditAfterDataForSEOCrawl(
+	inputUrl: string,
+	dataForSEOCrawl: DataForSEOCrawl,
+	handlers: AuditHandlers = {}
+) {
+	const urlObj = normalizeUrl(inputUrl);
+	const logger = createLogger(urlObj.hostname);
 
 	const summary = createSummary();
 	const auditedAt = new Date().toISOString();
@@ -43,10 +67,6 @@ export async function runAudit(inputUrl: string, handlers: AuditHandlers = {}) {
 		}
 	};
 
-	await notifyStepStart('crawl');
-	const dataForSEOCrawl = await runStep(logger, 'crawl:dataforseo', () =>
-		runDataForSEOCrawl(urlObj, logger)
-	);
 	const links = dataForSEOCrawl.links;
 	partialAudit.crawl = {
 		homepage: urlObj.href,
@@ -98,4 +118,9 @@ export async function runAudit(inputUrl: string, handlers: AuditHandlers = {}) {
 		...homeResults,
 		...pageResults
 	};
+}
+
+export async function runAudit(inputUrl: string, taskId: string, handlers: AuditHandlers = {}) {
+	const dataForSEOCrawl = await collectSubmittedDataForSEOCrawl(inputUrl, taskId);
+	return runAuditAfterDataForSEOCrawl(inputUrl, dataForSEOCrawl, handlers);
 }

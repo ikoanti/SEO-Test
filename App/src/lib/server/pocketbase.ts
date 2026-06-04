@@ -248,11 +248,30 @@ export async function failInterruptedAuditWork() {
 	const message = 'Interrupted by app service reload.';
 	const staleStatusFilter = 'status = "queued" || status = "running"';
 
-	const [audits, workflows, runs] = await Promise.all([
+	const [allAudits, allWorkflows, allRuns] = await Promise.all([
 		pb.collection(AUDITS_COLLECTION).getFullList({ filter: staleStatusFilter }),
 		pb.collection(WORKFLOWS_COLLECTION).getFullList({ filter: staleStatusFilter }),
 		pb.collection(RUNS_COLLECTION).getFullList({ filter: staleStatusFilter })
 	]);
+
+	const waitingWorkflowIds = new Set(
+		allWorkflows
+			.filter(
+				(workflow) =>
+					String(workflow.status || '') === 'queued' &&
+					Boolean(String(workflow.dataforseo_task_id || '').trim())
+			)
+			.map((workflow) => workflow.id)
+	);
+	const waitingAuditIds = new Set(
+		allWorkflows
+			.filter((workflow) => waitingWorkflowIds.has(workflow.id))
+			.map((workflow) => String(workflow.audit || ''))
+			.filter(Boolean)
+	);
+	const audits = allAudits.filter((audit) => !waitingAuditIds.has(audit.id));
+	const workflows = allWorkflows.filter((workflow) => !waitingWorkflowIds.has(workflow.id));
+	const runs = allRuns.filter((run) => !waitingWorkflowIds.has(String(run.workflow || '')));
 
 	await Promise.all([
 		...audits.map((audit) =>
@@ -539,6 +558,10 @@ export async function createWorkflowRecord(
 		completed_at?: string;
 		error_message?: string;
 		run_log?: string;
+		dataforseo_task_id?: string;
+		dataforseo_task_queued_at?: string | null;
+		dataforseo_task_ready_at?: string | null;
+		dataforseo_last_checked_at?: string | null;
 	},
 	token?: string
 ) {
@@ -550,7 +573,17 @@ export async function createWorkflowRecord(
 		...(input.started_at ? { started_at: input.started_at } : {}),
 		...(input.completed_at ? { completed_at: input.completed_at } : {}),
 		error_message: input.error_message || '',
-		run_log: input.run_log || ''
+		run_log: input.run_log || '',
+		dataforseo_task_id: input.dataforseo_task_id || '',
+		...(input.dataforseo_task_queued_at
+			? { dataforseo_task_queued_at: input.dataforseo_task_queued_at }
+			: {}),
+		...(input.dataforseo_task_ready_at
+			? { dataforseo_task_ready_at: input.dataforseo_task_ready_at }
+			: {}),
+		...(input.dataforseo_last_checked_at
+			? { dataforseo_last_checked_at: input.dataforseo_last_checked_at }
+			: {})
 	});
 }
 
@@ -574,6 +607,10 @@ export async function updateWorkflowRecord(
 		completed_at?: string | null;
 		error_message?: string;
 		run_log?: string;
+		dataforseo_task_id?: string;
+		dataforseo_task_queued_at?: string | null;
+		dataforseo_task_ready_at?: string | null;
+		dataforseo_last_checked_at?: string | null;
 	},
 	token?: string
 ) {

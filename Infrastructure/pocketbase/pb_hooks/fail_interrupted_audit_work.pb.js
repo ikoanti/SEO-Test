@@ -42,9 +42,29 @@ onBootstrap((e) => {
   };
 
   try {
-    const audits = interruptedRecords("audits");
-    const workflows = interruptedRecords("workflows");
-    const runs = interruptedRecords("runs");
+    const allAudits = interruptedRecords("audits");
+    const allWorkflows = interruptedRecords("workflows");
+    const allRuns = interruptedRecords("runs");
+    const waitingWorkflowIds = new Set();
+    const waitingAuditIds = new Set();
+
+    allWorkflows.forEach((workflow) => {
+      const isQueued = workflow.getString("status") === "queued";
+      const dataForSEOTaskId = String(
+        workflow.getString("dataforseo_task_id") || "",
+      ).trim();
+      if (!isQueued || !dataForSEOTaskId) return;
+      waitingWorkflowIds.add(workflow.id);
+      waitingAuditIds.add(workflow.getString("audit"));
+    });
+
+    const audits = allAudits.filter((audit) => !waitingAuditIds.has(audit.id));
+    const workflows = allWorkflows.filter(
+      (workflow) => !waitingWorkflowIds.has(workflow.id),
+    );
+    const runs = allRuns.filter(
+      (run) => !waitingWorkflowIds.has(run.getString("workflow")),
+    );
 
     const auditCount = saveRecords(audits, (audit) => {
       audit.set("status", "failed");
@@ -54,7 +74,10 @@ onBootstrap((e) => {
       workflow.set("status", "failed");
       workflow.set("completed_at", failedAt);
       workflow.set("error_message", message);
-      workflow.set("run_log", appendLog(workflow.getString("run_log"), logLine));
+      workflow.set(
+        "run_log",
+        appendLog(workflow.getString("run_log"), logLine),
+      );
     });
     const runCount = saveRecords(runs, (run) => {
       run.set("status", "failed");

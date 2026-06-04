@@ -13,6 +13,13 @@ type DataForSEOResponse<T = unknown> = {
 	tasks?: Array<DataForSEOTask<T>>;
 };
 
+type DataForSEOReadyTask = {
+	id?: string;
+	target?: string;
+	tag?: string;
+	date_posted?: string;
+};
+
 type CrawlSummary = {
 	crawl_progress?: string;
 	crawl_status?: {
@@ -75,26 +82,12 @@ function maxCrawlPages() {
 	return Number.isFinite(value) ? Math.max(1, Math.min(200, Math.trunc(value))) : 30;
 }
 
-function pollAttempts() {
-	const value = Number(process.env.DATAFORSEO_POLL_ATTEMPTS || 90);
-	return Number.isFinite(value) ? Math.max(1, Math.trunc(value)) : 90;
-}
-
-function pollIntervalMs() {
-	const value = Number(process.env.DATAFORSEO_POLL_INTERVAL_MS || 10000);
-	return Number.isFinite(value) ? Math.max(2000, Math.trunc(value)) : 10000;
-}
-
 function taskError(task: DataForSEOTask<unknown> | undefined, fallback: string) {
 	if (!task) return fallback;
 	if (task.status_code && task.status_code >= 40000) {
 		return `${task.status_message || fallback} (${task.status_code})`;
 	}
 	return '';
-}
-
-function isQueuedTask(task: DataForSEOTask<unknown> | undefined) {
-	return task?.status_code === 40602 || /task in queue/i.test(task?.status_message || '');
 }
 
 function normalizeTarget(urlObj: URL) {
@@ -115,7 +108,22 @@ async function postDataForSEO<T>(path: string, payload: Record<string, unknown>[
 	return response.data;
 }
 
-async function createTask(urlObj: URL) {
+async function getDataForSEO<T>(path: string) {
+	const authorization = credentialHeader();
+	if (!authorization) throw new Error('DATAFORSEO_API_KEY is not configured.');
+
+	const response = await axios.get<DataForSEOResponse<T>>(`${API_BASE}${path}`, {
+		headers: {
+			Authorization: authorization,
+			'Content-Type': 'application/json'
+		},
+		timeout: 120000
+	});
+	return response.data;
+}
+
+export async function createDataForSEOCrawlTask(urlObj: URL) {
+	const faqUrl = new URL('/faq', urlObj.origin).href;
 	const data = await postDataForSEO('/on_page/task_post', [
 		{
 			target: normalizeTarget(urlObj),
@@ -123,7 +131,8 @@ async function createTask(urlObj: URL) {
 			max_crawl_pages: maxCrawlPages(),
 			load_resources: true,
 			enable_javascript: true,
-			force_sitewide_checks: true
+			force_sitewide_checks: true,
+			priority_urls: [urlObj.href, faqUrl]
 		}
 	]);
 	const task = data.tasks?.[0];
@@ -133,13 +142,22 @@ async function createTask(urlObj: URL) {
 	return task.id;
 }
 
-async function getSummary(id: string) {
-	const data = await postDataForSEO<CrawlSummary>('/on_page/summary', [{ id }]);
+export async function isDataForSEOCrawlTaskReady(id: string) {
+	const data = await getDataForSEO<DataForSEOReadyTask>('/on_page/tasks_ready');
 	const task = data.tasks?.[0];
-	if (isQueuedTask(task)) return null;
+	const error = taskError(task, 'DataForSEO tasks_ready request failed.');
+	if (error) throw new Error(error);
+	return Boolean(task?.result?.some((readyTask) => readyTask.id === id));
+}
+
+async function getSummary(id: string) {
+	const data = await getDataForSEO<CrawlSummary>(`/on_page/summary/${encodeURIComponent(id)}`);
+	const task = data.tasks?.[0];
 	const error = taskError(task, 'DataForSEO summary request failed.');
 	if (error) throw new Error(error);
-	return task?.result?.[0] ?? null;
+	const summary = task?.result?.[0] ?? null;
+	if (!summary) throw new Error('DataForSEO did not return crawl summary.');
+	return summary;
 }
 
 async function getPages(id: string) {
@@ -173,62 +191,48 @@ function samePageUrl(left: string, right: string) {
 	return left.replace(/\/$/, '') === right.replace(/\/$/, '');
 }
 
-function sleep(ms: number) {
-	return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-export async function runDataForSEOCrawl(
+export async function collectDataForSEOCrawl(
 	urlObj: URL,
+	id: string,
 	logger: AuditLogger
 ): Promise<DataForSEOCrawl> {
-	const id = await createTask(urlObj);
 	const faqUrl = new URL('/faq', urlObj.origin).href;
-	logger.info(`crawl: DataForSEO task created ${id}`);
+	const summary = await getSummary(id);
+	const status = summary.crawl_status;
+	logger.info(
+		`crawl: DataForSEO finished crawled=${status?.pages_crawled ?? 0} queue=${status?.pages_in_queue ?? 0}`
+	);
 
-	for (let attempt = 1; attempt <= pollAttempts(); attempt += 1) {
-		const summary = await getSummary(id);
-		const progress = summary?.crawl_progress || 'unknown';
-		const status = summary?.crawl_status;
-		logger.info(
-			`crawl: DataForSEO ${progress} attempt ${attempt}/${pollAttempts()} crawled=${status?.pages_crawled ?? 0} queue=${status?.pages_in_queue ?? 0}`
-		);
-
-		if (progress === 'finished') {
-			const pages = await getPages(id);
-			if (!pages.some((page) => page.url && samePageUrl(page.url, faqUrl))) {
-				try {
-					logger.info(`crawl: DataForSEO checking FAQ page ${faqUrl}`);
-					const faqPage = await getInstantPage(faqUrl);
-					if (faqPage?.url) pages.push(faqPage);
-				} catch (error) {
-					const message = error instanceof Error ? error.message : String(error);
-					logger.warn(`crawl: DataForSEO FAQ page check failed (${message})`);
-					pages.push({
-						resource_type: 'html',
-						status_code: 0,
-						url: faqUrl,
-						checks: {}
-					});
-				}
-			}
-			const links = pages
-				.map((page) => page.url)
-				.filter((url): url is string => Boolean(url))
-				.filter((url) => url !== urlObj.href && url !== urlObj.href.replace(/\/$/, ''));
-			return {
-				id,
-				homepage: pages.find((page) => page.url === urlObj.href)?.url || urlObj.href,
-				faqUrl,
-				links,
-				pages,
-				summary
-			};
+	const pages = await getPages(id);
+	if (!pages.some((page) => page.url && samePageUrl(page.url, faqUrl))) {
+		try {
+			logger.info(`crawl: DataForSEO checking FAQ page ${faqUrl}`);
+			const faqPage = await getInstantPage(faqUrl);
+			if (faqPage?.url) pages.push(faqPage);
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			logger.warn(`crawl: DataForSEO FAQ page check failed (${message})`);
+			pages.push({
+				resource_type: 'html',
+				status_code: 0,
+				url: faqUrl,
+				checks: {}
+			});
 		}
-
-		await sleep(pollIntervalMs());
 	}
 
-	throw new Error('DataForSEO crawl did not finish before timeout.');
+	const links = pages
+		.map((page) => page.url)
+		.filter((url): url is string => Boolean(url))
+		.filter((url) => url !== urlObj.href && url !== urlObj.href.replace(/\/$/, ''));
+	return {
+		id,
+		homepage: pages.find((page) => page.url === urlObj.href)?.url || urlObj.href,
+		faqUrl,
+		links,
+		pages,
+		summary
+	};
 }
 
 function pageTitle(page: DataForSEOPage) {
