@@ -28,6 +28,14 @@ function auditSortTimestamp(audit: Record<string, unknown>) {
 	return String(audit.queued_at || audit.created_at || audit.updated_at || audit.id || '');
 }
 
+const AUDITS_PER_PAGE = 25;
+
+function parsePage(value: string | null) {
+	const page = Number(value || 1);
+	if (!Number.isFinite(page)) return 1;
+	return Math.max(1, Math.floor(page));
+}
+
 function parseCreateRows(data: FormData) {
 	const domains = data.getAll('domains').map((value) => String(value || '').trim());
 	const displayDomains = data.getAll('displayDomains').map((value) => String(value || '').trim());
@@ -49,7 +57,15 @@ function parseCreateRows(data: FormData) {
 
 export const load = async ({ locals, url }) => {
 	const query = String(url.searchParams.get('q') || '').trim();
-	const audits = await listAudits(query, locals.pbToken);
+	const page = parsePage(url.searchParams.get('page'));
+	const auditPage = await listAudits(query, { page, perPage: AUDITS_PER_PAGE }, locals.pbToken);
+	const audits = auditPage.items;
+
+	if (auditPage.totalPages > 0 && page > auditPage.totalPages) {
+		const params = new URLSearchParams(url.searchParams);
+		params.set('page', String(auditPage.totalPages));
+		throw redirect(303, `/audits?${params.toString()}`);
+	}
 
 	const hydratedAudits = await Promise.all(
 		audits.map(async (audit) => {
@@ -102,7 +118,13 @@ export const load = async ({ locals, url }) => {
 	return {
 		audits: sortedAudits,
 		websites: [...websiteGroups.values()],
-		query
+		query,
+		pagination: {
+			page: auditPage.page,
+			perPage: auditPage.perPage,
+			totalItems: auditPage.totalItems,
+			totalPages: auditPage.totalPages
+		}
 	};
 };
 

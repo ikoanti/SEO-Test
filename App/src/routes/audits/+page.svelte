@@ -1,7 +1,17 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import { Check, Pencil, Plus, RotateCw, Search, Trash2, X } from 'lucide-svelte';
+	import {
+		Check,
+		ChevronLeft,
+		ChevronRight,
+		Pencil,
+		Plus,
+		RotateCw,
+		Search,
+		Trash2,
+		X
+	} from 'lucide-svelte';
 	import { onMount, tick } from 'svelte';
 	import type { ActionData } from './$types';
 
@@ -28,12 +38,23 @@
 		displayDomain: string;
 		domain: string;
 	};
+	type PaginationData = {
+		page: number;
+		perPage: number;
+		totalItems: number;
+		totalPages: number;
+	};
 
 	let {
 		data,
 		form
 	}: {
-		data: { audits: AuditListItem[]; websites: WebsiteGroup[]; query: string };
+		data: {
+			audits: AuditListItem[];
+			websites: WebsiteGroup[];
+			query: string;
+			pagination: PaginationData;
+		};
 		form?: ActionData;
 	} = $props();
 	let refreshInterval: number | undefined;
@@ -173,6 +194,24 @@
 		return `${dateText}, ${timeText}`;
 	}
 
+	function paginationHref(page: number) {
+		const params = new URLSearchParams();
+		if (data.query) params.set('q', data.query);
+		if (page > 1) params.set('page', String(page));
+		const query = params.toString();
+		return resolve(query ? `/audits?${query}` : '/audits');
+	}
+
+	function paginationRangeText() {
+		if (data.pagination.totalItems === 0) return '0 audits';
+		const start = (data.pagination.page - 1) * data.pagination.perPage + 1;
+		const end = Math.min(
+			data.pagination.page * data.pagination.perPage,
+			data.pagination.totalItems
+		);
+		return `${start}-${end} of ${data.pagination.totalItems}`;
+	}
+
 	function editWebsiteDomain(website: WebsiteGroup['website']) {
 		const websiteId = website.id;
 		if (!websiteId) return;
@@ -260,6 +299,37 @@
 		{/if}
 	</form>
 </section>
+
+{#if data.pagination.totalPages > 1}
+	<nav class="audit-pagination audit-pagination-top" aria-label="Audit pages">
+		<span class="pagination-count">{paginationRangeText()}</span>
+		<div class="pagination-actions">
+			<a
+				class:disabled-pagination={data.pagination.page <= 1}
+				class="pagination-link"
+				href={data.pagination.page > 1 ? paginationHref(data.pagination.page - 1) : undefined}
+				aria-disabled={data.pagination.page <= 1}
+			>
+				<ChevronLeft size={16} />
+				<span>Previous</span>
+			</a>
+			<span class="pagination-page"
+				>Page {data.pagination.page} of {data.pagination.totalPages}</span
+			>
+			<a
+				class:disabled-pagination={data.pagination.page >= data.pagination.totalPages}
+				class="pagination-link"
+				href={data.pagination.page < data.pagination.totalPages
+					? paginationHref(data.pagination.page + 1)
+					: undefined}
+				aria-disabled={data.pagination.page >= data.pagination.totalPages}
+			>
+				<span>Next</span>
+				<ChevronRight size={16} />
+			</a>
+		</div>
+	</nav>
+{/if}
 
 {#if form?.createError}
 	<p class="error toolbar-error">{form.createError}</p>
@@ -367,6 +437,37 @@
 		</div>
 	{/if}
 </section>
+
+{#if data.pagination.totalPages > 1}
+	<nav class="audit-pagination" aria-label="Audit pages">
+		<span class="pagination-count">{paginationRangeText()}</span>
+		<div class="pagination-actions">
+			<a
+				class:disabled-pagination={data.pagination.page <= 1}
+				class="pagination-link"
+				href={data.pagination.page > 1 ? paginationHref(data.pagination.page - 1) : undefined}
+				aria-disabled={data.pagination.page <= 1}
+			>
+				<ChevronLeft size={16} />
+				<span>Previous</span>
+			</a>
+			<span class="pagination-page"
+				>Page {data.pagination.page} of {data.pagination.totalPages}</span
+			>
+			<a
+				class:disabled-pagination={data.pagination.page >= data.pagination.totalPages}
+				class="pagination-link"
+				href={data.pagination.page < data.pagination.totalPages
+					? paginationHref(data.pagination.page + 1)
+					: undefined}
+				aria-disabled={data.pagination.page >= data.pagination.totalPages}
+			>
+				<span>Next</span>
+				<ChevronRight size={16} />
+			</a>
+		</div>
+	</nav>
+{/if}
 
 {#if createSheetOpen}
 	<div class="sheet-backdrop" role="presentation" onclick={closeCreateSheet}></div>
@@ -519,6 +620,60 @@
 
 	.audit-search-form {
 		width: 100%;
+	}
+
+	.audit-pagination {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 14px;
+		margin-top: 20px;
+		color: var(--text-muted);
+	}
+
+	.audit-pagination-top {
+		margin: -8px 0 18px;
+	}
+
+	.pagination-actions {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+	}
+
+	.pagination-link,
+	.pagination-page {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-height: 40px;
+		border: 1px solid rgba(148, 163, 184, 0.22);
+		border-radius: 999px;
+		background: rgba(15, 23, 42, 0.72);
+		color: var(--text-main);
+		font-size: 0.92rem;
+		font-weight: 700;
+		text-decoration: none;
+	}
+
+	.pagination-link {
+		gap: 6px;
+		padding: 0 14px;
+	}
+
+	.pagination-page {
+		padding: 0 16px;
+		color: var(--text-muted);
+	}
+
+	.pagination-count {
+		font-size: 0.92rem;
+		font-weight: 700;
+	}
+
+	.disabled-pagination {
+		opacity: 0.48;
+		pointer-events: none;
 	}
 
 	.website-list {
@@ -932,6 +1087,22 @@
 	}
 
 	@media (max-width: 640px) {
+		.audit-pagination {
+			align-items: stretch;
+			flex-direction: column;
+		}
+
+		.pagination-actions {
+			display: grid;
+			grid-template-columns: 1fr;
+			align-items: stretch;
+		}
+
+		.pagination-link,
+		.pagination-page {
+			width: 100%;
+		}
+
 		.audit-create-sheet {
 			width: calc(100% - 24px);
 			padding: 22px;

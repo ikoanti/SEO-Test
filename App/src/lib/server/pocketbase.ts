@@ -445,24 +445,28 @@ export async function createAuditRecord(
 	});
 }
 
-export async function listAudits(searchQuery: string, token?: string) {
+export async function listAudits(
+	searchQuery: string,
+	options: { page?: number; perPage?: number } = {},
+	token?: string
+) {
 	const pb = createAuthedClient(token);
-	const audits = await pb.collection(AUDITS_COLLECTION).getFullList({
-		expand: 'website'
-	});
-
 	const query = searchQuery.trim().toLowerCase();
-	if (!query) return audits;
+	const page = Math.max(1, Math.floor(options.page || 1));
+	const perPage = Math.max(1, Math.floor(options.perPage || 25));
+	const filter = query
+		? [
+				`website.url ~ "${escapeFilterValue(query)}"`,
+				`website.domain ~ "${escapeFilterValue(query)}"`,
+				`website.display_name ~ "${escapeFilterValue(query)}"`,
+				`status ~ "${escapeFilterValue(query)}"`
+			].join(' || ')
+		: undefined;
 
-	return audits.filter((audit) => {
-		const website = (
-			audit.expand as
-				| { website?: { url?: string; domain?: string; display_name?: string } }
-				| undefined
-		)?.website;
-		return [website?.url, website?.domain, website?.display_name, audit.status]
-			.filter(Boolean)
-			.some((value) => String(value).toLowerCase().includes(query));
+	return pb.collection(AUDITS_COLLECTION).getList(page, perPage, {
+		expand: 'website',
+		sort: '-created_at',
+		...(filter ? { filter } : {})
 	});
 }
 
