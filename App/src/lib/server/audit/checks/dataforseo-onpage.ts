@@ -1,4 +1,5 @@
 import axios from 'axios';
+import type { AuditCaptureRequest } from '$lib/server/audit-capture';
 import type { AuditLogger, AuditSummary } from '../shared';
 import { addItem, createListResult } from '../shared';
 
@@ -153,6 +154,17 @@ function taskError(task: DataForSEOTask<unknown> | undefined, fallback: string) 
 
 function normalizeTarget(urlObj: URL) {
 	return urlObj.hostname.replace(/^www\./i, '');
+}
+
+function attachScreenshotRequest(
+	item: Record<string, unknown> | undefined,
+	request: AuditCaptureRequest
+) {
+	if (!item) return;
+	item.meta = {
+		...((item.meta as Record<string, unknown> | undefined) || {}),
+		screenshotRequest: request
+	};
 }
 
 async function postDataForSEO<T>(path: string, payload: Record<string, unknown>[]) {
@@ -397,6 +409,14 @@ export function analyzeDataForSEOHomePage(
 export function analyzeDataForSEORobots(crawl: DataForSEOCrawl, summary: AuditSummary) {
 	const result = createListResult();
 	const checks = crawl.summary?.checks || {};
+	const storefrontUrl = (() => {
+		try {
+			return new URL(crawl.homepage).origin;
+		} catch {
+			return crawl.homepage;
+		}
+	})();
+	const robotsUrl = `${storefrontUrl.replace(/\/$/, '')}/robots.txt`;
 
 	addItem(
 		summary,
@@ -425,6 +445,24 @@ export function analyzeDataForSEORobots(crawl: DataForSEOCrawl, summary: AuditSu
 	result.stats = checks.robots_txt
 		? 'DataForSEO detected robots.txt metadata.'
 		: 'DataForSEO did not detect robots.txt.';
+
+	const warningItems = result.items.filter((item) => item.status === 'warn');
+	if (warningItems.length) {
+		attachScreenshotRequest(warningItems[0], {
+			kind: 'robots',
+			reportTemplateKey: 'ai-chatbots-llms-not-whitelisted',
+			title: 'AI Chatbots/LLMs Not Whitelisted',
+			domain: normalizeTarget(new URL(storefrontUrl)),
+			robotsUrl,
+			storefrontUrl: `${storefrontUrl.replace(/\/$/, '')}/`,
+			foundAgents: [],
+			entries: warningItems.map((item) => ({
+				issue: String(item.detail || item.title || 'AI crawler visibility issue'),
+				status: item.status
+			})),
+			count: warningItems.length
+		});
+	}
 
 	return result;
 }
