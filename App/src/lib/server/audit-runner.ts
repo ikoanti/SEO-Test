@@ -1,6 +1,7 @@
 import {
 	collectSubmittedDataForSEOCrawl,
 	isSubmittedDataForSEOCrawlReady,
+	isDataForSEORateLimitError,
 	runAuditAfterDataForSEOCrawl,
 	submitDataForSEOCrawlTask
 } from '$lib/server/audit';
@@ -104,6 +105,9 @@ const STALE_RUNNING_WORKFLOW_MS = Number(process.env.AUDIT_STALE_RUNNING_WORKFLO
 const AUDIT_ENGINE_TIMEOUT_MS = Number(process.env.AUDIT_ENGINE_TIMEOUT_MS || 20 * 60 * 1000);
 const DATAFORSEO_READY_CHECK_INTERVAL_MS = Number(
 	process.env.DATAFORSEO_READY_CHECK_INTERVAL_MS || 60 * 1000
+);
+const DATAFORSEO_RATE_LIMIT_RETRY_MS = Number(
+	process.env.DATAFORSEO_RATE_LIMIT_RETRY_MS || DATAFORSEO_READY_CHECK_INTERVAL_MS
 );
 const SCREENSHOT_JOB_TIMEOUT_MS = Number(process.env.AUDIT_SCREENSHOT_JOB_TIMEOUT_MS || 90 * 1000);
 const SCREENSHOT_PHASE_TIMEOUT_MS = Number(
@@ -1372,13 +1376,16 @@ async function finalizeUnsyncedRuns(
 	}
 }
 
-function scheduleDataForSEOReadyCheck(payload: QueuePayload) {
+function scheduleDataForSEOReadyCheck(
+	payload: QueuePayload,
+	delayMs = DATAFORSEO_READY_CHECK_INTERVAL_MS
+) {
 	if (state.queuedDataForSEOChecks.has(payload.workflowId)) return;
 	state.queuedDataForSEOChecks.add(payload.workflowId);
 	const timer = setTimeout(() => {
 		state.queuedDataForSEOChecks.delete(payload.workflowId);
 		queueAuditWorkflow(payload);
-	}, DATAFORSEO_READY_CHECK_INTERVAL_MS);
+	}, delayMs);
 	timer.unref?.();
 }
 
@@ -1528,6 +1535,43 @@ async function processAuditWorkflow({ workflowId, auditId, url, token }: QueuePa
 	} catch (error) {
 		workflowTimedOut = true;
 		const message = formatAuditError(error);
+
+		if (isDataForSEORateLimitError(error)) {
+			const retryDelayMs = Math.max(1000, error.retryAfterMs || DATAFORSEO_RATE_LIMIT_RETRY_MS);
+			runLog = appendLog(
+				runLog,
+				`DataForSEO rate limit reached; workflow queued to retry in ${Math.ceil(
+					retryDelayMs / 1000
+				)} seconds.`
+			);
+			const checkedAt = timestamp();
+			const updates = await Promise.allSettled([
+				updateAuditRecord(auditId, { status: 'queued' }, token),
+				updateWorkflowRecord(
+					workflowId,
+					{
+						status: 'queued',
+						dataforseo_last_checked_at: checkedAt,
+						error_message: message,
+						run_log: runLog
+					},
+					token
+				)
+			]);
+
+			for (const update of updates) {
+				if (update.status === 'rejected') {
+					console.error(
+						`[audit-runner] failed to persist rate-limit retry state for ${workflowId}:`,
+						formatPocketBaseError(update.reason)
+					);
+				}
+			}
+
+			scheduleDataForSEOReadyCheck({ workflowId, auditId, url, token }, retryDelayMs);
+			return;
+		}
+
 		runLog = appendLog(runLog, `Workflow failed: ${message}`);
 
 		const failedAt = timestamp();

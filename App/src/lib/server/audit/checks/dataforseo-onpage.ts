@@ -10,6 +10,8 @@ type DataForSEOTask<T = unknown> = {
 };
 
 type DataForSEOResponse<T = unknown> = {
+	status_code?: number;
+	status_message?: string;
 	tasks?: Array<DataForSEOTask<T>>;
 };
 
@@ -61,6 +63,21 @@ export type DataForSEOCrawl = {
 };
 
 const API_BASE = 'https://api.dataforseo.com/v3';
+const DATAFORSEO_RATE_LIMIT_CODE = 40202;
+
+export class DataForSEORateLimitError extends Error {
+	retryAfterMs: number;
+
+	constructor(message: string, retryAfterMs = 60 * 1000) {
+		super(message);
+		this.name = 'DataForSEORateLimitError';
+		this.retryAfterMs = retryAfterMs;
+	}
+}
+
+export function isDataForSEORateLimitError(error: unknown): error is DataForSEORateLimitError {
+	return error instanceof DataForSEORateLimitError;
+}
 
 function credentialHeader() {
 	const apiKey = process.env.DATAFORSEO_API_KEY?.trim();
@@ -82,12 +99,43 @@ function maxCrawlPages() {
 	return Number.isFinite(value) ? Math.max(1, Math.min(200, Math.trunc(value))) : 50;
 }
 
-function taskError(task: DataForSEOTask<unknown> | undefined, fallback: string) {
-	if (!task) return fallback;
-	if (task.status_code && task.status_code >= 40000) {
-		return `${task.status_message || fallback} (${task.status_code})`;
+function isDataForSEORateLimit(statusCode?: number, statusMessage = '') {
+	return (
+		statusCode === DATAFORSEO_RATE_LIMIT_CODE ||
+		/rates?\s+limit|rate\s+limit|too many requests/i.test(statusMessage)
+	);
+}
+
+function dataForSEOError(
+	statusCode: number | undefined,
+	statusMessage: string | undefined,
+	fallback: string
+) {
+	const message =
+		statusCode && statusCode >= 40000
+			? `${statusMessage || fallback} (${statusCode})`
+			: statusMessage || fallback;
+
+	if (isDataForSEORateLimit(statusCode, message)) {
+		return new DataForSEORateLimitError(message);
 	}
-	return '';
+
+	return new Error(message);
+}
+
+function responseError(response: DataForSEOResponse<unknown>, fallback: string) {
+	if (response.status_code && response.status_code >= 40000) {
+		return dataForSEOError(response.status_code, response.status_message, fallback);
+	}
+	return null;
+}
+
+function taskError(task: DataForSEOTask<unknown> | undefined, fallback: string) {
+	if (!task) return new Error(fallback);
+	if (task.status_code && task.status_code >= 40000) {
+		return dataForSEOError(task.status_code, task.status_message, fallback);
+	}
+	return null;
 }
 
 function normalizeTarget(urlObj: URL) {
@@ -98,13 +146,17 @@ async function postDataForSEO<T>(path: string, payload: Record<string, unknown>[
 	const authorization = credentialHeader();
 	if (!authorization) throw new Error('DATAFORSEO_API_KEY is not configured.');
 
-	const response = await axios.post<DataForSEOResponse<T>>(`${API_BASE}${path}`, payload, {
-		headers: {
-			Authorization: authorization,
-			'Content-Type': 'application/json'
-		},
-		timeout: 120000
-	});
+	const response = await requestDataForSEO(() =>
+		axios.post<DataForSEOResponse<T>>(`${API_BASE}${path}`, payload, {
+			headers: {
+				Authorization: authorization,
+				'Content-Type': 'application/json'
+			},
+			timeout: 120000
+		})
+	);
+	const error = responseError(response.data, 'DataForSEO request failed.');
+	if (error) throw error;
 	return response.data;
 }
 
@@ -112,14 +164,44 @@ async function getDataForSEO<T>(path: string) {
 	const authorization = credentialHeader();
 	if (!authorization) throw new Error('DATAFORSEO_API_KEY is not configured.');
 
-	const response = await axios.get<DataForSEOResponse<T>>(`${API_BASE}${path}`, {
-		headers: {
-			Authorization: authorization,
-			'Content-Type': 'application/json'
-		},
-		timeout: 120000
-	});
+	const response = await requestDataForSEO(() =>
+		axios.get<DataForSEOResponse<T>>(`${API_BASE}${path}`, {
+			headers: {
+				Authorization: authorization,
+				'Content-Type': 'application/json'
+			},
+			timeout: 120000
+		})
+	);
+	const error = responseError(response.data, 'DataForSEO request failed.');
+	if (error) throw error;
 	return response.data;
+}
+
+async function requestDataForSEO<T>(request: () => Promise<T>) {
+	try {
+		return await request();
+	} catch (error) {
+		if (axios.isAxiosError(error)) {
+			const statusCode = Number(error.response?.status || 0);
+			const responseData = error.response?.data as
+				| { status_code?: number; status_message?: string; message?: string }
+				| undefined;
+			const providerStatusCode = responseData?.status_code;
+			const providerMessage =
+				responseData?.status_message || responseData?.message || error.message;
+
+			if (
+				statusCode === 429 ||
+				isDataForSEORateLimit(providerStatusCode, providerMessage) ||
+				isDataForSEORateLimit(undefined, error.message)
+			) {
+				throw new DataForSEORateLimitError(providerMessage || error.message);
+			}
+		}
+
+		throw error;
+	}
 }
 
 export async function createDataForSEOCrawlTask(urlObj: URL) {
@@ -137,7 +219,7 @@ export async function createDataForSEOCrawlTask(urlObj: URL) {
 	]);
 	const task = data.tasks?.[0];
 	const error = taskError(task, 'DataForSEO did not accept the crawl task.');
-	if (error) throw new Error(error);
+	if (error) throw error;
 	if (!task?.id) throw new Error('DataForSEO did not return a crawl task id.');
 	return task.id;
 }
@@ -146,7 +228,7 @@ export async function isDataForSEOCrawlTaskReady(id: string) {
 	const data = await getDataForSEO<DataForSEOReadyTask>('/on_page/tasks_ready');
 	const task = data.tasks?.[0];
 	const error = taskError(task, 'DataForSEO tasks_ready request failed.');
-	if (error) throw new Error(error);
+	if (error) throw error;
 	return Boolean(task?.result?.some((readyTask) => readyTask.id === id));
 }
 
@@ -154,7 +236,7 @@ async function getSummary(id: string) {
 	const data = await getDataForSEO<CrawlSummary>(`/on_page/summary/${encodeURIComponent(id)}`);
 	const task = data.tasks?.[0];
 	const error = taskError(task, 'DataForSEO summary request failed.');
-	if (error) throw new Error(error);
+	if (error) throw error;
 	const summary = task?.result?.[0] ?? null;
 	if (!summary) throw new Error('DataForSEO did not return crawl summary.');
 	return summary;
@@ -170,7 +252,7 @@ async function getPages(id: string) {
 	]);
 	const task = data.tasks?.[0];
 	const error = taskError(task, 'DataForSEO pages request failed.');
-	if (error) throw new Error(error);
+	if (error) throw error;
 	return task?.result?.[0]?.items ?? [];
 }
 
@@ -183,7 +265,7 @@ async function getInstantPage(url: string) {
 	]);
 	const task = data.tasks?.[0];
 	const error = taskError(task, 'DataForSEO instant page request failed.');
-	if (error) throw new Error(error);
+	if (error) throw error;
 	return task?.result?.[0]?.items?.[0] ?? null;
 }
 

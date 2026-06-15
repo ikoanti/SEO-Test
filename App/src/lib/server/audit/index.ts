@@ -7,10 +7,13 @@ import {
 	createDataForSEOCrawlTask,
 	type DataForSEOCrawl,
 	isDataForSEOConfigured,
+	isDataForSEORateLimitError,
 	isDataForSEOCrawlTaskReady
 } from './checks/dataforseo-onpage';
 import { analyzePageSpeed } from './checks/pagespeed';
 import { cloneAuditSnapshot, createLogger, createSummary, normalizeUrl, runStep } from './shared';
+
+export { isDataForSEORateLimitError };
 
 type AuditHandlers = {
 	onStepStart?: (label: string) => Promise<void> | void;
