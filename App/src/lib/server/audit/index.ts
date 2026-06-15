@@ -1,6 +1,5 @@
 import {
 	analyzeDataForSEOHomePage,
-	analyzeDataForSEOLlmsTxt,
 	analyzeDataForSEOPages,
 	analyzeDataForSEORobots,
 	collectDataForSEOCrawl,
@@ -11,6 +10,7 @@ import {
 	isDataForSEOCrawlTaskReady
 } from './checks/dataforseo-onpage';
 import { analyzePageSpeed } from './checks/pagespeed';
+import { analyzeLlmsTxt } from './checks/robots';
 import { cloneAuditSnapshot, createLogger, createSummary, normalizeUrl, runStep } from './shared';
 
 export { isDataForSEORateLimitError };
@@ -89,7 +89,9 @@ export async function runAuditAfterDataForSEOCrawl(
 		analyzeDataForSEORobots(dataForSEOCrawl, summary)
 	);
 	partialAudit.robotsTxt = robotsTxt;
-	const llmsTxt = await runStep(logger, 'llms.txt', () => analyzeDataForSEOLlmsTxt(summary));
+	const llmsTxt = await runStep(logger, 'llms.txt', () =>
+		analyzeLlmsTxt(urlObj.origin, summary, logger)
+	);
 	partialAudit.llmsTxt = llmsTxt;
 	await notifyStepComplete('robots');
 

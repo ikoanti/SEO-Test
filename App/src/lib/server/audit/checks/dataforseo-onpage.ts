@@ -467,15 +467,6 @@ export function analyzeDataForSEORobots(crawl: DataForSEOCrawl, summary: AuditSu
 	return result;
 }
 
-export function analyzeDataForSEOLlmsTxt(summary: AuditSummary) {
-	const result = createListResult();
-
-	addItem(summary, result, 'info', 'LLMs.txt content check removed from direct crawler path.');
-	result.stats = 'LLMs.txt is not fetched directly; audit uses DataForSEO crawl data only.';
-
-	return result;
-}
-
 export function analyzeDataForSEOPages(crawl: DataForSEOCrawl, summary: AuditSummary) {
 	const missingH1Tags = createListResult();
 	const multipleH1Tags = createListResult();
