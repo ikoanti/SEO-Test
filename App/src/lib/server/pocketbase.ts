@@ -603,6 +603,20 @@ export async function getWorkflowByAuditId(auditId: string, token?: string) {
 	});
 }
 
+export async function countActiveDataForSEOWorkflows(token?: string) {
+	const pb = createAuthedClient(token);
+	const workflows = await pb.collection(WORKFLOWS_COLLECTION).getFullList({
+		filter: 'status = "queued" || status = "running"',
+		fields: 'id,dataforseo_task_id,dataforseo_task_ready_at'
+	});
+
+	return workflows.filter(
+		(workflow) =>
+			Boolean(String(workflow.dataforseo_task_id || '').trim()) &&
+			!String(workflow.dataforseo_task_ready_at || '').trim()
+	).length;
+}
+
 export async function updateWorkflowRecord(
 	workflowId: string,
 	input: {

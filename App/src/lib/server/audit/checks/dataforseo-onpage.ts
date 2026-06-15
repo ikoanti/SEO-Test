@@ -68,7 +68,7 @@ const DATAFORSEO_RATE_LIMIT_CODE = 40202;
 export class DataForSEORateLimitError extends Error {
 	retryAfterMs: number;
 
-	constructor(message: string, retryAfterMs = 60 * 1000) {
+	constructor(message: string, retryAfterMs = 65 * 1000) {
 		super(message);
 		this.name = 'DataForSEORateLimitError';
 		this.retryAfterMs = retryAfterMs;
@@ -128,6 +128,19 @@ function responseError(response: DataForSEOResponse<unknown>, fallback: string) 
 		return dataForSEOError(response.status_code, response.status_message, fallback);
 	}
 	return null;
+}
+
+function retryAfterMs(value: unknown) {
+	const raw = Array.isArray(value) ? value[0] : value;
+	if (typeof raw !== 'string') return undefined;
+
+	const seconds = Number(raw);
+	if (Number.isFinite(seconds)) return Math.max(1000, seconds * 1000);
+
+	const dateMs = Date.parse(raw);
+	if (Number.isFinite(dateMs)) return Math.max(1000, dateMs - Date.now());
+
+	return undefined;
 }
 
 function taskError(task: DataForSEOTask<unknown> | undefined, fallback: string) {
@@ -196,7 +209,10 @@ async function requestDataForSEO<T>(request: () => Promise<T>) {
 				isDataForSEORateLimit(providerStatusCode, providerMessage) ||
 				isDataForSEORateLimit(undefined, error.message)
 			) {
-				throw new DataForSEORateLimitError(providerMessage || error.message);
+				throw new DataForSEORateLimitError(
+					providerMessage || error.message,
+					retryAfterMs(error.response?.headers?.['retry-after'])
+				);
 			}
 		}
 

@@ -16,6 +16,7 @@ import { runAuditCaptureRequest, type AuditCaptureRequest } from '$lib/server/au
 import {
 	createAuditFindingRecord,
 	createAuditScreenshotRecord,
+	countActiveDataForSEOWorkflows,
 	deleteAuditFindingsByRunId,
 	getOrCreateAuditFindingTypeRecord,
 	getOrCreateRunRecord,
@@ -36,6 +37,7 @@ type QueuePayload = {
 
 type AuditRunnerState = {
 	activeWorkflows: Set<string>;
+	pendingWorkflows: Map<string, QueuePayload>;
 	queuedDataForSEOChecks: Set<string>;
 };
 
@@ -89,8 +91,10 @@ const state = ((
 	globalThis as typeof globalThis & { __auditRunnerState?: AuditRunnerState }
 ).__auditRunnerState ??= {
 	activeWorkflows: new Set<string>(),
+	pendingWorkflows: new Map<string, QueuePayload>(),
 	queuedDataForSEOChecks: new Set<string>()
 });
+state.pendingWorkflows ??= new Map<string, QueuePayload>();
 
 const screenshotQueueState = ((
 	globalThis as typeof globalThis & { __auditScreenshotQueueState?: ScreenshotQueueState }
@@ -107,8 +111,12 @@ const DATAFORSEO_READY_CHECK_INTERVAL_MS = Number(
 	process.env.DATAFORSEO_READY_CHECK_INTERVAL_MS || 60 * 1000
 );
 const DATAFORSEO_RATE_LIMIT_RETRY_MS = Number(
-	process.env.DATAFORSEO_RATE_LIMIT_RETRY_MS || DATAFORSEO_READY_CHECK_INTERVAL_MS
+	process.env.DATAFORSEO_RATE_LIMIT_RETRY_MS || 65 * 1000
 );
+const configuredMaxActiveAuditWorkflows = Number(process.env.AUDIT_MAX_ACTIVE_WORKFLOWS || 17);
+const MAX_ACTIVE_AUDIT_WORKFLOWS = Number.isFinite(configuredMaxActiveAuditWorkflows)
+	? Math.max(1, Math.trunc(configuredMaxActiveAuditWorkflows))
+	: 17;
 const SCREENSHOT_JOB_TIMEOUT_MS = Number(process.env.AUDIT_SCREENSHOT_JOB_TIMEOUT_MS || 90 * 1000);
 const SCREENSHOT_PHASE_TIMEOUT_MS = Number(
 	process.env.AUDIT_SCREENSHOT_PHASE_TIMEOUT_MS || 3 * 60 * 1000
@@ -1411,6 +1419,26 @@ async function processAuditWorkflow({ workflowId, auditId, url, token }: QueuePa
 		await updateAuditRecord(auditId, { status: 'running' }, token);
 
 		if (!dataForSEOTaskId) {
+			const activeDataForSEOWorkflows = await countActiveDataForSEOWorkflows(token);
+			if (activeDataForSEOWorkflows >= MAX_ACTIVE_AUDIT_WORKFLOWS) {
+				runLog = appendLog(
+					runLog,
+					`DataForSEO crawl capacity full (${activeDataForSEOWorkflows}/${MAX_ACTIVE_AUDIT_WORKFLOWS}); workflow queued.`
+				);
+				await updateWorkflowRecord(
+					workflowId,
+					{
+						status: 'queued',
+						dataforseo_last_checked_at: timestamp(),
+						error_message: '',
+						run_log: runLog
+					},
+					token
+				);
+				scheduleDataForSEOReadyCheck({ workflowId, auditId, url, token });
+				return;
+			}
+
 			runLog = appendLog(runLog, 'DataForSEO task submission started.');
 			const submittedAt = timestamp();
 			dataForSEOTaskId = await submitDataForSEOCrawlTask(url);
@@ -1552,7 +1580,7 @@ async function processAuditWorkflow({ workflowId, auditId, url, token }: QueuePa
 					{
 						status: 'queued',
 						dataforseo_last_checked_at: checkedAt,
-						error_message: message,
+						error_message: '',
 						run_log: runLog
 					},
 					token
@@ -1600,13 +1628,8 @@ async function processAuditWorkflow({ workflowId, auditId, url, token }: QueuePa
 	}
 }
 
-export function queueAuditWorkflow(payload: QueuePayload) {
-	if (state.activeWorkflows.has(payload.workflowId)) {
-		return;
-	}
-
+function startAuditWorkflow(payload: QueuePayload) {
 	state.activeWorkflows.add(payload.workflowId);
-
 	void processAuditWorkflow(payload)
 		.catch((error) => {
 			console.error(
@@ -1616,7 +1639,35 @@ export function queueAuditWorkflow(payload: QueuePayload) {
 		})
 		.finally(() => {
 			state.activeWorkflows.delete(payload.workflowId);
+			drainPendingAuditWorkflows();
 		});
+}
+
+function drainPendingAuditWorkflows() {
+	while (
+		state.activeWorkflows.size < MAX_ACTIVE_AUDIT_WORKFLOWS &&
+		state.pendingWorkflows.size > 0
+	) {
+		const next = state.pendingWorkflows.values().next().value;
+		if (!next) return;
+		state.pendingWorkflows.delete(next.workflowId);
+		if (state.activeWorkflows.has(next.workflowId)) continue;
+		startAuditWorkflow(next);
+	}
+}
+
+export function queueAuditWorkflow(payload: QueuePayload) {
+	if (state.activeWorkflows.has(payload.workflowId)) {
+		return;
+	}
+
+	if (state.activeWorkflows.size >= MAX_ACTIVE_AUDIT_WORKFLOWS) {
+		state.pendingWorkflows.set(payload.workflowId, payload);
+		return;
+	}
+
+	state.pendingWorkflows.delete(payload.workflowId);
+	startAuditWorkflow(payload);
 }
 
 export function ensureAuditWorkflowProcessing(record: WorkflowRecordLike, token?: string) {
